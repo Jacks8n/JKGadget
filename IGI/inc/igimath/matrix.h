@@ -34,9 +34,7 @@ namespace igi {
             typename = typename std::enable_if<
             std::is_convertible<FromT, T>::value>::type>
             constexpr explicit matrix_base(const matrix_base<Nrow, Ncol, FromT>& o) {
-            foreach(
-                [&](T& e, size_t i, size_t j) { e = static_cast<FromT>(o.get(i, j)); })
-                ;
+            foreach([&](T& e, size_t i, size_t j) { e = static_cast<FromT>(o.get(i, j)); });
         }
 
         matrix_base& operator=(const matrix_base&) = default;
@@ -47,7 +45,7 @@ namespace igi {
         static constexpr matrix_base one(T val = 1) {
             return one_impl(val, std::make_index_sequence<Nrow* Ncol>());
         }
-        
+
         T& get(size_t r, size_t c) { return _elem[r * Ncol + c]; }
 
         constexpr const T& get(size_t r, size_t c) const {
@@ -111,8 +109,8 @@ namespace igi {
         }
 
         template <size_t... Is>
-        constexpr matrix<Nrow, Ncol, T> convert_impl(
-            std::index_sequence<Is...>) const {
+        constexpr matrix<Nrow, Ncol, T>
+            convert_impl(std::index_sequence<Is...>) const {
             return matrix<Nrow, Ncol, T>(_elem[Is]...);
         }
     };
@@ -213,47 +211,33 @@ namespace igi {
 #pragma region Implement
 
     template <size_t R, size_t C, size_t... Rs, size_t... Cs, size_t N, typename T>
-    inline T _cofactor_impl(const matrix<N, N, T>& m,
-                            std::index_sequence<Rs...> rs,
-                            std::index_sequence<Cs...> cs) {
+    inline T _cofactor_impl(const matrix<N, N, T>& m, std::index_sequence<Rs...> rs, std::index_sequence<Cs...> cs) {
         T det = _determinant_impl(m, removeNthInt<R>(rs), removeNthInt<C>(cs));
         return (R + C) % 2 ? -det : det;
     }
 
     template <size_t... Rs, size_t... Cs, size_t N, typename T>
-    inline T _determinant_impl(const matrix<N, N, T>& m,
-                               std::index_sequence<Rs...> rs,
-                               std::index_sequence<Cs...> cs) {
+    inline T _determinant_impl(const matrix<N, N, T>& m, std::index_sequence<Rs...> rs, std::index_sequence<Cs...> cs) {
         if constexpr (sizeof...(Rs) == 1)
-            return get(Rs..., Cs...);
+            return m.get(Rs..., Cs...);
         else
-            return _determinant_impl(m, rs, cs,
-                                     std::make_index_sequence<sizeof...(Rs)>());
+            return _determinant_impl(m, rs, cs, std::make_index_sequence<sizeof...(Rs)>());
     }
 
     template <size_t... Rs, size_t... Cs, size_t... Is, size_t N, typename T>
-    inline T _determinant_impl(const matrix<N, N, T>& m,
-                               std::index_sequence<Rs...> rs,
-                               std::index_sequence<Cs...> cs,
-                               std::index_sequence<Is...>) {
-        return Sum((get(getFirstInt(rs), getNthInt<Is>(cs)) *
-                    _cofactor_impl<0, Is>(m, rs, cs))...);
+    inline T _determinant_impl(const matrix<N, N, T>& m, std::index_sequence<Rs...> rs, std::index_sequence<Cs...> cs, std::index_sequence<Is...>) {
+        return ((m.get(getFirstInt(rs), getNthInt<Is>(cs)) * _cofactor_impl<0, Is>(m, rs, cs)) + ...);
     }
 
     template <size_t R0, size_t... Rs, size_t... Cs, size_t N, typename T>
-    inline void _adjointTranspose_impl(const matrix<N, N, T>& m,
-                                       matrix<N, N, T>& res,
-                                       std::index_sequence<Cs...> cs,
-                                       std::index_sequence<R0, Rs...>) {
+    inline void _adjointTranspose_impl(const matrix<N, N, T>& m, matrix<N, N, T>& res, std::index_sequence<Cs...> cs, std::index_sequence<R0, Rs...>) {
         _adjointTranspose_impl<R0>(m, res, cs);
         if constexpr (sizeof...(Rs) != 0)
             _adjointTranspose_impl(m, res, cs, std::index_sequence<Rs...>());
     }
 
     template <size_t R0, size_t C0, size_t... Cs, size_t N, typename T>
-    inline void _adjointTranspose_impl(const matrix<N, N, T>& m,
-                                       matrix<N, N, T>& res,
-                                       std::index_sequence<C0, Cs...>) {
+    inline void _adjointTranspose_impl(const matrix<N, N, T>& m, matrix<N, N, T>& res, std::index_sequence<C0, Cs...>) {
         res.get(R0, C0) = cofactor<C0, R0>();
         if constexpr (sizeof...(Cs) != 0)
             _adjointTranspose_impl<R0>(m, res, std::index_sequence<Cs...>());
