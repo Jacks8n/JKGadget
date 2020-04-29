@@ -9,11 +9,6 @@ add_library(${PROJECT_NAME} STATIC ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC inc)
 
-target_link_libraries(${PROJECT_NAME} INTERFACE PNGParvus)
+target_link_libraries(${PROJECT_NAME} PNGParvus Reflitest)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-	target_compile_options(IGI PUBLIC "-std=c++17")
-	target_compile_definitions(IGI PUBLIC "_HAS_CXX17" "_HAS_CXX20")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-	target_compile_options(IGI PUBLIC "/std:c++latest")
-endif()
+target_compile_options(IGI PUBLIC ${COMPILE_OPTIONS} "-mavx" "-ffast-math")

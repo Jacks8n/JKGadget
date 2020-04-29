@@ -1,35 +1,33 @@
 #pragma once
 
-#include "igimath/vec.h"
 #include <immintrin.h>
+#include "igimath/vec.h"
 
 namespace igi {
     using mat4x4f = matrix<4, 4, single>;
 
-    template<>
+    template <>
     class alignas(32) matrix<4, 4, float> : public matrix_base<4, 4, float> {
         using matrix_base<4, 4, float>::matrix_base;
 
-    public:
-        matrix() = default;
+      public:
+        matrix()              = default;
         matrix(const matrix&) = default;
-        matrix(matrix&&) = default;
+        matrix(matrix&&)      = default;
 
         matrix& operator=(const matrix&) = default;
         matrix& operator=(matrix&&) = default;
 
         ~matrix() = default;
 
-        static matrix Identity() {
-            return igi::Identity<4, float>();
-        }
+        static matrix Identity() { return igi::Identity<4, float>(); }
 
         vec3f mulPos(const vec3f& p) const {
             vec4f vp(p, 1);
             vp = operator*(vp);
             return static_cast<vec3f>(vp * vp[3]);
         }
-        
+
         vec3f mulVec(const vec3f& v) const {
             vec4f vp(v, 0);
             return static_cast<vec3f>(operator*(vp));
@@ -72,18 +70,14 @@ namespace igi {
             __m256 rcol23_xzyw = _mm256_shuffle_ps(rrow01, rrow23, 0b11101110);
 
             // m21, m22, m41, m42, m11, m12, m31, m32
-            __m256 rcol01_ywxz =
-                _mm256_permute2f128_ps(rcol01_xzyw, rcol01_xzyw, 1);
+            __m256 rcol01_ywxz = _mm256_permute2f128_ps(rcol01_xzyw, rcol01_xzyw, 1);
             // m23, m24, m43, m44, m13, m14, m33, m34
-            __m256 rcol23_ywxz =
-                _mm256_permute2f128_ps(rcol23_xzyw, rcol23_xzyw, 1);
+            __m256 rcol23_ywxz = _mm256_permute2f128_ps(rcol23_xzyw, rcol23_xzyw, 1);
 
             // m22, m21, m42, m41, m12, m11, m32, m31
-            __m256 rcol10_ywxz =
-                _mm256_shuffle_ps(rcol01_ywxz, rcol01_ywxz, 0b10110001);
+            __m256 rcol10_ywxz = _mm256_shuffle_ps(rcol01_ywxz, rcol01_ywxz, 0b10110001);
             // m24, m23, m44, m43, m14, m13, m34, m33
-            __m256 rcol32_ywxz =
-                _mm256_shuffle_ps(rcol23_ywxz, rcol23_ywxz, 0b10110001);
+            __m256 rcol32_ywxz = _mm256_shuffle_ps(rcol23_ywxz, rcol23_ywxz, 0b10110001);
 
             // m11, m21, m31, m41, m12, m22, m32, m42
             __m256 rcol01 = _mm256_blend_ps(rcol01_xzyw, rcol10_ywxz, 0b01011010);
@@ -140,4 +134,4 @@ namespace igi {
             return *this;
         }
     };
-} // namespace igi
+}  // namespace igi

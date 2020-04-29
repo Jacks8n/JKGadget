@@ -1,7 +1,11 @@
 ﻿cmake_minimum_required (VERSION 3.8)
 
+SET(CMAKE_CXX_STANDARD 17)
+SET(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 project (JKGadgets)
 
 add_subdirectory(IGI)
 add_subdirectory(PNGParvus)
+add_subdirectory(Reflitest)
 add_subdirectory(Demo)

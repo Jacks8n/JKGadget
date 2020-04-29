@@ -28,9 +28,9 @@ namespace igi {
     struct palette_rgb {
         using color_t = color_rgb;
 
-        static constexpr color_t white = color_t::one(1.f);
+        static constexpr color_t white = color_t::One(1.f);
 
-        static constexpr color_t black = color_t::one(0.f);
+        static constexpr color_t black = color_t::One(0.f);
     };
 
     template<size_t N>
