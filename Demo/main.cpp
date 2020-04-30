@@ -5,30 +5,8 @@
 #include "igimaterial/material_phong.h"
 #include "igiscene/aggregate_vector.h"
 #include "igiscene/scene.h"
-#include "reflitest.h"
-
-struct st {
-    META_BEGIN(st)
-
-    META(foo, 4.2)
-    double foo;
-
-    META(bar, "hello, world", "It's pointer")
-    st* bar;
-
-    META_GATHER
-};
 
 int main() {
-    constexpr st sss { 2.71, nullptr };
-    constexpr auto meta_foo   = st::meta_info_t::GetMetaInfo("foo");
-    constexpr auto name_foo   = meta_foo.member_name();
-    constexpr auto value_foo  = sss.*meta_foo.member_ptr();
-    constexpr auto info_foo   = std::get<0>(meta_foo.value);
-    constexpr auto meta_bar   = st::meta_info_t::GetMetaInfo("bar");
-    constexpr auto value0_bar = std::get<0>(meta_bar.value);
-    constexpr auto value1_bar = std::get<1>(meta_bar.value);
-
     // A ball whose radius is 0.5
     igi::sphere b(.5);
     // Default phong material
