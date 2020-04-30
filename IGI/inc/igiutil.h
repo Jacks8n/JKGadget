@@ -53,7 +53,7 @@ namespace igi {
     };
 
     // Pair of bool and size_t
-    template <bool B, auto I>
+    template <bool B, size_t I>
     struct cond_val {
         static constexpr bool cond = B;
         static constexpr auto val  = I;

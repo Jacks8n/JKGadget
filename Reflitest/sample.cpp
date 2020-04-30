@@ -18,8 +18,8 @@ template <typename T>
 T deserialize(std::string_view src) {
     T res;
 
-    T::meta_info_t::foreach_meta([&](auto meta) {
-        constexpr auto prop    = meta.template get_nth_attr<1>();
+    MetaOf(T)::foreach_meta([&](auto&& meta) {
+        constexpr auto prop    = meta.template get_attr<std::string_view>();
         res.*meta.member_ptr() = std::atoi(src.substr(src.find(prop) + prop.size()).data());
     });
 
@@ -27,11 +27,11 @@ T deserialize(std::string_view src) {
 }
 
 template <typename T>
-std::string serialize(T ins) {
+std::string serialize(T&& ins) {
     std::string res;
 
-    T::meta_info_t::foreach_meta([&](auto meta) {
-        res.append(meta.template get_nth_attr<1>());
+    MetaOf(T)::foreach_meta([&](auto&& meta) {
+        res.append(meta.template get_attr<std::string_view>());
         res.push_back(' ');
         res.append(std::to_string(ins.*meta.member_ptr()));
         res.push_back(' ');
@@ -59,7 +59,7 @@ int main() {
     constexpr size_t meta_count = refl_sample::meta_info_t::get_meta_count();
     static_assert(meta_count == 2);
 
-    refl_sample::meta_info_t::foreach_meta([](auto meta) constexpr {
+    MetaOf(refl_sample)::foreach_meta([](auto meta) constexpr {
         static_assert(std::is_same_v<decltype(meta.template get_nth_attr<1>()), std::string_view>);
     });
 
@@ -68,6 +68,6 @@ int main() {
     std::cout << bar.field_int << ' ' << bar.field_float << std::endl;
 
     std::cout << serialize(foo) << std::endl;
-    
+
     return 0;
 }

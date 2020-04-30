@@ -131,6 +131,10 @@
         static constexpr auto get_nth_attr() noexcept {                              \
             return std::get<Nth>(attributes);                                        \
         }                                                                            \
+        template <typename T>                                                        \
+        static constexpr T get_attr() noexcept {                                     \
+            return std::get<T>(attributes);                                          \
+        }                                                                            \
     };
 
 #define META_END                                                  \
@@ -139,6 +143,8 @@
         static constexpr size_t meta_t = REFL_META_INFO_TYPE_END; \
     };
 
+#define MetaOf(type) std::decay_t<type>::REFL_META_INFO_T_NAME
+
 #define GetMemberMeta(type, member)                                               \
     ([&]() constexpr {                                                            \
         constexpr size_t __id = type::REFL_META_INFO_T_NAME::get_meta_id(member); \
@@ -146,11 +152,13 @@
         return type::REFL_META_INFO_NAME<__id>();                                 \
     }())
 
-struct reflitest_impl {
-    template <class T, class M>
-    static M get_member_type(M T::*);
-};
-
-#define GetMemberType(meta) decltype(reflitest_impl::get_member_type((meta).member_ptr()))
+#define GetMemberType(meta) decltype(__reflitest::reflitest_impl::get_member_type((meta).member_ptr()))
 
 #define GetMemberValue(type, member, instance) ((instance).*GetMemberMeta(type, member).member_ptr())
+
+namespace __reflitest {
+    struct reflitest_impl {
+        template <class T, class M>
+        static M get_member_type(M T::*);
+    };
+}  // namespace __reflitest

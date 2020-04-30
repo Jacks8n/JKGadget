@@ -12,4 +12,6 @@ namespace igi {
     constexpr single PiTwo = 6.283185307179586476925286766559;
 
     constexpr single PiFour = 12.566370614359172953850573533118;
+
+    constexpr single Deg2Rad = 0.01745329251994329576923690768489;
 }

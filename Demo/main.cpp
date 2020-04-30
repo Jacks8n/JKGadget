@@ -23,10 +23,14 @@ int main() {
     // Integrator to use
     igi::path_trace pt(s);
 
+    constexpr size_t w = 512, h = 512;
+
     // Camera to observe the scene
     igi::camera_orthographic c(2, 2);
+    //igi::camera_perspective c(60, igi::AsSingle(w) / h);
+
     // Result texture
-    igi::texture_rgb t(512, 512);
+    igi::texture_rgb t(w, h);
     c.render(t, pt);
 
     std::ofstream o("demo.png", std::ios_base::binary);
