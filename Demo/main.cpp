@@ -1,10 +1,12 @@
 ﻿#include <fstream>
+#include <iostream>
 #include "igicamera/camera.h"
 #include "igigeometry/sphere.h"
 #include "igiintegrator/path_trace.h"
 #include "igimaterial/material_phong.h"
 #include "igiscene/aggregate_vector.h"
 #include "igiscene/scene.h"
+#include "reflitest.h"
 
 int main() {
     // A ball whose radius is 0.5
@@ -26,8 +28,8 @@ int main() {
     constexpr size_t w = 512, h = 512;
 
     // Camera to observe the scene
-    igi::camera_orthographic c(2, 2);
-    //igi::camera_perspective c(60, igi::AsSingle(w) / h);
+    // igi::camera_orthographic c(2, 2);
+    igi::camera_perspective c(70, igi::AsSingle(w) / h);
 
     // Result texture
     igi::texture_rgb t(w, h);

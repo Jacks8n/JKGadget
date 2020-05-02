@@ -5,7 +5,8 @@ SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project (JKGadgets)
 
+add_subdirectory(third_party/googletest)
+add_subdirectory(Demo)
 add_subdirectory(IGI)
 add_subdirectory(PNGParvus)
 add_subdirectory(Reflitest)
-add_subdirectory(Demo)

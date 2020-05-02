@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string_view>
 #include <tuple>
@@ -11,52 +11,33 @@
 
 #define REFL_META_INFO_NULL REFL_META_INFO_NAME<REFL_META_INFO_NULL_ID>
 
-#define REFL_META_INFO_BEGIN_LINE REFL_META_INFO_NULL::id
+#define REFL_META_INFO_BEGIN_ID REFL_META_INFO_NULL::get_id()
 
-#define REFL_META_INFO_BEGIN REFL_META_INFO_NAME<REFL_META_INFO_BEGIN_LINE>
+#define REFL_META_INFO_BEGIN REFL_META_INFO_NAME<REFL_META_INFO_BEGIN_ID>
 
 #define REFL_META_INFO_OWNER_T REFL_META_INFO_NULL::owner_t
 
-#define REFL_META_INFO_TYPE(l)    REFL_META_INFO_NAME<l>::meta_t
+#define REFL_META_INFO_TYPE(l)    REFL_META_INFO_NAME<l>::get_meta_type()
 #define REFL_META_INFO_TYPE_NULL  0
 #define REFL_META_INFO_TYPE_ENTRY 1
 #define REFL_META_INFO_TYPE_END   2
 
 #define META_BEGIN(type)                                                         \
-    template <size_t L>                                                          \
+    template <size_t Id>                                                         \
     struct REFL_META_INFO_NAME {                                                 \
         using owner_t = type;                                                    \
                                                                                  \
-        static constexpr size_t meta_t = REFL_META_INFO_TYPE_NULL;               \
-        static constexpr size_t id     = __LINE__;                               \
+        static constexpr size_t get_meta_type() noexcept {                       \
+            return REFL_META_INFO_TYPE_NULL;                                     \
+        };                                                                       \
                                                                                  \
-        template <size_t LMeta, size_t LLo = L, size_t N = 0>                    \
-        static constexpr size_t get_order() noexcept {                           \
-            if constexpr (LLo + 1 == LMeta)                                      \
-                return N;                                                        \
-            else if constexpr (REFL_META_INFO_TYPE(LLo + 1)                      \
-                               == REFL_META_INFO_TYPE_NULL)                      \
-                return get_order<LMeta, LLo + 1, N>();                           \
-            else if constexpr (REFL_META_INFO_TYPE(LLo + 1)                      \
-                               == REFL_META_INFO_TYPE_ENTRY)                     \
-                return get_order<LMeta, LLo + 1, N + 1>();                       \
-            else                                                                 \
-                return REFL_META_INFO_NULL_ID;                                   \
+        static constexpr size_t get_id() noexcept {                              \
+            return __LINE__;                                                     \
         }                                                                        \
                                                                                  \
-        template <size_t Nth, size_t LLo = L>                                    \
+        template <size_t Nth>                                                    \
         static constexpr auto get_nth_meta() noexcept {                          \
-            if constexpr (REFL_META_INFO_TYPE(LLo + 1)                           \
-                          == REFL_META_INFO_TYPE_ENTRY)                          \
-                if constexpr (Nth > 0)                                           \
-                    return get_nth_meta<Nth - 1, LLo + 2>();                     \
-                else                                                             \
-                    return REFL_META_INFO_NAME<LLo + 1>();                       \
-            else if constexpr (REFL_META_INFO_TYPE(LLo + 1)                      \
-                               == REFL_META_INFO_TYPE_NULL)                      \
-                return get_nth_meta<Nth, LLo + 1>();                             \
-            else                                                                 \
-                return REFL_META_INFO_NULL();                                    \
+            return get_nth_meta_impl<Nth, Id>();                                 \
         }                                                                        \
                                                                                  \
         static constexpr auto get_all_meta() noexcept {                          \
@@ -77,10 +58,25 @@
         }                                                                        \
                                                                                  \
       private:                                                                   \
+        template <size_t Nth, size_t Lo>                                         \
+        static constexpr auto get_nth_meta_impl() noexcept {                     \
+            if constexpr (REFL_META_INFO_TYPE(Lo + 1)                            \
+                          == REFL_META_INFO_TYPE_ENTRY)                          \
+                if constexpr (Nth > 0)                                           \
+                    return get_nth_meta_impl<Nth - 1, Lo + 2>();                 \
+                else                                                             \
+                    return REFL_META_INFO_NAME<Lo + 1>();                        \
+            else if constexpr (REFL_META_INFO_TYPE(Lo + 1)                       \
+                               == REFL_META_INFO_TYPE_NULL)                      \
+                return get_nth_meta_impl<Nth, Lo + 1>();                         \
+            else                                                                 \
+                return REFL_META_INFO_NULL();                                    \
+        }                                                                        \
+                                                                                 \
         template <size_t Nth = 0, typename... Ts>                                \
         static constexpr auto get_all_meta_impl(std::tuple<Ts...> t) noexcept {  \
             constexpr auto nthinfo = get_nth_meta<Nth>();                        \
-            if constexpr (nthinfo.meta_t == REFL_META_INFO_TYPE_ENTRY)           \
+            if constexpr (nthinfo.get_meta_type() == REFL_META_INFO_TYPE_ENTRY)  \
                 return get_all_meta_impl<Nth + 1>(                               \
                     std::tuple<Ts..., decltype(nthinfo)>());                     \
             else                                                                 \
@@ -96,7 +92,7 @@
         static constexpr size_t get_meta_id_impl(                                \
             std::string_view member, std::tuple<T, Ts...> t) noexcept {          \
             return T::member_name() == member                                    \
-                       ? T::id                                                   \
+                       ? T::get_id()                                             \
                        : get_meta_id_impl(member, std::tuple<Ts...>());          \
         }                                                                        \
                                                                                  \
@@ -106,41 +102,50 @@
             ((void)fn(get_nth_meta<Is>()), ...);                                 \
         }                                                                        \
     };                                                                           \
-    using REFL_META_INFO_T_NAME = REFL_META_INFO_BEGIN;
+    using REFL_META_INFO_T_NAME = REFL_META_INFO_NULL;
 
-#define META(member, ...)                                                            \
-    template <>                                                                      \
-    struct REFL_META_INFO_NAME<__LINE__> {                                           \
-        static constexpr size_t meta_t = REFL_META_INFO_TYPE_ENTRY;                  \
-        static constexpr size_t id     = __LINE__;                                   \
-                                                                                     \
-        using owner_t                    = REFL_META_INFO_NULL::owner_t;             \
-        static constexpr auto attributes = std::make_tuple(__VA_ARGS__);             \
-                                                                                     \
-        static constexpr std::string_view member_name() noexcept { return #member; } \
-                                                                                     \
-        static constexpr size_t attr_order() noexcept {                              \
-            return REFL_META_INFO_BEGIN::get_order<__LINE__>();                      \
-        }                                                                            \
-                                                                                     \
-        static constexpr auto member_ptr() noexcept {                                \
-            return &REFL_META_INFO_BEGIN::owner_t::member;                           \
-        }                                                                            \
-                                                                                     \
-        template <size_t Nth>                                                        \
-        static constexpr auto get_nth_attr() noexcept {                              \
-            return std::get<Nth>(attributes);                                        \
-        }                                                                            \
-        template <typename T>                                                        \
-        static constexpr T get_attr() noexcept {                                     \
-            return std::get<T>(attributes);                                          \
-        }                                                                            \
+#define META(member, ...)                                          \
+    template <>                                                    \
+    struct REFL_META_INFO_NAME<__LINE__> {                         \
+        using owner_t = REFL_META_INFO_NULL::owner_t;              \
+                                                                   \
+        static constexpr size_t get_meta_type() noexcept {         \
+            return REFL_META_INFO_TYPE_ENTRY;                      \
+        }                                                          \
+                                                                   \
+        static constexpr size_t get_id() noexcept {                \
+            return __LINE__;                                       \
+        }                                                          \
+                                                                   \
+        static constexpr auto get_attr_all() noexcept {            \
+            return std::make_tuple(__VA_ARGS__);                   \
+        }                                                          \
+                                                                   \
+        static constexpr std::string_view member_name() noexcept { \
+            return #member;                                        \
+        }                                                          \
+                                                                   \
+        static constexpr auto member_ptr() noexcept {              \
+            return &REFL_META_INFO_BEGIN::owner_t::member;         \
+        }                                                          \
+                                                                   \
+        template <size_t Nth>                                      \
+        static constexpr auto get_nth_attr() noexcept {            \
+            return std::get<Nth>(get_attr_all());                  \
+        }                                                          \
+                                                                   \
+        template <typename T>                                      \
+        static constexpr T get_attr() noexcept {                   \
+            return std::get<T>(get_attr_all());                    \
+        }                                                          \
     };
 
-#define META_END                                                  \
-    template <>                                                   \
-    struct REFL_META_INFO_NAME<__LINE__> {                        \
-        static constexpr size_t meta_t = REFL_META_INFO_TYPE_END; \
+#define META_END                                           \
+    template <>                                            \
+    struct REFL_META_INFO_NAME<__LINE__> {                 \
+        static constexpr size_t get_meta_type() noexcept { \
+            return REFL_META_INFO_TYPE_END;                \
+        }                                                  \
     };
 
 #define MetaOf(type) std::decay_t<type>::REFL_META_INFO_T_NAME
