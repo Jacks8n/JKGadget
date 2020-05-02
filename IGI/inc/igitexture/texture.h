@@ -10,7 +10,7 @@ namespace igi {
     class texture_color255_encoder {};
 
     template<typename T>
-    class texture : public pngparvus::IPNG<texture_color255_encoder<T>, color255<color_n_channel<T>::value>> {
+    class texture : public pngparvus::IPNG<texture_color255_encoder<T>, color255<color_n_channel_v<T>>> {
         std::shared_ptr<T[]> _buf;
 
         size_t _w, _h;

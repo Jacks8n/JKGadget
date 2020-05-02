@@ -7,18 +7,29 @@
 
 namespace igi {
     class camera_base : public transformable_base {
+        unit_square_distribution _usd;
+
       public:
         template <typename TInt>
-        void render(texture_rgb& res, TInt&& integrator) const {
-            single x, y;
-            ray r;
-            for (size_t i = 0; i < res.getWidth(); i++) {
-                x = AsSingle(i) / res.getWidth();
-                for (size_t j = 0; j < res.getHeight(); j++) {
-                    y = AsSingle(j) / res.getHeight();
+        void render(texture_rgb &res, TInt &&integrator, size_t spp = 1) const {
+            pcg32 rand;
 
-                    r             = getRay(x, y);
-                    res.get(i, j) = integrator.integrate(r);
+            ray r;
+            vec2f xy, samp;
+            single w = res.getWidth(), h = res.getHeight();
+            color_rgb pixel;
+            for (size_t i = 0; i < res.getWidth(); i++) {
+                xy[0] = AsSingle(i);
+                for (size_t j = 0; j < res.getHeight(); j++) {
+                    xy[1] = AsSingle(j);
+
+                    pixel = palette_rgb::black;
+                    for (size_t k = 0; k < spp; k++) {
+                        samp  = _usd(rand);
+                        r     = getRay((xy[0] + samp[0]) / w, (xy[1] + samp[1]) / h);
+                        pixel = pixel + integrator.integrate(r);
+                    }
+                    res.get(i, j) = pixel;
                 }
             }
         }
@@ -75,7 +86,7 @@ namespace igi {
 
       protected:
         ray getRay(single x, single y) const override {
-            const transform& trans = getTransform();
+            const transform &trans = getTransform();
             ray r;
             r.setOrigin(trans.mulPos(_v2l.mulPos(vec3f(x, y, 0))));
             r.setEndpoint(trans.mulPos(_v2l.mulPos(vec3f(x, y, 1))));

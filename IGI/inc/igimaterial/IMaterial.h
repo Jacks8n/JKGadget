@@ -1,25 +1,26 @@
 ﻿#pragma once
 
-#include "igimath/ray.h"
+#include "igigeometry/ray.h"
+#include "igimath/random.h"
 #include "igitexture/color.h"
 
 namespace igi {
     struct scatter {
         vec3f direction;
 
-        single probability;
+        single pdf;
 
         scatter() = default;
-        scatter(const igi::vec3f& d, single p) : direction(d), probability(p) {}
+        scatter(const igi::vec3f &d, single p) : direction(d), pdf(p) { }
 
-        scatter& operator=(const scatter&) = default;
+        scatter &operator=(const scatter &) = default;
     };
 
     struct IMaterial {
-        virtual color_rgb operator()(const vec3f& i, const vec3f& o, const vec3f& n) const = 0;
+        virtual color_rgb operator()(const vec3f &i, const vec3f &o, const vec3f &n) const = 0;
 
         virtual color_rgb getLuminance() const = 0;
 
-        virtual scatter getScatter(const vec3f& i, const vec3f& n) const = 0;
+        virtual scatter getScatter(const vec3f &i, const mat3x3f& tanCoord, pcg32 &rand) const = 0;
     };
-}
+}  // namespace igi

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "numconfig.h"
 
@@ -14,4 +14,20 @@ namespace igi {
     constexpr single PiFour = 12.566370614359172953850573533118;
 
     constexpr single Deg2Rad = 0.01745329251994329576923690768489;
-}
+
+    constexpr single PiInv = 0.31830988618379067153776752674503;
+
+    constexpr single PiTwoInv = 0.15915494309189533576888376337251;
+
+    constexpr single ToRad(single deg) {
+        return deg * Deg2Rad;
+    }
+
+    constexpr single PiTwoToZeroOne(single val) {
+        return val * PiTwoInv + AsSingle(.5);
+    }
+
+    constexpr single ZeroOneToPiTwo(single val) {
+        return val * PiTwo - Pi;
+    }
+}  // namespace igi

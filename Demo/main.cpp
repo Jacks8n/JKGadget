@@ -1,25 +1,38 @@
 ﻿#include <fstream>
 #include <iostream>
 #include "igicamera/camera.h"
+#include "igigeometry/cylinder.h"
 #include "igigeometry/sphere.h"
 #include "igiintegrator/path_trace.h"
+#include "igimaterial/material_emissive.h"
 #include "igimaterial/material_phong.h"
 #include "igiscene/aggregate_vector.h"
 #include "igiscene/scene.h"
-#include "reflitest.h"
 
 int main() {
-    // A ball whose radius is 0.5
-    igi::sphere b(.5);
+    // A sphere with radius being 100
+    igi::sphere sp(100);
+    // A cylinder with radius being 0.3 and z ranging from -0.3 to 0.3
+    igi::cylinder cy(.3, -.3, .3);
+
+    // White emissive material with luminance being 5 nits
+    igi::material_emissive m0(.1);
+    // An entity representing an emissive sphere
+    igi::entity e0(sp, m0);
+    // Move e0 to (0, 0, -105)
+    e0.getTransform().translation(igi::vec3f(0, 0, -105));
+
     // Default phong material
-    igi::material_phong m;
-    // An entity representing a ball with phong material
-    igi::entity e(b, m);
-    // Move e to (0, 0, 2)
-    e.getTransform().translation(igi::vec3f(0, 0, 2));
+    igi::material_phong m1;
+    // An entity representing a cylinder with phong material
+    igi::entity e1(cy, m1);
+    // Rotate and move e to (0, 0, 2)
+    e1.getTransform()
+        .rotation(igi::vec3f(igi::ToRad(45), igi::ToRad(45), igi::ToRad(45)))
+        .translation(igi::vec3f(0, 0, 2));
 
     // Simplest aggregate of entities
-    igi::aggregate_vector av { &e };
+    igi::aggregate_vector av { &e0, &e1 };
     // Scene with black background
     igi::scene s(av);
     // Integrator to use
@@ -33,7 +46,7 @@ int main() {
 
     // Result texture
     igi::texture_rgb t(w, h);
-    c.render(t, pt);
+    c.render(t, pt, 16);
 
     std::ofstream o("demo.png", std::ios_base::binary);
     pngparvus::png_writer().write(o, t);

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <immintrin.h>
 #include "igimath/vec.h"
@@ -34,10 +34,14 @@ namespace igi {
         }
 
         vec4f operator*(const vec4f& r) const {
+            alignas(32) float res[8];
+            std::copy_n(&r.get(0, 0), 4, &res[0]);
+            std::copy_n(&r.get(0, 0), 4, &res[4]);
+
             __m256 row01 = _mm256_load_ps(&get(0, 0));
             __m256 row23 = _mm256_load_ps(&get(2, 0));
 
-            __m256 col = _mm256_loadu2_m128(&r.get(0, 0), &r.get(0, 0));
+            __m256 col = _mm256_load_ps(res);
 
             __m256 res_xy = _mm256_dp_ps(row01, col, 0xFF);
             __m256 res_zw = _mm256_dp_ps(row23, col, 0xFF);
@@ -48,7 +52,6 @@ namespace igi {
 
             __m256 res_xyzw = _mm256_blend_ps(res_xzyw, res_ywxz, 0b01011010);
 
-            float res[8];
             _mm256_store_ps(res, res_xyzw);
             return vec4f(res[0], res[1], res[2], res[3]);
         }

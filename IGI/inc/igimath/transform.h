@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "igimath/mat4x4f.h"
 #include "igimath/vec.h"
@@ -7,7 +7,7 @@ namespace igi {
     class transform {
         mat4x4f _mat, _inv;
 
-    public:
+      public:
         transform() { _mat = _inv = mat4x4f::Identity(); }
 
         const mat4x4f& getMat() const {
@@ -45,13 +45,21 @@ namespace igi {
         }
 
         transform& translation(const vec3f& t) {
-            _mat.setCol(3, vec4f(t, 1));
-            _inv.setCol(3, vec4f(-t, 1));
+            mat4x4f m(1, 0, 0, t[0],
+                      0, 1, 0, t[1],
+                      0, 0, 1, t[2],
+                      0, 0, 0, 1);
+
+            _mat = m * _mat;
+            m.get(0, 3) = -m.get(0, 3);
+            m.get(1, 3) = -m.get(1, 3);
+            m.get(2, 3) = -m.get(2, 3);
+            _inv = _inv * m;
             return *this;
         }
 
         transform& rotationX(single x) {
-            single c(cos(x)), s(sin(x));
+            single c = cos(x), s = sin(x);
             mat4x4f m(1, 0, 0, 0,
                       0, c, -s, 0,
                       0, s, c, 0,
@@ -64,7 +72,7 @@ namespace igi {
         }
 
         transform& rotationY(single y) {
-            single c(cos(y)), s(sin(y));
+            single c = cos(y), s = sin(y);
             mat4x4f m(c, 0, s, 0,
                       0, 1, 0, 0,
                       -s, 0, c, 0,
@@ -77,7 +85,7 @@ namespace igi {
         }
 
         transform& rotationZ(single z) {
-            single c(cos(z)), s(sin(z));
+            single c = cos(z), s = sin(z);
             mat4x4f m(c, -s, 0, 0,
                       s, c, 0, 0,
                       0, 0, 1, 0,
@@ -105,18 +113,18 @@ namespace igi {
             return *this;
         }
 
-        vec4f operator *(const vec4f& v) const {
+        vec4f operator*(const vec4f& v) const {
             return _mat * v;
         }
 
-        mat4x4f operator *(const mat4x4f& m) const {
+        mat4x4f operator*(const mat4x4f& m) const {
             return _mat * m;
         }
 
-        transform& operator *=(const transform& t) {
+        transform& operator*=(const transform& t) {
             _mat = _mat * t._mat;
             _inv = t._inv * _inv;
             return *this;
         }
     };
-} // namespace igi
+}  // namespace igi

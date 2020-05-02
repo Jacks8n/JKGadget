@@ -2,14 +2,13 @@
 
 #include "igimath/vec.h"
 #include "igimaterial/IMaterial.h"
+#include "igigeometry/surface_interaction.h"
 
 namespace igi {
     struct interaction
     {
         const IMaterial* material;
 
-        vec3f position;
-
-        vec3f normal;
+        surface_interaction surface;
     };
 }
