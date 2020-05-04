@@ -75,7 +75,7 @@ namespace igi {
             single rho   = sqrt(r0);
             single theta = PiTwo * r1;
 
-            *p = 2 * r0;
+            *p = r0;
             return vec2<single>(rho * cos(theta), rho * sin(theta));
         }
     };

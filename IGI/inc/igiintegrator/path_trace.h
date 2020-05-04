@@ -15,7 +15,7 @@ namespace igi {
         pcg32 _random;
 
       public:
-        path_trace(const scene &scene, size_t depth = 4, size_t split = 8)
+        path_trace(const scene &scene, size_t depth = 4, size_t split = 4)
             : _scene(scene), _depth(depth), _split(split < 1 ? 1 : split), _random() { }
 
         color_rgb integrate(ray &r) override;

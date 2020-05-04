@@ -4,7 +4,7 @@
 
 class refl_sample {
   public:
-    META_BEGIN(refl_sample)
+    META_BEGIN_A(refl_sample, std::string_view("class meta"))
 
     META(field_int, (int)42, std::string_view("the answer"))
     int field_int;
@@ -18,7 +18,7 @@ class refl_sample {
     static T deserialize(std::string_view src) {
         T res;
 
-        MetaOf(T)::foreach_meta([&](auto&& meta) {
+        MetaOf(T).foreach_meta([&](auto &&meta) {
             constexpr auto prop    = meta.template get_attr<std::string_view>();
             res.*meta.member_ptr() = std::atoi(src.substr(src.find(prop) + prop.size()).data());
         });
@@ -27,10 +27,10 @@ class refl_sample {
     }
 
     template <typename T>
-    static std::string serialize(T&& ins) {
+    static std::string serialize(T &&ins) {
         std::string res;
 
-        MetaOf(T)::foreach_meta([&](auto&& meta) {
+        MetaOf(T).foreach_meta([&](auto &&meta) {
             res.append(meta.member_name());
             res.push_back(':');
             res.append(std::to_string(ins.*meta.member_ptr()));
@@ -40,6 +40,11 @@ class refl_sample {
         return res;
     }
 };
+
+TEST(ReflitestTest, ClassMeta) {
+    constexpr auto meta = MetaOf(refl_sample).get_attr<std::string_view>();
+    EXPECT_TRUE(("class meta" == meta));
+}
 
 TEST(ReflitestTest, MemberType) {
     constexpr auto meta0 = GetMemberMeta(refl_sample, "field_int");
@@ -72,7 +77,7 @@ TEST(ReflitestTest, MemberMetaValue) {
 }
 
 TEST(ReflitestTest, MetaCount) {
-    constexpr size_t count = MetaOf(refl_sample)::get_meta_count();
+    constexpr size_t count = MetaOf(refl_sample).get_meta_count();
     EXPECT_EQ(2, count);
 }
 
@@ -90,7 +95,7 @@ TEST(ReflitestTest, MemberPointer) {
 }
 
 TEST(ReflitestTest, ForEach) {
-    MetaOf(refl_sample)::foreach_meta([](auto meta) {
+    MetaOf(refl_sample).foreach_meta([](auto meta) {
         constexpr bool bl = std::is_same_v<decltype(meta.template get_nth_attr<1>()), std::string_view>;
         EXPECT_TRUE(bl);
     });
@@ -118,7 +123,7 @@ TEST(ReflitestTest, Deserialize) {
     EXPECT_EQ(12.f, bar.field_float);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

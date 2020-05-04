@@ -12,11 +12,13 @@ namespace igi {
       public:
         template <typename TInt>
         void render(texture_rgb &res, TInt &&integrator, size_t spp = 1) const {
+            single w = res.getWidth(), h = res.getHeight();
+            single sppinv = AsSingle(1) / spp;
+
             pcg32 rand;
 
             ray r;
             vec2f xy, samp;
-            single w = res.getWidth(), h = res.getHeight();
             color_rgb pixel;
             for (size_t i = 0; i < res.getWidth(); i++) {
                 xy[0] = AsSingle(i);
@@ -29,7 +31,7 @@ namespace igi {
                         r     = getRay((xy[0] + samp[0]) / w, (xy[1] + samp[1]) / h);
                         pixel = pixel + integrator.integrate(r);
                     }
-                    res.get(i, j) = pixel;
+                    res.get(i, j) = pixel * sppinv;
                 }
             }
         }
