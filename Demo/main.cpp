@@ -36,7 +36,7 @@ int main() {
     // Scene with black background
     igi::scene s(av);
     // Integrator to use
-    igi::path_trace pt(s, 4, 4);
+    igi::path_trace pt(s, 4, 8);
 
     constexpr size_t w = 512, h = 512;
 
@@ -46,7 +46,7 @@ int main() {
 
     // Result texture
     igi::texture_rgb t(w, h);
-    c.render(t, pt, 1024);
+    c.render(t, pt, 64);
 
     std::ofstream o("demo.png", std::ios_base::binary);
     pngparvus::png_writer().write(o, t);

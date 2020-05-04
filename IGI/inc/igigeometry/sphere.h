@@ -35,8 +35,8 @@ namespace igi {
 
         single getArea() const override { return PiFour * _r * _r; }
 
-        bool isHit(const ray& r) const override;
-        bool tryHit(ray& r, surface_interaction* res) const override;
+        bool isHit(const ray &r) const override;
+        bool tryHit(ray &r, surface_interaction *res) const override;
     };
 
 }  // namespace igi

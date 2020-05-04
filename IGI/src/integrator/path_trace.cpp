@@ -5,17 +5,19 @@ igi::color_rgb igi::path_trace::integrate(ray &r) {
     if (!_scene.getAggregate().tryHit(r, i))
         return _scene.getBackground();
 
-    return Saturate(integrate_impl(r.getDirection(), i, _depth));
+    return integrate_impl(r.getDirection(), i, _depth);
 }
 
 igi::color_rgb igi::path_trace::integrate_impl(const igi::vec3f &o, const igi::interaction &interaction, size_t depth) {
     static std::uniform_real_distribution<single> urd;
 
-    if (!depth)
-        return igi::palette_rgb::black;
-
-    const igi::IMaterial &mat       = *interaction.material;
     const surface_interaction &surf = interaction.surface;
+    const igi::IMaterial &mat       = *interaction.material;
+
+    color_rgb lu = mat.getLuminance() * -Dot(o, surf.normal);
+
+    if (!depth) 
+        return lu;
 
     mat3x3f tanCoord;
     tanCoord.setCol(0, surf.dpdu.normalized());
@@ -23,10 +25,12 @@ igi::color_rgb igi::path_trace::integrate_impl(const igi::vec3f &o, const igi::i
     tanCoord.setCol(2, surf.normal.normalized());
 
     ray r;
-    color_rgb bxdf;
     scatter scat;
+    color_rgb bxdf;
     igi::interaction ia;
-    color_rgb integral = mat.getLuminance() * -Dot(o, surf.normal);
+
+    single pint    = 0;
+    color_rgb lint = palette_rgb::black;
     for (size_t i = 0; i < _split; i++) {
         scat = mat.getScatter(o, tanCoord, _random);
         if (scat.pdf == AsSingle(0) || (Lesscf(scat.pdf, .001) && urd(_random) < AsSingle(.5)))
@@ -36,12 +40,14 @@ igi::color_rgb igi::path_trace::integrate_impl(const igi::vec3f &o, const igi::i
         if (Lesscf(bxdf.magnitudeSqr(), .001) && urd(_random) < AsSingle(.5))
             continue;
 
+        pint += scat.pdf;
         r.reset(surf.position, scat.direction);
         if (_scene.getAggregate().tryHit(r, ia))
-            integral = integral
-                       + Mul(integrate_impl(scat.direction, ia, depth - 1), bxdf)
-                             * scat.pdf;
+            lint = lint + Mul(integrate_impl(scat.direction, ia, depth - 1), bxdf) * scat.pdf;
     }
 
-    return integral;
+    if (Equalcf(pint, 0))
+        return lu;
+
+    return lu + lint * static_cast<color_channel_t>(AsSingle(1) / pint);
 }

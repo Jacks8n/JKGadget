@@ -3,11 +3,14 @@
 #include "igientity/ITransformable.h"
 #include "igiintegrator/IIntegrator.h"
 #include "igimath/const.h"
+#include "igiresource/mem_arena.h"
 #include "igitexture/texture.h"
 
 namespace igi {
     class camera_base : public transformable_base {
         unit_square_distribution _usd;
+
+        single _near, _far;
 
       public:
         template <typename TInt>
@@ -18,6 +21,7 @@ namespace igi {
             pcg32 rand;
 
             ray r;
+            single p;
             vec2f xy, samp;
             color_rgb pixel;
             for (size_t i = 0; i < res.getWidth(); i++) {
@@ -27,20 +31,25 @@ namespace igi {
 
                     pixel = palette_rgb::black;
                     for (size_t k = 0; k < spp; k++) {
-                        samp  = _usd(rand);
+                        samp  = _usd(rand, &p);
                         r     = getRay((xy[0] + samp[0]) / w, (xy[1] + samp[1]) / h);
-                        pixel = pixel + integrator.integrate(r);
+                        pixel = pixel + integrator.integrate(r) * p * sppinv;
                     }
-                    res.get(i, j) = pixel * sppinv;
+                    res.get(i, j) = pixel;
                 }
             }
         }
 
       protected:
-        single _near, _far;
-
         camera_base(single near, single far) : _near(near), _far(far) { }
 
+        single getNear() const { return _near; }
+
+        single getFar() const { return _far; }
+
+        single getDepth() const { return _far - _near; }
+
+      private:
         virtual ray getRay(single x, single y) const = 0;
     };
 
@@ -64,7 +73,11 @@ namespace igi {
 
       private:
         void calculateV2W() {
-            _v2w = getTransform() * mat4x4f(_width, 0, 0, -_width * AsSingle(.5), 0, _height, 0, -_height * AsSingle(.5), 0, 0, _far - _near, _near, 0, 0, 0, 1);
+            _v2w = getTransform()
+                   * mat4x4f(_width, 0, 0, -_width * AsSingle(.5),
+                             0, _height, 0, -_height * AsSingle(.5),
+                             0, 0, getDepth(), getNear(),
+                             0, 0, 0, 1);
         }
     };
 
@@ -101,7 +114,7 @@ namespace igi {
             _v2l = mat4x4f(_right - _left, 0, 0, _left,
                            0, _top - _bottom, 0, _bottom,
                            0, 0, 0, 1,
-                           0, 0, _far - _near, _near);
+                           0, 0, getDepth(), getNear());
         }
     };
 }  // namespace igi
