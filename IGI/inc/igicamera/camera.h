@@ -1,9 +1,9 @@
 ﻿#pragma once
 
+#include "igiaccleration/mem_arena.h"
 #include "igientity/ITransformable.h"
 #include "igiintegrator/IIntegrator.h"
 #include "igimath/const.h"
-#include "igiresource/mem_arena.h"
 #include "igitexture/texture.h"
 
 namespace igi {
