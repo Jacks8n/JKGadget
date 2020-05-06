@@ -12,17 +12,16 @@
 
 int main() {
     igi::mem_arena arena(1024);
+    typename igi::worker_group<int, int>::worker_alloc_t alloc(&arena);
     auto group = igi::worker_group<int, int>([](int &&i) { std::cout << i << '\n'; },
                                              [](int &i) { return i + 1; },
-                                             32, 2, &arena);
+                                             32, 2, alloc);
     for (size_t i = 0; i < 10; i++) {
         group.tryIssue(i);
     }
     group.detachAll();
 
-    using namespace std::chrono;
-    std::this_thread::sleep_for(2s);
-
+    group.waitFinish();
 
     return 0;
 

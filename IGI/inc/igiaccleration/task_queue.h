@@ -19,10 +19,57 @@ namespace igi {
     template <typename TaskOut, typename TaskIn>
     class worker_thread_upstream {
       public:
-        worker_thread_upstream(std::function<void(TaskOut &&)> &callback,
-                               circular_list<TaskIn> &queue, std::mutex &mutex)
-            : _callback(callback), _queue(queue), _mutex(mutex), finished(finished) { }
+        class token {
+            worker_thread_upstream &_upstream;
 
+          public:
+            token(worker_thread_upstream &upstream) : _upstream(upstream) {
+                std::scoped_lock sl(_upstream._mutex);
+                _upstream._activeCount++;
+            }
+
+            ~token() {
+                std::scoped_lock sl(_upstream._mutex);
+                _upstream._activeCount--;
+            }
+
+            bool retrieve_lock(TaskIn *in) { return _upstream.retrieve_lock(in); }
+
+            void submit(TaskOut &&out) { _upstream.submit(std::move(out)); }
+
+            operator bool() { return _upstream._running; }
+        };
+
+        friend class token;
+
+        using allocator_type = std::pmr::polymorphic_allocator<TaskIn>;
+
+        worker_thread_upstream(const std::function<void(TaskOut &&)> &callback, size_t maxQueue,
+                               const allocator_type &alloc)
+            : _running(true), _activeCount(0), _callback(callback), _queue(maxQueue, alloc) { }
+
+        token getToken() {
+            return token(*this);
+        }
+
+        void waitFinish() {
+            std::thread([&] {
+                _running = false;
+                while (_activeCount)
+                    std::this_thread::yield();
+            }).join();
+        }
+
+        template <typename... T>
+        bool tryIssue(T &&... in) {
+            if (!_queue.isFull()) {
+                _queue.emplace_back(std::forward<T>(in)...);
+                return true;
+            }
+            return false;
+        }
+
+      private:
         bool retrieve_lock(TaskIn *in) {
             std::scoped_lock sl(_mutex);
             if (!_queue.isEmpty()) {
@@ -32,12 +79,10 @@ namespace igi {
             return false;
         }
 
-        void submit(TaskOut &&out) {
-            _callback(std::move(out));
-        }
+        void submit(TaskOut &&out) { _callback(std::move(out)); }
 
-      private:
-          bool _
+        bool _running;
+        size_t _activeCount;
         std::function<void(TaskOut &&)> _callback;
         circular_list<TaskIn> _queue;
         std::mutex _mutex;
@@ -61,11 +106,11 @@ namespace igi {
         auto wrapWorkerFunc(const worker_func_t &func) {
             return [&, func] {
                 TaskIn in;
-                while (_upstream.finished) {
-                    if (_upstream.retrieve_lock(&in))
-                        _upstream.submit(func(in));
-                    else
-                        std::this_thread::yield();
+                while (true) {
+                    auto t = _upstream.getToken();
+                    if (!t) break;
+                    if (t.retrieve_lock(&in))
+                        t.submit(func(in));
                 }
             };
         }
@@ -80,18 +125,14 @@ namespace igi {
         using callback_t      = std::function<void(TaskOut &&)>;
 
         worker_group(const callback_t &callback, const worker_func_t &workerFunc,
-                     size_t maxQueue, size_t workerCount, const worker_alloc_t &alloc)
-            : _finished(false), _taskQueue(maxQueue, alloc), _callback(callback),
-              _workerCount(workerCount), _alloc(alloc) {
-            _workers = _alloc.allocate(workerCount);
-
-            worker_thread_upstream<TaskOut, TaskIn> upstream(_callback, _taskQueue, _mutex, _finished);
+                     size_t maxQueue, size_t workerCount, worker_alloc_t &alloc)
+            : _workers(alloc.allocate(workerCount)), _workerCount(workerCount),
+              _upstream(callback, maxQueue, alloc), _alloc(alloc) {
             for (size_t i = 0; i < workerCount; i++)
-                _alloc.construct(&_workers[i], upstream, workerFunc);
+                _alloc.construct(&_workers[i], _upstream, workerFunc);
         }
 
         ~worker_group() {
-            _taskQueue.~circular_list();
             for (size_t i = 0; i < _workerCount; i++)
                 _workers[i].~worker_thread();
             _alloc.deallocate(_workers, _workerCount);
@@ -125,24 +166,17 @@ namespace igi {
 
         template <typename... T>
         bool tryIssue(T &&... in) {
-            if (!_taskQueue.isFull()) {
-                _taskQueue.emplace_back(std::forward<T>(in)...);
-                return true;
-            }
-            return false;
+            return _upstream.tryIssue(std::forward<T>(in)...);
         }
 
-        void stopAll() {
-            _finished = true;
+        void waitFinish() {
+            _upstream.waitFinish();
         }
 
       private:
-        bool _finished;
-        std::mutex _mutex;
-        circular_list<TaskIn> _taskQueue;
-        callback_t _callback;
         worker_thread_t *_workers;
         size_t _workerCount;
+        worker_thread_upstream<TaskOut, TaskIn> _upstream;
         worker_alloc_t _alloc;
     };
 }  // namespace igi
