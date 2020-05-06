@@ -1,5 +1,6 @@
 ﻿#include <fstream>
 #include <iostream>
+#include "igiaccleration/task_queue.h"
 #include "igicamera/camera.h"
 #include "igigeometry/cylinder.h"
 #include "igigeometry/sphere.h"
@@ -10,6 +11,21 @@
 #include "igiscene/scene.h"
 
 int main() {
+    igi::mem_arena arena(1024);
+    auto group = igi::worker_group<int, int>([](int &&i) { std::cout << i << '\n'; },
+                                             [](int &i) { return i + 1; },
+                                             32, 2, &arena);
+    for (size_t i = 0; i < 10; i++) {
+        group.tryIssue(i);
+    }
+    group.detachAll();
+
+    using namespace std::chrono;
+    std::this_thread::sleep_for(2s);
+
+
+    return 0;
+
     // A sphere with radius being 1000
     igi::sphere sp(1000);
     // A cylinder with radius being 0.3 and z ranging from -0.3 to 0.3

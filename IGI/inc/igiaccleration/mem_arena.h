@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <memory_resource>
 #include <new>
@@ -70,7 +70,8 @@ namespace igi {
         chunk_list _chunks;
 
       public:
-        mem_arena(size_t init_size, size_t align) noexcept : _chunks(init_size, align) { }
+        mem_arena(size_t init_size, size_t align = alignof(void *)) noexcept
+            : _chunks(init_size, align) { }
         mem_arena(const mem_arena &)     = delete;
         mem_arena(mem_arena &&) noexcept = default;
 
