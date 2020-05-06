@@ -1,11 +1,36 @@
-#pragma once
+﻿#pragma once
 
 #include <memory_resource>
+#include <mutex>
 
 namespace igi {
     template <typename T>
     class circular_list {
       public:
+        class iterator {
+            friend class circular_list;
+
+            T *_current, *const _buflo, *const _bufhi;
+
+            iterator(T *const current, T *const buflo, T *const bufhi)
+                : _current(current), _buflo(buflo), _bufhi(bufhi) { }
+
+          public:
+            T &operator*() {
+                return *_current;
+            }
+
+            iterator &operator++() {
+                if (++_current == _bufhi)
+                    _current = _buflo;
+                return *this;
+            }
+
+            bool operator==(const iterator &o) const {
+                return _current == o._current;
+            }
+        };
+
         using allocator_type = std::pmr::polymorphic_allocator<T>;
 
         circular_list(size_t size, const allocator_type &alloc)
@@ -24,7 +49,11 @@ namespace igi {
             o._buflo = o._bufhi = o._begin = o._end = nullptr;
         }
 
-        ~circular_list() = default;
+        ~circular_list() {
+            for (T &e : *this)
+                e.~T();
+            _alloc.deallocate(_buflo, _bufhi - _buflo);
+        }
 
         allocator_type get_allocator() const noexcept {
             return _alloc;
@@ -42,6 +71,14 @@ namespace igi {
             return (_end == _bufhi && _begin == _buflo) || _end == _begin - 1;
         }
 
+        iterator begin() const {
+            return iterator(_begin, _buflo, _bufhi);
+        }
+
+        iterator end() const {
+            return iterator(_end, nullptr, nullptr);
+        }
+
         void push_back(const T &e) {
             emplace_back(e);
         }
@@ -54,7 +91,9 @@ namespace igi {
         void emplace_back(Args &&... args) {
             if (isFull())
                 throw;
-            new (_end++) T(std::forward<Args>(args)...);
+            if (++_end == _bufhi)
+                _end = _buflo;
+            new (_end) T(std::forward<Args>(args)...);
         }
 
         T &&pop_back() {
