@@ -1,6 +1,4 @@
 ﻿#include <fstream>
-#include <iostream>
-#include "igiaccleration/task_queue.h"
 #include "igicamera/camera.h"
 #include "igigeometry/cylinder.h"
 #include "igigeometry/sphere.h"
@@ -9,6 +7,7 @@
 #include "igimaterial/material_phong.h"
 #include "igiscene/aggregate_vector.h"
 #include "igiscene/scene.h"
+#include "render.h"
 
 int main() {
     // A sphere with radius being 1000
@@ -16,8 +15,8 @@ int main() {
     // A cylinder with radius being 0.3 and z ranging from -0.3 to 0.3
     igi::cylinder cy(.3, -.3, .3);
 
-    // White emissive material with luminance being 50 nits
-    igi::material_emissive m0(50);
+    // White emissive material with luminance being 35 nits
+    igi::material_emissive m0(35);
     // An entity representing an emissive sphere
     igi::entity e0(sp, m0);
     // Move e0 to (-600, 600, -600)
@@ -37,7 +36,9 @@ int main() {
     // Scene with black background
     igi::scene s(av);
     // Integrator to use
-    igi::path_trace pt(s, 4, 8);
+    // Reflect 4 times
+    // Split into 4 rays at every reflection
+    igi::path_trace pt(s, 4, 4);
 
     constexpr size_t w = 512, h = 512;
 
@@ -47,7 +48,7 @@ int main() {
 
     // Result texture
     igi::texture_rgb t(w, h);
-    c.render(t, pt, 64);
+    render(c, t, pt, 1024);
 
     std::ofstream o("demo.png", std::ios_base::binary);
     pngparvus::png_writer().write(o, t);

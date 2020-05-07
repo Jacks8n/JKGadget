@@ -4,6 +4,6 @@
 
 namespace igi {
     struct IIntegrator {
-        virtual color_rgb integrate(ray& r) = 0;
+        virtual color_rgb integrate(ray &r, pcg32 &pcg) const = 0;
     };
-}
+}  // namespace igi

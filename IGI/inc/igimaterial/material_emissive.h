@@ -18,7 +18,7 @@ namespace igi {
             return _e;
         }
 
-        scatter getScatter(const vec3f &i, const mat3x3f& tanCoord, pcg32 &rand) const override {
+        scatter getScatter(const vec3f &i, const mat3x3f &tanCoord, random_engine_t &rand) const override {
             return scatter(vec3f::One(0), 0);
         }
     };

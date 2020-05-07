@@ -19,7 +19,7 @@ namespace igi {
             return Lerp(_mat0.getLuminance(), _mat1.getLuminance(), _ratio);
         }
 
-        scatter getScatter(const vec3f &i, const mat3x3f& tanCoord, pcg32 &rand) const override {
+        scatter getScatter(const vec3f &i, const mat3x3f& tanCoord, random_engine_t &rand) const override {
             return _ratio < std::uniform_real_distribution<single>()(rand)
                        ? _mat0.getScatter(i, tanCoord, rand)
                        : _mat1.getScatter(i, tanCoord, rand);

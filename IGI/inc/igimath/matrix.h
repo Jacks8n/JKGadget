@@ -99,6 +99,14 @@ namespace igi {
             return *this;
         }
 
+        bool operator==(const matrix_base &r) const {
+            return equal_impl(r, std::make_index_sequence<Nrow>(), std::make_index_sequence<Ncol>());
+        }
+
+        bool operator!=(const matrix_base &r) const {
+            return !operator==(r);
+        }
+
         constexpr operator matrix<Nrow, Ncol, T>() const { return convert_impl(std::make_index_sequence<Nrow * Ncol>()); }
 
       private:
@@ -130,6 +138,16 @@ namespace igi {
         template <size_t R, typename Fn, size_t... Cs>
         constexpr auto foreach_impl(Fn &&fn, std::index_sequence<Cs...>) -> decltype(fn(get(0, 0), size_t(), size_t()), void()) {
             (fn(get(R, Cs), R, Cs), ...);
+        }
+
+        template <size_t... Rs, size_t... Cs>
+        constexpr bool equal_impl(const matrix_base &o, std::index_sequence<Rs...>, std::index_sequence<Cs...> c) const {
+            return (equal_impl<Rs>(o, c) && ... && true);
+        }
+
+        template <size_t R, size_t... Cs>
+        constexpr bool equal_impl(const matrix_base &o, std::index_sequence<Cs...> c) const {
+            return (o.get(R, Cs) && ... && true);
         }
     };
 

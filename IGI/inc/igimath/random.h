@@ -40,18 +40,20 @@ namespace igi {
         }
     };
 
+    using random_engine_t = pcg32;
+
     class unit_square_distribution {
         std::uniform_real_distribution<single> _urd;
 
       public:
         template <typename Te>
-        vec2f operator()(Te &&engine) const {
+        vec2f operator()(Te &&engine) {
             single p;
             return operator()(engine, &p);
         }
 
         template <typename Te>
-        vec2f operator()(Te &&engine, single *p) const {
+        vec2f operator()(Te &&engine, single *p) {
             *p = 1;
 
             return vec2<single>(_urd(engine), _urd(engine));
@@ -63,13 +65,13 @@ namespace igi {
 
       public:
         template <typename Te>
-        vec2f operator()(Te &&engine) const {
+        vec2f operator()(Te &&engine) {
             single p;
             return operator()(engine, &p);
         }
 
         template <typename Te>
-        vec2f operator()(Te &&engine, single *p) const {
+        vec2f operator()(Te &&engine, single *p) {
             single r0    = _urd(engine);
             single r1    = _urd(engine);
             single rho   = sqrt(r0);
@@ -85,13 +87,13 @@ namespace igi {
 
       public:
         template <typename Te>
-        vec3f operator()(Te &&engine) const {
+        vec3f operator()(Te &&engine) {
             single p;
             return operator()(engine, &p);
         }
 
         template <typename Te>
-        vec3f operator()(Te &&engine, single *p) const {
+        vec3f operator()(Te &&engine, single *p) {
             vec2f v = _udd(engine, p);
             return vec3f(v, sqrt(Saturate(1 - v.magnitudeSqr())));
         }

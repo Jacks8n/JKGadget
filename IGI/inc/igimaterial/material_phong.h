@@ -6,8 +6,6 @@ namespace igi {
 
         color_rgb _spec;
 
-        hemisphere_cos_distribution _hcd;
-
       public:
         material_phong(single shin = 5, color_rgb spec = palette_rgb::white)
             : _shin(shin), _spec(spec) { }
@@ -20,9 +18,10 @@ namespace igi {
             return palette_rgb::black;
         }
 
-        scatter getScatter(const vec3f &i, const mat3x3f &tanCoord, pcg32 &rand) const override {
+        scatter getScatter(const vec3f &i, const mat3x3f &tanCoord, random_engine_t &rand) const override {
             scatter s;
-            s.direction = tanCoord * _hcd(rand, &s.pdf);
+            hemisphere_cos_distribution hcd;
+            s.direction = tanCoord * hcd(rand, &s.pdf);
             return s;
         }
     };

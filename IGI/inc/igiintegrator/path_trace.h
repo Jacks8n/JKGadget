@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include <ctime>
 #include "igiintegrator/IIntegrator.h"
 #include "igimath/random.h"
 
@@ -12,15 +11,18 @@ namespace igi {
 
         const size_t _split;
 
-        pcg32 _random;
-
       public:
         path_trace(const scene &scene, size_t depth = 4, size_t split = 1)
-            : _scene(scene), _depth(depth), _split(split < 1 ? 1 : split), _random() { }
+            : _scene(scene), _depth(depth), _split(split < 1 ? 1 : split) { }
 
-        color_rgb integrate(ray &r) override;
+        color_rgb integrate(ray &r, random_engine_t &rand) const override {
+            interaction i;
+            return _scene.getAggregate().tryHit(r, i)
+                       ? integrate_impl(r.getDirection(), i, _depth, rand)
+                       : _scene.getBackground();
+        }
 
       private:
-        color_rgb integrate_impl(const igi::vec3f &o, const igi::interaction &interaction, size_t depth);
+        color_rgb integrate_impl(const igi::vec3f &o, const igi::interaction &interaction, size_t depth, random_engine_t &rand) const;
     };
 }  // namespace igi
