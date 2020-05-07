@@ -11,20 +11,6 @@
 #include "igiscene/scene.h"
 
 int main() {
-    igi::mem_arena arena(1024);
-    typename igi::worker_group<int, int>::worker_alloc_t alloc(&arena);
-    auto group = igi::worker_group<int, int>([](int &&i) { std::cout << i << '\n'; },
-                                             [](int &i) { return i + 1; },
-                                             32, 2, alloc);
-    for (size_t i = 0; i < 10; i++) {
-        group.tryIssue(i);
-    }
-    group.detachAll();
-
-    group.waitFinish();
-
-    return 0;
-
     // A sphere with radius being 1000
     igi::sphere sp(1000);
     // A cylinder with radius being 0.3 and z ranging from -0.3 to 0.3

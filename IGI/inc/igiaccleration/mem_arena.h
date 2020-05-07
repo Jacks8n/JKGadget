@@ -2,9 +2,12 @@
 
 #include <memory_resource>
 #include <new>
+#include <numeric>
 
 namespace igi {
     class mem_arena : public std::pmr::memory_resource {
+        static constexpr size_t MinChunkSize = 1024;
+
         class chunk {
             chunk *_prev;
 
@@ -17,6 +20,7 @@ namespace igi {
 
           public:
             static chunk *AllocChunk(size_t size, size_t align, chunk *prev) noexcept {
+                align       = align ? std::lcm(alignof(chunk), align) : alignof(chunk);
                 size_t head = sizeof(chunk) < align ? align : sizeof(chunk);
                 void *buf   = ::operator new(size + head, std::align_val_t(align), std::nothrow);
                 return new (buf) chunk(prev, size, align, reinterpret_cast<char *>(buf) + head);
@@ -55,7 +59,11 @@ namespace igi {
             chunk &getLast() noexcept { return *_last; }
 
             chunk &allocChunk(size_t size, size_t align) noexcept {
-                return *(_last = chunk::AllocChunk(static_cast<size_t>(size * 1.36), align, _last));
+                size_t csize = static_cast<size_t>(size * 1.36);
+                if (csize < MinChunkSize)
+                    csize = MinChunkSize;
+                csize = ceilExp2(csize);
+                return *(_last = chunk::AllocChunk(csize, align, _last));
             }
 
             void releaseLast() noexcept {
@@ -65,12 +73,23 @@ namespace igi {
             }
 
             bool isEmpty() noexcept { return _last == nullptr; }
+
+          private:
+            size_t ceilExp2(size_t val) {
+                size_t s = sizeof(size_t) * 2;
+                size_t e = static_cast<size_t>(1) << (sizeof(size_t) * 4);
+                do {
+                    e = e > val ? e >> s : e << s;
+                    s >>= 1;
+                } while (s);
+                return e < val ? e << 1 : e;
+            }
         };
 
         chunk_list _chunks;
 
       public:
-        mem_arena(size_t init_size, size_t align = alignof(void *)) noexcept
+        mem_arena(size_t init_size = MinChunkSize, size_t align = alignof(void *)) noexcept
             : _chunks(init_size, align) { }
         mem_arena(const mem_arena &)     = delete;
         mem_arena(mem_arena &&) noexcept = default;

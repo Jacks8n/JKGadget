@@ -37,9 +37,9 @@ namespace igi {
             : _buflo(static_cast<T *>(alloc.resource()->allocate((size + 1) * sizeof(T), alignof(T)))),
               _bufhi(_buflo + size + 1), _begin(_buflo), _end(_buflo), _alloc(alloc) { }
         circular_list(const circular_list &o, const allocator_type &alloc)
-            : _buflo(static_cast<T *>(alloc.resource()->allocate(o.capacity() + 1, alignof(T))), _alloc(alloc)),
-              _bufhi(_buflo + o.capacity() + 1), _begin(_buflo + o.getBeginIndex()), _end(_buflo + o.getEndIndex()) {
-        }
+            : _buflo(static_cast<T *>(alloc.resource()->allocate(o.capacity() + 1, alignof(T)))),
+              _bufhi(_buflo + o.capacity() + 1), _begin(_buflo + o.getBeginIndex()),
+              _end(_buflo + o.getEndIndex()), _alloc(alloc) { }
         circular_list(circular_list &&o, const allocator_type &alloc)
             : _buflo(o._buflo), _begin(o._begin), _end(o._end), _bufhi(o._bufhi), _alloc(alloc) {
             o._buflo = o._bufhi = o._begin = o._end = nullptr;
@@ -64,7 +64,7 @@ namespace igi {
         }
 
         bool isFull() const {
-            return _end == _begin - 1 || (_end == _bufhi && _begin == _buflo);
+            return _end == _begin - 1 || (_end == _bufhi - 1 && _begin == _buflo);
         }
 
         iterator begin() const {
@@ -86,9 +86,8 @@ namespace igi {
         template <typename... Args>
         void emplace_back(Args &&... args) {
             assertNotFull();
-            if (++_end == _bufhi)
-                _end = _buflo;
             new (_end) T(std::forward<Args>(args)...);
+            _end = _end + 1 == _bufhi ? _buflo : _end + 1;
         }
 
         T &&pop_back() {
@@ -101,7 +100,7 @@ namespace igi {
         T &&pop_front() {
             assertNotEmpty();
             T &e   = *_begin;
-            _begin = (_begin == _bufhi ? _buflo : _begin) + 1;
+            _begin = _begin == _bufhi - 1 ? _buflo : _begin + 1;
             return std::move(e);
         }
 
