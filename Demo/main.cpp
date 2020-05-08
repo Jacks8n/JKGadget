@@ -5,6 +5,7 @@
 #include "igiintegrator/path_trace.h"
 #include "igimaterial/material_emissive.h"
 #include "igimaterial/material_phong.h"
+#include "igiscene/aggregate_sbvh.h"
 #include "igiscene/aggregate_vector.h"
 #include "igiscene/scene.h"
 #include "render.h"
