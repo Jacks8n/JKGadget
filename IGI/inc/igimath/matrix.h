@@ -25,13 +25,13 @@ namespace igi {
         template <typename... Ts, typename = std::enable_if_t<std::is_convertible_v<first_arg_t<Ts...>, T>>>
         constexpr matrix_base(Ts &&... ts) : _elem { static_cast<T>(ts)... } { }
 
-        template <typename FromT, typename = std::enable_if_t<std::is_convertible_v<FromT, T>>>
+        template <typename FromT, std::enable_if_t<std::is_convertible_v<FromT, T>, int> = 0>
         constexpr explicit matrix_base(const matrix_base<Nrow, Ncol, FromT> &o) {
             foreach([&](T & e, size_t i, size_t j) constexpr { e = static_cast<FromT>(o.get(i, j)); });
         }
 
         template <typename Fn>
-        constexpr matrix_base(Fn &&fn, std::enable_if_t<std::is_convertible_v<decltype((*static_cast<Fn *>(nullptr))(size_t(), size_t())), T>> *_ = nullptr) {
+        constexpr matrix_base(Fn &&fn, std::enable_if_t<std::is_convertible_v<decltype(fn(size_t(), size_t())), T>, int> = 0) {
             foreach([&](T & e, size_t i, size_t j) constexpr { e = fn(i, j); });
         }
 
@@ -292,35 +292,35 @@ namespace igi {
     using mat4x4i = matrixSquare<4, int>;
 
     template <size_t Nrow, size_t Ncol, typename T>
-    matrix<Nrow, Ncol, T> operator-(const matrix<Nrow, Ncol, T> &m) {
+    constexpr matrix<Nrow, Ncol, T> operator-(const matrix<Nrow, Ncol, T> &m) {
         matrix<Nrow, Ncol, T> res = m;
         res.foreach([](T &e) { e = -e; });
         return res;
     }
 
     template <size_t Nrow, size_t Ncol, typename T>
-    matrix<Nrow, Ncol, T> operator+(const matrix<Nrow, Ncol, T> &l, const matrix<Nrow, Ncol, T> &r) {
+    constexpr matrix<Nrow, Ncol, T> operator+(const matrix<Nrow, Ncol, T> &l, const matrix<Nrow, Ncol, T> &r) {
         matrix<Nrow, Ncol, T> res = l;
         res.foreach([&](T &e, size_t i, size_t j) { e += r.get(i, j); });
         return res;
     }
 
     template <size_t Nrow, size_t Ncol, typename T>
-    matrix<Nrow, Ncol, T> operator-(const matrix<Nrow, Ncol, T> &l, const matrix<Nrow, Ncol, T> &r) {
+    constexpr matrix<Nrow, Ncol, T> operator-(const matrix<Nrow, Ncol, T> &l, const matrix<Nrow, Ncol, T> &r) {
         matrix<Nrow, Ncol, T> res = l;
         res.foreach([&](T &e, size_t i, size_t j) { e -= r.get(i, j); });
         return res;
     }
 
     template <size_t Nrow, size_t Ncol, typename T>
-    matrix<Nrow, Ncol, T> operator*(const matrix<Nrow, Ncol, T> &l, T r) {
+    constexpr matrix<Nrow, Ncol, T> operator*(const matrix<Nrow, Ncol, T> &l, T r) {
         matrix<Nrow, Ncol, T> res = l;
         res.foreach([&](T &e, size_t i, size_t j) { e *= r; });
         return res;
     }
 
     template <size_t Nrow, size_t Ncol, typename T>
-    matrix<Nrow, Ncol, T> operator/(const matrix<Nrow, Ncol, T> &l, T r) {
+    constexpr matrix<Nrow, Ncol, T> operator/(const matrix<Nrow, Ncol, T> &l, T r) {
         matrix<Nrow, Ncol, T> res = l;
         res.foreach([&](T &e, size_t i, size_t j) { e /= r; });
         return res;

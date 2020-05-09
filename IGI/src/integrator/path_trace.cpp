@@ -35,7 +35,7 @@ igi::color_rgb igi::path_trace::integrate_impl(
 
         pint += scat.pdf;
         r.reset(surf.position, scat.direction);
-        if (_scene.getAggregate().tryHit(r, ia))
+        if (_scene.getAggregate().tryHit(r, &ia))
             lint = lint + Mul(integrate_impl(scat.direction, ia, depth - 1, rand), bxdf) * scat.pdf;
     }
 

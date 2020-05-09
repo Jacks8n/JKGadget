@@ -15,6 +15,12 @@ namespace igi {
             operator[](N - 1) = c;
         }
 
+        using matrix_base<N, 1, T>::One;
+
+        static constexpr matrix Infinity() {
+            return One(SingleInfinity);
+        }
+
         explicit matrix(const matrix<N + 1, 1, T> &v) {
             for (size_t i = 0; i < N; i++)
                 (*this)[i] = v[i];

@@ -6,11 +6,12 @@
 #include "igimaterial/material_emissive.h"
 #include "igimaterial/material_phong.h"
 #include "igiscene/aggregate_sbvh.h"
-#include "igiscene/aggregate_vector.h"
 #include "igiscene/scene.h"
 #include "render.h"
 
 int main() {
+    igi::mem_arena arena(1024 * 1024 * 10);
+
     // A sphere with radius being 1000
     igi::sphere sp(1000);
     // A cylinder with radius being 0.3 and z ranging from -0.3 to 0.3
@@ -33,7 +34,7 @@ int main() {
         .translation(igi::vec3f(0, 0, 2));
 
     // Simplest aggregate of entities
-    igi::aggregate_vector av { &e0, &e1 };
+    igi::aggregate_sbvh av({ e0, e1 }, &arena);
     // Scene with black background
     igi::scene s(av);
     // Integrator to use
@@ -48,8 +49,8 @@ int main() {
     igi::camera_perspective c(70, igi::AsSingle(w) / h);
 
     // Result texture
-    igi::texture_rgb t(w, h);
-    render(c, t, pt, 1024);
+    igi::texture_rgb t(w, h, &arena);
+    render(c, t, pt, arena, 1024);
 
     std::ofstream o("demo.png", std::ios_base::binary);
     pngparvus::png_writer().write(o, t);

@@ -17,7 +17,7 @@ namespace igi {
 
         color_rgb integrate(ray &r, random_engine_t &rand) const override {
             interaction i;
-            return _scene.getAggregate().tryHit(r, i)
+            return _scene.getAggregate().tryHit(r, &i)
                        ? integrate_impl(r.getDirection(), i, _depth, rand)
                        : _scene.getBackground();
         }

@@ -3,6 +3,7 @@
 #include <memory>
 #include "igientity/ITransformable.h"
 #include "igigeometry/ISurface.h"
+#include "igigeometry/bound.h"
 #include "igigeometry/ray.h"
 #include "igimaterial/IMaterial.h"
 #include "igimaterial/interaction.h"
@@ -35,22 +36,26 @@ namespace igi {
             return _surf->isHit(toLocalRay(r));
         }
 
-        bool tryHit(ray &r, interaction &res) const {
+        bool tryHit(ray &r, interaction *res) const {
             ray localr = toLocalRay(r);
 
-            if (!_surf->tryHit(localr, &res.surface))
+            if (!_surf->tryHit(localr, &res->surface))
                 return false;
 
             r.setT(localr.getT());
-            res.material = _mat;
+            res->material = _mat;
 
             const transform &trans = getTransform();
-            res.surface.position   = trans.mulPos(res.surface.position);
-            res.surface.normal     = trans.mulNormal(res.surface.normal);
-            res.surface.dpdu       = trans.mulVec(res.surface.dpdu);
-            res.surface.dpdv       = trans.mulVec(res.surface.dpdv);
+            res->surface.position  = trans.mulPos(res->surface.position);
+            res->surface.normal    = trans.mulNormal(res->surface.normal);
+            res->surface.dpdu      = trans.mulVec(res->surface.dpdu);
+            res->surface.dpdv      = trans.mulVec(res->surface.dpdv);
 
             return true;
+        }
+
+        bound_t getBound() const {
+            return _surf->getBound(getTransform());
         }
 
       private:

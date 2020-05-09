@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory_resource>
 #include "igiacceleration/task_queue.h"
 #include "igicamera/camera.h"
 #include "igiintegrator/IIntegrator.h"
@@ -7,7 +8,7 @@
 
 namespace igi {
     template <typename TCam, typename TInt>
-    inline void render(const TCam &camera, texture_rgb &res, const TInt &integrator, size_t spp = 1) {
+    inline void render(const TCam &camera, texture_rgb &res, const TInt &integrator, mem_arena &arena, size_t spp = 1) {
         struct task {
             size_t u, v;
             color_rgb *res;
@@ -27,8 +28,8 @@ namespace igi {
         res.clear(palette_rgb::black);
 
         std::mutex m;
-        mem_arena arena(1024 * 1024 * 10);
         single w = res.getWidth(), h = res.getHeight();
+        typename worker_group<task, context>::allocator_type alloc(&arena);
         auto group = worker_group<task, context>::DetachMax(
             [&, w, h](std::pair<task, context> &pair) {
                 task &in(pair.first);
@@ -45,7 +46,7 @@ namespace igi {
                 std::scoped_lock sl(m);
                 *in.res = *in.res + i;
             },
-            1024, &arena);
+            1024, alloc);
 
         for (size_t j = 0; j < res.getHeight(); j++)
             for (size_t i = 0; i < res.getWidth(); i++)

@@ -11,17 +11,20 @@ namespace igi {
 
     template <typename T>
     class texture : public pngparvus::IPNG<texture_color255_encoder<T>, color255<color_n_channel_v<T>>> {
-        std::shared_ptr<T[]> _buf;
-
-        size_t _w, _h;
-
       public:
-        texture(const texture &) = default;
-        texture(texture &&)      = default;
-        texture(size_t w, size_t h) : _buf(new T[w * h]), _w(w), _h(h) { }
+        using allocator_type = std::pmr::polymorphic_allocator<T>;
 
-        texture &operator=(const texture &) = default;
-        texture &operator=(texture &&) = default;
+        texture(const texture &o, const allocator_type &alloc)
+            : _alloc(alloc), _buf(allocBuffer(w, h, _alloc)), _w(o._w), _h(o._h) {
+            std::copy(&o.get(0, 0), &o.get(_w, _h), &get(0, 0));
+        }
+        texture(texture &&o, const allocator_type &alloc)
+            : _alloc(alloc), _buf(std::move(o._buf)), _w(o._w), _h(o._h) { }
+        texture(size_t w, size_t h, const allocator_type &alloc)
+            : _alloc(alloc), _buf(allocBuffer(w, h, _alloc)), _w(w), _h(h) { }
+
+        texture &operator=(const texture &) = delete;
+        texture &operator=(texture &&) = delete;
 
         ~texture() = default;
 
@@ -50,6 +53,18 @@ namespace igi {
                 for (size_t i = 0; i < _w; i++)
                     get(i, j) = col;
         }
+
+      private:
+        allocator_type _alloc;
+        std::shared_ptr<T[]> _buf;
+        size_t _w, _h;
+
+        static constexpr auto allocBuffer(size_t w, size_t h, allocator_type &alloc) {
+            return std::shared_ptr<T[]>(
+                alloc.allocate(w * h),
+                [&](T *p) { p->~T(); alloc.deallocate(p, w * h); },
+                alloc);
+        }
     };
 
     using texture_rgb  = texture<color_rgb>;
@@ -65,7 +80,7 @@ namespace igi {
         texture_color255_encoder()                                 = delete;
         texture_color255_encoder(const texture_color255_encoder &) = default;
         texture_color255_encoder(texture_color255_encoder &&)      = default;
-        texture_color255_encoder(std::shared_ptr<color<N>[]> buf) : _buf(buf) { }
+        explicit texture_color255_encoder(std::shared_ptr<color<N>[]> buf) : _buf(buf) { }
 
         texture_color255_encoder &operator=(const texture_color255_encoder &) = default;
         texture_color255_encoder &operator=(texture_color255_encoder &&) = default;

@@ -37,7 +37,11 @@ namespace igi {
             return abs(_zMax - _zMin) * PiTwo * _r;
         }
 
-        bool isHit(const ray& r) const override;
-        bool tryHit(ray& r, surface_interaction* res) const override;
+        virtual bound_t getBound(const transform &trans) const override {
+            return bound_t(vec3f(-_r, -_r, _zMin), vec3f(_r, _r, _zMax)).transform(trans);
+        }
+
+        bool isHit(const ray &r) const override;
+        bool tryHit(ray &r, surface_interaction *res) const override;
     };
 }  // namespace igi

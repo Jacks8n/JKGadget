@@ -34,21 +34,21 @@ namespace igi {
         using allocator_type = std::pmr::polymorphic_allocator<T>;
 
         circular_list(size_t size, const allocator_type &alloc)
-            : _buflo(static_cast<T *>(alloc.resource()->allocate((size + 1) * sizeof(T), alignof(T)))),
-              _bufhi(_buflo + size + 1), _begin(_buflo), _end(_buflo), _alloc(alloc) { }
+            : _alloc(alloc), _buflo(_alloc.allocate(size + 1)),
+              _bufhi(_buflo + size + 1), _begin(_buflo), _end(_buflo) { }
         circular_list(const circular_list &o, const allocator_type &alloc)
-            : _buflo(static_cast<T *>(alloc.resource()->allocate(o.capacity() + 1, alignof(T)))),
-              _bufhi(_buflo + o.capacity() + 1), _begin(_buflo + o.getBeginIndex()),
-              _end(_buflo + o.getEndIndex()), _alloc(alloc) { }
+            : _alloc(alloc), _buflo(_alloc.allocate(getBufSize())),
+              _bufhi(_buflo + o.getBufSize()), _begin(_buflo + o.getBeginIndex()),
+              _end(_buflo + o.getEndIndex()) { }
         circular_list(circular_list &&o, const allocator_type &alloc)
-            : _buflo(o._buflo), _begin(o._begin), _end(o._end), _bufhi(o._bufhi), _alloc(alloc) {
+            : _alloc(alloc), _buflo(o._buflo), _begin(o._begin), _end(o._end), _bufhi(o._bufhi) {
             o._buflo = o._bufhi = o._begin = o._end = nullptr;
         }
 
         ~circular_list() {
             for (T &e : *this)
                 e.~T();
-            _alloc.deallocate(_buflo, _bufhi - _buflo);
+            _alloc.deallocate(_buflo, getBufSize());
         }
 
         allocator_type get_allocator() const noexcept {
@@ -105,9 +105,9 @@ namespace igi {
         }
 
       private:
+        allocator_type _alloc;
         T *const _buflo, *const _bufhi;
         T *_begin, *_end;
-        allocator_type _alloc;
 
         size_t getBeginIndex() const {
             return _begin - _buflo;
@@ -115,6 +115,10 @@ namespace igi {
 
         size_t getEndIndex() const {
             return _end - _buflo;
+        }
+
+        size_t getBufSize() const {
+            return _bufhi - _buflo;
         }
 
         void assertNotEmpty() {

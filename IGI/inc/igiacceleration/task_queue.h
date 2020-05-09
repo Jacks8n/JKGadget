@@ -139,16 +139,17 @@ namespace igi {
     template <typename TTask, typename TContext = void>
     class worker_group {
       public:
-        using worker_thread_t = worker_thread<TTask, TContext>;
-        using worker_func_t   = typename worker_thread_t::worker_func_t;
-        using allocator_type  = std::pmr::polymorphic_allocator<worker_thread_t>;
+        using worker_thread_t      = worker_thread<TTask, TContext>;
+        using worker_func_t        = typename worker_thread_t::worker_func_t;
+        using allocator_type       = std::pmr::polymorphic_allocator<worker_thread_t>;
+        using group_allocator_type = std::pmr::polymorphic_allocator<worker_group>;
 
         using upstream_t = worker_thread_upstream<TTask>;
 
         worker_group(const worker_func_t &workerFunc, size_t maxQueue,
-                     size_t workerCount, allocator_type alloc)
-            : _workers(alloc.allocate(workerCount)), _workerCount(workerCount),
-              _upstream(maxQueue, alloc), _alloc(std::move(alloc)) {
+                     size_t workerCount, const allocator_type &alloc)
+            : _alloc(alloc), _workers(_alloc.allocate(workerCount)),
+              _workerCount(workerCount), _upstream(maxQueue, alloc) {
             for (size_t i = 0; i < workerCount; i++)
                 _alloc.construct(&_workers[i], _upstream, workerFunc);
         }
@@ -161,24 +162,19 @@ namespace igi {
 
 #pragma region Static Functions
 
-        template <typename TAlloc>
         static worker_group *DetachN(const worker_func_t &workerFunc, size_t maxQueue,
-                                     size_t threadCount, TAlloc &&alloc) {
-            using group_alloc_t = std::pmr::polymorphic_allocator<worker_group>;
-
-            group_alloc_t groupAlloc(alloc);
-            worker_group *group = groupAlloc.allocate(1);
-            groupAlloc.construct(group,
-                                 workerFunc, maxQueue, threadCount, std::forward<TAlloc>(alloc));
-
+                                     size_t workerCount, const group_allocator_type &alloc) {
+            group_allocator_type alloctmp(alloc);
+            worker_group *group = alloctmp.allocate(1);
+            new (group) worker_group(workerFunc, maxQueue, workerCount,
+                                     static_cast<allocator_type>(alloc));
             return group;
         }
 
-        template <typename TAlloc>
         static worker_group *DetachMax(const worker_func_t &workerFunc, size_t maxQueue,
-                                       TAlloc &&alloc) {
-            return DetachN(workerFunc, maxQueue, std::thread::hardware_concurrency(),
-                           std::forward<TAlloc>(alloc));
+                                       const group_allocator_type &alloc) {
+            return DetachN(workerFunc,
+                           maxQueue, std::thread::hardware_concurrency(), alloc);
         }
 
 #pragma endregion
@@ -199,9 +195,9 @@ namespace igi {
         }
 
       private:
+        allocator_type _alloc;
         worker_thread_t *_workers;
         size_t _workerCount;
         upstream_t _upstream;
-        allocator_type _alloc;
     };
 }  // namespace igi
