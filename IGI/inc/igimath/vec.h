@@ -26,7 +26,7 @@ namespace igi {
                 (*this)[i] = v[i];
         }
 
-        T magnitudeSqr() const {
+        constexpr T magnitudeSqr() const {
             return Dot(*this, *this);
         }
 
@@ -70,21 +70,27 @@ namespace igi {
     using vec3f = vec3<single>;
     using vec4f = vec4<single>;
 
+    class __vec_impl {
+        template <size_t N, typename T, size_t... Is>
+        static constexpr T Dot(const vec<N, T> &l, const vec<N, T> &r, std::index_sequence<Is...>) {
+            return ((l[Is] * r[Is]) + ...);
+        }
+    };
+
     template <size_t N, typename T>
-    inline T Dot(const vec<N, T> &l, const vec<N, T> &r) {
-        return TransposeMul(l, r);
+    constexpr T Dot(const vec<N, T> &l, const vec<N, T> &r) {
+        return __vec_impl::Dot(l, r, std::make_index_sequence<N>());
     }
 
     template <typename T>
-    inline vec3<T> Cross(const vec3<T> &l, const vec3<T> &r) {
+    constexpr vec3<T> Cross(const vec3<T> &l, const vec3<T> &r) {
         return vec3<T>(l[1] * r[2] - l[2] * r[1],
                        l[2] * r[0] - l[0] * r[2],
                        l[0] * r[1] - l[1] * r[0]);
     }
 
     template <typename T>
-    inline vec3<T> Reflect(const vec3<T> i, const vec3<T> n) {
-        single in = Dot(i, n);
-        return n * (AsSingle(-2) * in) + i;
+    constexpr vec3<T> Reflect(const vec3<T> i, const vec3<T> n) {
+        return n * (AsSingle(-2) * Dot(i, n)) + i;
     }
 }  // namespace igi

@@ -10,26 +10,27 @@
 
 namespace igi {
     class entity : public transformable_base {
-        const ISurface *_surf;
-        const IMaterial *_mat;
+        const ISurface *_surf = nullptr;
+        const IMaterial *_mat = nullptr;
 
       public:
         entity()               = default;
         entity(const entity &) = default;
         entity(entity &&)      = default;
-        entity(const ISurface &surf, const IMaterial &mat) : _surf(&surf), _mat(&mat) { }
+        entity(const ISurface *surf, const IMaterial *mat)
+            : _surf(surf), _mat(mat) { }
 
         entity &operator=(const entity &) = default;
         entity &operator=(entity &&) = default;
 
         ~entity() = default;
 
-        void setSurface(const ISurface &surf) {
-            _surf = &surf;
+        void setSurface(const ISurface *surf) {
+            _surf = surf;
         }
 
-        void setMaterial(const IMaterial &mat) {
-            _mat = &mat;
+        void setMaterial(const IMaterial *mat) {
+            _mat = mat;
         }
 
         bool isHit(const ray &r) const {
@@ -55,7 +56,7 @@ namespace igi {
         }
 
         bound_t getBound() const {
-            return _surf->getBound(getTransform());
+            return _surf->getBound().transform(getTransform());
         }
 
       private:

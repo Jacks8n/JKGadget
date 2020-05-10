@@ -5,7 +5,7 @@ aux_source_directory(src/geometry SOURCES)
 aux_source_directory(src/integrator SOURCES)
 aux_source_directory(src/scene SOURCES)
 
-add_library(${PROJECT_NAME} STATIC ${SOURCES} "src/geometry/cylinder.cpp" )
+add_library(${PROJECT_NAME} STATIC ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC inc)
 

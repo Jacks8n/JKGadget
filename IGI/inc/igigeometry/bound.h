@@ -12,25 +12,42 @@ namespace igi {
         constexpr aabb(const vec3f &half) : _min(-half), _max(half) { }
         constexpr aabb(const vec3f &min, const vec3f &max) : _min(min), _max(max) { }
 
+        static constexpr aabb Inf() {
+            constexpr aabb inf(-vec3f::Infinity(), vec3f::Infinity());
+            return inf;
+        }
+
         static constexpr aabb NegInf() {
             constexpr aabb inf(vec3f::Infinity(), -vec3f::Infinity());
             return inf;
         }
 
-        const vec3f &getMin() const {
+        constexpr const vec3f &getMin() const {
             return _min;
         }
 
-        const vec3f &getMax() const {
+        constexpr single getMin(size_t dim) const {
+            return _min[dim];
+        }
+
+        constexpr const vec3f &getMax() const {
             return _max;
         }
 
-        vec3f getDiagonal() const {
+        constexpr single getMax(size_t dim) const {
+            return _max[dim];
+        }
+
+        constexpr vec3f getDiagonal() const {
             return _max - _min;
         }
 
-        single getInterval(size_t dim) const {
+        constexpr single getSize(size_t dim) const {
             return _max[dim] - _min[dim];
+        }
+
+        constexpr vec2f getInterval(size_t dim) const {
+            return vec2f(getMin(dim), getMax(dim));
         }
 
         aabb &extend(const vec3f &p) {

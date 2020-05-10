@@ -14,7 +14,7 @@ namespace igi {
 
         virtual single getArea() const = 0;
 
-        virtual bound_t getBound(const transform &trans) const = 0;
+        virtual bound_t getBound() const = 0;
 
         virtual bool isHit(const ray &r) const                      = 0;
         virtual bool tryHit(ray &r, surface_interaction *res) const = 0;

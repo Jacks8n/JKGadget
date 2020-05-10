@@ -35,8 +35,8 @@ namespace igi {
 
         single getArea() const override { return PiFour * _r * _r; }
 
-        bound_t getBound(const transform &trans) const override {
-            return bound_t(vec3f::One(_r)).transform(trans);
+        bound_t getBound() const override {
+            return bound_t(vec3f::One(_r));
         }
 
         bool isHit(const ray &r) const override;
