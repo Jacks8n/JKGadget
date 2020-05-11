@@ -10,6 +10,11 @@ namespace igi {
             bool childIsLeaf[2];
             size_t children[2];
             bound_t bound;
+
+            node() : childIsLeaf { false, false }, children { 0, 0 },
+                     bound(bound_t::NegInf()) { }
+            node(bool leftIsLeaf, size_t left, bool rightIsLeaf, size_t right, bound_t bound)
+                : childIsLeaf { leftIsLeaf, rightIsLeaf }, children { left, right }, bound(bound) { }
         };
 
         struct leaf {

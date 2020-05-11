@@ -77,6 +77,10 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
         sah() : _bound(bound_t::NegInf()), _childSA(0_sg) { }
         sah(const sah &o) : _bound(o._bound), _childSA(o._childSA) { }
 
+        const bound_t &getBound() const {
+            return _bound;
+        }
+
         void set(const bounded_vector &bv) {
             _bound   = bv.getBound();
             _childSA = 0_sg;
@@ -135,7 +139,15 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
     };
 
     size_t nleaves = il.size();
-    size_t nbin    = nleaves - 1 > MaxBinCount ? MaxBinCount : nleaves - 1;
+    if (!nleaves) return;
+    if (nleaves < 3) {
+        std::move(leaf_getter(il.begin()), leaf_getter(il.end()), _leaves.begin());
+        bound_t b = _leaves[0].bound;
+        _nodes.emplace_back(true, 0, true, 1, nleaves == 2 ? b.extend(_leaves[1].bound) : b);
+        return;
+    }
+
+    size_t nbin = nleaves - 1 > MaxBinCount ? MaxBinCount : nleaves - 1;
     std::pmr::vector<leaf> leaves(leaf_getter(il.begin()), leaf_getter(il.end()), tempAlloc);
     std::pmr::vector<bin> bins(nbin, tempAlloc);
     std::pmr::vector<split> splits(nbin - 1, tempAlloc);
@@ -148,17 +160,17 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
     }
     bins.emplace_back(tempAlloc);
 
-    iterations.emplace(0, nleaves);
+    bound_t &bound_root = _nodes.emplace_back().bound = bound_t::NegInf();
+    std::for_each(leaves.begin(), leaves.end(), [&](leaf &e) { bound_root.extend(e.bound); });
 
+    auto currNode = _nodes.begin();
+    iterations.emplace(0, nleaves);
     while (iterations.size()) {
+        bound_t &bound_node   = currNode->bound;
         itr_range_t itr_range = iterations.top();
         iterations.pop();
 
         range_t curr(leaves.begin() + itr_range.first, leaves.begin() + itr_range.second);
-        bound_t bound_node = bound_t::NegInf();
-
-        std::for_each(curr.first, curr.second, [&](leaf &e) { bound_node.extend(e.bound); });
-
         vec3f diag      = bound_node.getDiagonal();
         size_t maxDim   = MaxIcf(diag[0], diag[1], diag[2]);
         single interval = diag[maxDim];
@@ -229,15 +241,33 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
         }
 
         leaves.erase(curr.first, curr.second);
-        itr_range.first = leaves.size();
 
         auto moveBin = [&](bin &b) { b.moveTo(leaves); };
+        auto nextItr = [&](size_t lo, size_t hi, size_t side) {
+            if (lo + 1 == hi) {
+                currNode->childIsLeaf[side] = true;
+                currNode->children[side]    = _leaves.size();
+                _leaves.push_back(std::move(leaves[lo]));
+            }
+            else {
+                currNode->childIsLeaf[side] = false;
+                currNode->children[side]    = _nodes.size();
+                _nodes.emplace_back().bound = (side ? binBounds[minSplitI].second
+                                                    : binBounds[minSplitI].first)
+                                                  .getBound();
+                iterations.emplace(lo, hi);
+            }
+        };
+
+        size_t nextItrLo = leaves.size();
         std::for_each(bins.begin(), bins.begin() + minSplitI, moveBin);
         splits[minSplitI].moveLeftTo(leaves);
+
+        size_t nextItrHi = leaves.size();
+        nextItr(nextItrLo, nextItrHi, 0);
+
         splits[minSplitI].moveRightTo(leaves);
         std::for_each(bins.begin() + minSplitI + 1, bins.begin() + nbin, moveBin);
-
-        itr_range.second = leaves.size();
-        iterations.emplace(itr_range);
+        nextItr(nextItrHi, leaves.size(), 1);
     }
 }
