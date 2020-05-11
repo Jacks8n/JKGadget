@@ -24,7 +24,7 @@ namespace igi {
     }
 
     constexpr single PiTwoToZeroOne(single val) {
-        return val * PiTwoInv + AsSingle(.5);
+        return val * PiTwoInv + .5_sg;
     }
 
     constexpr single ZeroOneToPiTwo(single val) {

@@ -41,8 +41,8 @@ namespace igi {
       private:
         void calculateV2W() {
             _v2w = getTransform()
-                   * mat4x4f(_width, 0, 0, -_width * AsSingle(.5),
-                             0, _height, 0, -_height * AsSingle(.5),
+                   * mat4x4f(_width, 0, 0, -_width * .5_sg,
+                             0, _height, 0, -_height * .5_sg,
                              0, 0, getDepth(), getNear(),
                              0, 0, 0, 1);
         }
@@ -61,7 +61,7 @@ namespace igi {
 
         camera_perspective(single fov, single ratio, single near = .1, single far = 1000)
             : camera_base(near, far) {
-            _left   = -(_right = tan(fov * Deg2Rad * AsSingle(.5)));
+            _left   = -(_right = tan(fov * Deg2Rad * .5_sg));
             _bottom = -(_top = _right * ratio);
             calculateV2L();
         }

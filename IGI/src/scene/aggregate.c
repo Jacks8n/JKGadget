@@ -1,2 +1,0 @@
-#include "igiscene/aggregate.h"
-

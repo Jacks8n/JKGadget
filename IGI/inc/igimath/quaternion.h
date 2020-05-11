@@ -15,13 +15,15 @@ namespace igi {
             : _x(x), _y(y), _z(z), _w(w) { }
         constexpr quaternion(single r, const vec3f &i)
             : _x(r), _y(i[0]), _z(i[1]), _w(i[2]) { }
+        constexpr quaternion(const vec3f &v)
+            : quaternion(0, v) { }
 
         static constexpr quaternion Identity() {
             return quaternion(0, 0, 0, 1);
         }
 
         static quaternion AxisRotation(const vec3f axis, single ang) {
-            ang *= AsSingle(.5);
+            ang *= .5_sg;
             return quaternion(std::cos(ang), axis * std::sin(ang));
         }
 
@@ -42,7 +44,7 @@ namespace igi {
         }
 
         constexpr quaternion inverse() const {
-            return conjunction() * (AsSingle(1) / magnitudeSqr());
+            return conjunction() * (1_sg / magnitudeSqr());
         }
 
         constexpr quaternion operator*(const quaternion &r) const {
@@ -56,7 +58,7 @@ namespace igi {
         }
 
         constexpr vec3f operator*(const vec3f &v) const {
-            return (*this * quaternion(AsSingle(0), v) * *this).getImaginary();
+            return (*this * quaternion(v) * *this).getImaginary();
         }
 
       private:

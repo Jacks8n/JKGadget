@@ -13,19 +13,19 @@ namespace igi {
         ray()            = default;
         ray(const ray &) = default;
         ray(ray &&)      = default;
-        ray(const vec3f &o, const vec3f &d, single t = SingleLarge)
+        constexpr ray(const vec3f &o, const vec3f &d, single t = SingleLarge)
             : _o(o), _d(d), _t(t) { }
 
-        ray &operator=(const ray &) = default;
-        ray &operator=(ray &&) = default;
+        constexpr ray &operator=(const ray &) = default;
+        constexpr ray &operator=(ray &&) = default;
 
         ~ray() = default;
 
-        const vec3f &getOrigin() const { return _o; }
+        constexpr const vec3f &getOrigin() const { return _o; }
 
         void setOrigin(const vec3f &o) { _o = o; }
 
-        const vec3f &getDirection() const { return _d; }
+        constexpr const vec3f &getDirection() const { return _d; }
 
         void setDirection(const vec3f &d) { _d = d; }
 
@@ -34,7 +34,9 @@ namespace igi {
             setT(1);
         }
 
-        single getT() const { return _t; }
+        constexpr single getTMin() const { return 0; }
+
+        constexpr single getT() const { return _t; }
 
         void setT(single t) { _t = t; }
 
@@ -50,8 +52,8 @@ namespace igi {
             _d = _d / m;
         }
 
-        vec3f cast(single t) const { return _d * t + _o; }
+        constexpr vec3f cast(single t) const { return _d * t + _o; }
 
-        vec3f getEndpoint() const { return cast(_t); }
+        constexpr vec3f getEndpoint() const { return cast(_t); }
     };
 }  // namespace igi

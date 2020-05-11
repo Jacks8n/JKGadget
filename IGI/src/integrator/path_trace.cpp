@@ -26,11 +26,11 @@ igi::color_rgb igi::path_trace::integrate_impl(
     color_rgb lint = palette_rgb::black;
     for (size_t i = 0; i < _split; i++) {
         scat = mat.getScatter(o, tanCoord, rand);
-        if (scat.pdf == AsSingle(0) || (Lesscf(scat.pdf, .001) && urd(rand) < AsSingle(.5)))
+        if ((scat.pdf == 0_sg) || (Lesscf(scat.pdf, .001) && urd(rand) < .5_sg))
             continue;
 
         bxdf = mat(scat.direction, o, surf.normal);
-        if (Lesscf(bxdf.magnitudeSqr(), .001) && urd(rand) < AsSingle(.5))
+        if (Lesscf(bxdf.magnitudeSqr(), .001) && urd(rand) < .5_sg)
             continue;
 
         pint += scat.pdf;
@@ -42,5 +42,5 @@ igi::color_rgb igi::path_trace::integrate_impl(
     if (Equalcf(pint, 0))
         return lu;
 
-    return lu + lint * static_cast<color_channel_t>(AsSingle(1) / pint);
+    return lu + lint * static_cast<color_channel_t>(1) / AsSingle(pint);
 }

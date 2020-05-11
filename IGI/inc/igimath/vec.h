@@ -71,6 +71,7 @@ namespace igi {
     using vec4f = vec4<single>;
 
     class __vec_impl {
+      public:
         template <size_t N, typename T, size_t... Is>
         static constexpr T Dot(const vec<N, T> &l, const vec<N, T> &r, std::index_sequence<Is...>) {
             return ((l[Is] * r[Is]) + ...);
@@ -91,6 +92,11 @@ namespace igi {
 
     template <typename T>
     constexpr vec3<T> Reflect(const vec3<T> i, const vec3<T> n) {
-        return n * (AsSingle(-2) * Dot(i, n)) + i;
+        return n * -2_sg * Dot(i, n) + i;
+    }
+
+    template <typename T>
+    constexpr vec3<T> MakeReversedOrient(const vec3<T> &expected, const vec3<T> &v) {
+        return IsPositivecf(Dot(expected, v)) ? -v : v;
     }
 }  // namespace igi

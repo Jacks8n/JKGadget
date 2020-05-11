@@ -25,6 +25,14 @@ namespace igi {
 
         ~entity() = default;
 
+        const ISurface &getSurface() const {
+            return *_surf;
+        }
+
+        const IMaterial& getMaterial() const {
+            return *_mat;
+        }
+
         void setSurface(const ISurface *surf) {
             _surf = surf;
         }

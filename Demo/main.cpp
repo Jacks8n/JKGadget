@@ -34,7 +34,7 @@ int main() {
         .translation(igi::vec3f(0, 0, 2));
 
     // Simplest aggregate of entities
-    igi::aggregate av({ &e0, &e1 }, &arena);
+    igi::aggregate av({ e0, e1 }, &arena);
     // Scene with black background
     igi::scene s(av);
     // Integrator to use

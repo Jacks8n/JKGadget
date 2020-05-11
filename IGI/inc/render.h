@@ -55,7 +55,7 @@ namespace igi {
 
         group->waitFinish();
 
-        single sppinv = AsSingle(1) / spp;
+        single sppinv = 1_sg / spp;
         for (size_t j = 0; j < res.getHeight(); j++)
             for (size_t i = 0; i < res.getWidth(); i++) {
                 color_rgb &c = res.get(i, j);

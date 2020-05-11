@@ -30,12 +30,28 @@ namespace igi {
             return _min[dim];
         }
 
+        void setMin(const vec3f &min) {
+            _min = min;
+        }
+
+        void setMin(size_t dim, single coord) {
+            _min[dim] = coord;
+        }
+
         constexpr const vec3f &getMax() const {
             return _max;
         }
 
         constexpr single getMax(size_t dim) const {
             return _max[dim];
+        }
+
+        void setMax(const vec3f &max) {
+            _max = max;
+        }
+        
+        void setMax(size_t dim, single coord) {
+            _max[dim] = coord;
         }
 
         constexpr vec3f getDiagonal() const {
@@ -46,8 +62,8 @@ namespace igi {
             return _max[dim] - _min[dim];
         }
 
-        constexpr vec2f getInterval(size_t dim) const {
-            return vec2f(getMin(dim), getMax(dim));
+        constexpr auto getInterval(size_t dim) const {
+            return std::make_pair(getMin(dim), getMax(dim));
         }
 
         aabb &extend(const vec3f &p) {
