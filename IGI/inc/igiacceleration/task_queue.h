@@ -107,33 +107,50 @@ namespace igi {
         using worker_input_t = typename worker_input<TContext>::type;
         using worker_func_t  = std::function<void(worker_input_t &)>;
 
-        worker_thread(task_upstream_t &upstream, const worker_func_t &workerFunc)
-            : _upstream(upstream), _thread(wrapWorkerFunc(workerFunc)) { }
+        template <typename... TContextArgs>
+        worker_thread(task_upstream_t &upstream, const worker_func_t &workerFunc,
+                      TContextArgs &&... contextArgs)
+            : _thread(worker_func_wrapper(
+                upstream, workerFunc, std::forward<TContextArgs>(contextArgs)...)) { }
 
       private:
-        task_upstream_t &_upstream;
         std::thread _thread;
 
-        auto wrapWorkerFunc(const worker_func_t &func) {
-            return [&, func] {
-                worker_input_t in;
+        class worker_func_wrapper {
+            task_upstream_t &_upstream;
+            const worker_func_t &_func;
+            worker_input_t _in;
+
+          public:
+            worker_func_wrapper(task_upstream_t &upstream, const worker_func_t &workerFunc)
+                : _upstream(upstream), _func(workerFunc), _in() { }
+
+            template <typename... TContextArgs,
+                      std::enable_if_t<!std::is_same_v<TContext, void>, int> = 0>
+            worker_func_wrapper(task_upstream_t &upstream, const worker_func_t &workerFunc,
+                                TContextArgs &&... args)
+                : _upstream(upstream), _func(workerFunc),
+                  _in(TTask(), TContext(std::forward<TContextArgs>(args)...)) { }
+
+            void operator()() {
                 while (true) {
                     auto t = _upstream.getToken();
                     if (!t) break;
-                    if (RetrieveInput(t, &in))
-                        func(in);
+                    if (RetrieveInput(t, &_in))
+                        _func(_in);
                     else
                         std::this_thread::yield();
                 }
-            };
-        }
+            }
 
-        static bool RetrieveInput(typename task_upstream_t::token &token, worker_input_t *in) {
-            if constexpr (std::is_same_v<TContext, void>)
-                return token.retrieve_lock(in);
-            else
-                return token.retrieve_lock(&in->first);
-        }
+          private:
+            static bool RetrieveInput(typename task_upstream_t::token &token, worker_input_t *in) {
+                if constexpr (std::is_same_v<TContext, void>)
+                    return token.retrieve_lock(in);
+                else
+                    return token.retrieve_lock(&in->first);
+            }
+        };
     };
 
     template <typename TTask, typename TContext = void>
@@ -146,12 +163,14 @@ namespace igi {
 
         using upstream_t = worker_thread_upstream<TTask>;
 
-        worker_group(const worker_func_t &workerFunc, size_t maxQueue,
-                     size_t workerCount, const allocator_type &alloc)
+        template <typename... TContextArgs>
+        worker_group(const worker_func_t &workerFunc, size_t maxQueue, size_t workerCount,
+                     const allocator_type &alloc, TContextArgs &&... contextArgs)
             : _alloc(alloc), _workers(_alloc.allocate(workerCount)),
               _workerCount(workerCount), _upstream(maxQueue, alloc) {
             for (size_t i = 0; i < workerCount; i++)
-                _alloc.construct(&_workers[i], _upstream, workerFunc);
+                _alloc.construct(&_workers[i], _upstream, workerFunc,
+                                 std::forward<TContextArgs>(contextArgs)...);
         }
 
         ~worker_group() {
@@ -162,19 +181,21 @@ namespace igi {
 
 #pragma region Static Functions
 
-        static worker_group *DetachN(const worker_func_t &workerFunc, size_t maxQueue,
-                                     size_t workerCount, const group_allocator_type &alloc) {
+        template <typename... TContextArgs>
+        static worker_group *DetachN(const worker_func_t &workerFunc, size_t maxQueue, size_t workerCount,
+                                     const group_allocator_type &alloc, TContextArgs &&... contextArgs) {
             group_allocator_type alloctmp(alloc);
             worker_group *group = alloctmp.allocate(1);
-            new (group) worker_group(workerFunc, maxQueue, workerCount,
-                                     static_cast<allocator_type>(alloc));
+            new (group) worker_group(workerFunc, maxQueue, workerCount, static_cast<allocator_type>(alloc),
+                                     std::forward<TContextArgs>(contextArgs)...);
             return group;
         }
 
+        template <typename... TContextArgs>
         static worker_group *DetachMax(const worker_func_t &workerFunc, size_t maxQueue,
-                                       const group_allocator_type &alloc) {
-            return DetachN(workerFunc,
-                           maxQueue, std::thread::hardware_concurrency(), alloc);
+                                       const group_allocator_type &alloc, TContextArgs &&... contextArgs) {
+            return DetachN(workerFunc, maxQueue, std::thread::hardware_concurrency(),
+                           alloc, std::forward<TContextArgs>(contextArgs)...);
         }
 
 #pragma endregion

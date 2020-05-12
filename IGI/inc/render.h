@@ -21,8 +21,11 @@ namespace igi {
         };
 
         struct context {
-            pcg32 pcg;
+            integrator_context ic;
             unit_square_distribution usd;
+
+            context(const typename integrator_context::allocator_type &alloc)
+                : ic(alloc), usd() { }
         };
 
         res.clear(palette_rgb::black);
@@ -36,17 +39,17 @@ namespace igi {
                 context &c(pair.second);
 
                 single p;
-                vec2f xy = c.usd(c.pcg, &p);
+                vec2f xy = c.usd(c.ic.pcg, &p);
                 xy[0] += static_cast<single>(in.u);
                 xy[1] += static_cast<single>(in.v);
 
                 ray r       = camera.getRay(xy[0] / w, xy[1] / h);
-                color_rgb i = integrator.integrate(r, c.pcg) * p;
+                color_rgb i = integrator.integrate(r, c.ic) * p;
 
                 std::scoped_lock sl(m);
                 *in.res = *in.res + i;
             },
-            1024, alloc);
+            1024, alloc, alloc);
 
         for (size_t j = 0; j < res.getHeight(); j++)
             for (size_t i = 0; i < res.getWidth(); i++)

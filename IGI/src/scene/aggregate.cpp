@@ -1,5 +1,4 @@
 #include "igiscene/aggregate.h"
-#include <stack>
 #include "igigeometry/triangle.h"
 
 /// This implementation of Spatial-Split BVH doesn't fully comply with the original idea
@@ -12,6 +11,7 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
         bound_t _bound;
 
       public:
+        bounded_vector() { }
         explicit bounded_vector(const std::pmr::polymorphic_allocator<const leaf *> &alloc)
             : _leaves(alloc), _bound(bound_t::NegInf()) { }
 
@@ -40,6 +40,8 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
         using bounded_vector::bounded_vector;
 
       public:
+        bin() { }
+
         void moveTo(std::pmr::vector<leaf> &dest) {
             MoveTo(dest, _leaves);
         }
@@ -50,6 +52,7 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
         std::pmr::vector<leaf> _leaves_right;
 
       public:
+        split() { }
         split(const std::pmr::polymorphic_allocator<const leaf *> &alloc)
             : bounded_vector(alloc), _leaves_left(alloc), _leaves_right(alloc) { }
 

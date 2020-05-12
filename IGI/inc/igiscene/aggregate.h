@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <memory_resource>
+#include <stack>
 #include "igientity/entity.h"
 
 namespace igi {
@@ -11,8 +12,7 @@ namespace igi {
             size_t children[2];
             bound_t bound;
 
-            node() : childIsLeaf { false, false }, children { 0, 0 },
-                     bound(bound_t::NegInf()) { }
+            node() { }
             node(bool leftIsLeaf, size_t left, bool rightIsLeaf, size_t right, bound_t bound)
                 : childIsLeaf { leftIsLeaf, rightIsLeaf }, children { left, right }, bound(bound) { }
         };
@@ -20,6 +20,9 @@ namespace igi {
         struct leaf {
             const entity *entity;
             bound_t bound;
+
+            leaf() { }
+            constexpr leaf(const igi::entity *ep, bound_t b) : entity(ep), bound(b) { }
         };
 
         template <typename TIt>
@@ -31,7 +34,7 @@ namespace igi {
 
             constexpr leaf operator*() const {
                 const entity &e = *_it;
-                return leaf { &e, e.getBound() };
+                return leaf(&e, e.getBound());
             }
 
             leaf_getter &operator++() {
@@ -52,6 +55,7 @@ namespace igi {
 
       public:
         using allocator_type = std::pmr::polymorphic_allocator<leaf>;
+        using itr_stack_t    = std::stack<const void *, std::pmr::vector<const void *>>;
 
         aggregate(const allocator_type &alloc)
             : _nodes(alloc), _leaves(alloc) { }
@@ -72,16 +76,42 @@ namespace igi {
 
         ~aggregate() = default;
 
-        void add(const entity &e);
+        bool isHit(const ray &r, itr_stack_t &itrtmp) const {
+            return hit_impl(r, itrtmp,
+                            [](const entity &e, const ray &r) { return e.isHit(r); });
+        }
 
-        bool isHit(const ray &r) const;
-
-        bool tryHit(ray &r, interaction *res) const;
+        bool tryHit(ray &r, interaction *res, itr_stack_t &itrtmp) const {
+            return hit_impl(r, itrtmp,
+                            [=](const entity &e, ray &r) { return e.tryHit(r, res); });
+        }
 
       private:
         std::pmr::vector<node> _nodes;
         std::pmr::vector<leaf> _leaves;
 
         void initBuild(const initializer_list_t &il, allocator_type alloc);
+
+        template <typename TRay, typename TFn>
+        bool hit_impl(TRay &&r, itr_stack_t &itrtmp, TFn &&fn) const {
+            size_t emptySize = itrtmp.size();
+
+            itrtmp.push(&_nodes[0]);
+            do {
+                const node *curr = static_cast<const node *>(itrtmp.top());
+                if (curr->bound.isHit(r)) {
+                    for (size_t i = 0; i < 2; i++)
+                        if (curr->childIsLeaf[i]) {
+                            const leaf &l = _leaves[curr->children[i]];
+                            if (l.bound.isHit(r) && fn(*l.entity, r))
+                                return true;
+                        }
+                        else
+                            itrtmp.push(&_nodes[curr->children[i]]);
+                }
+            } while (itrtmp.size() > emptySize);
+
+            return false;
+        }
     };
 }  // namespace igi

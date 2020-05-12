@@ -3,6 +3,7 @@
 #include <memory_resource>
 #include <new>
 #include <numeric>
+#include "igimath/mathutil.h"
 
 namespace igi {
     class mem_arena : public std::pmr::memory_resource {
@@ -62,7 +63,7 @@ namespace igi {
                 size_t csize = static_cast<size_t>(size * 1.36);
                 if (csize < MinChunkSize)
                     csize = MinChunkSize;
-                csize = ceilExp2(csize);
+                csize = CeilExp2(csize);
                 return *(_last = chunk::AllocChunk(csize, align, _last));
             }
 
@@ -73,17 +74,6 @@ namespace igi {
             }
 
             bool isEmpty() noexcept { return _last == nullptr; }
-
-          private:
-            size_t ceilExp2(size_t val) {
-                size_t s = sizeof(size_t) * 2;
-                size_t e = static_cast<size_t>(1) << (sizeof(size_t) * 4);
-                do {
-                    e = e > val ? e >> s : e << s;
-                    s >>= 1;
-                } while (s);
-                return e < val ? e << 1 : e;
-            }
         };
 
         chunk_list _chunks;
