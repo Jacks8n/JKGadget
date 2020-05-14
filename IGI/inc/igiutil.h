@@ -5,21 +5,13 @@
 #include <utility>
 
 namespace igi {
-    template <typename... Ts>
-    struct first_arg;
-
-    template <typename T, typename... Ts>
-    struct first_arg<T, Ts...> {
-        using type = T;
+    template <typename TTo, typename... TFroms>
+    struct all_convertible {
+        static constexpr bool value = (std::is_convertible_v<TFroms, TTo> && ...);
     };
 
-    template <>
-    struct first_arg<> {
-        using type = void;
-    };
-
-    template <typename... Ts>
-    using first_arg_t = typename first_arg<Ts...>::type;
+    template <typename TTo, typename... TFroms>
+    constexpr bool all_convertible_v = all_convertible<TTo, TFroms...>::value;
 
     template <size_t N, size_t... Is>
     constexpr size_t getFirstInt() {

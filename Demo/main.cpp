@@ -50,7 +50,7 @@ int main() {
 
     // Result texture
     igi::texture_rgb t(w, h, &arena);
-    render(c, t, pt, arena, 1024);
+    render(c, t, pt, arena, 1);
 
     std::ofstream o("demo.png", std::ios_base::binary);
     pngparvus::png_writer().write(o, t);

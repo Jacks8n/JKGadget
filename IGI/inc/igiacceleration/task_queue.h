@@ -118,7 +118,7 @@ namespace igi {
 
         class worker_func_wrapper {
             task_upstream_t &_upstream;
-            const worker_func_t &_func;
+            worker_func_t _func;
             worker_input_t _in;
 
           public:
@@ -194,8 +194,13 @@ namespace igi {
         template <typename... TContextArgs>
         static worker_group *DetachMax(const worker_func_t &workerFunc, size_t maxQueue,
                                        const group_allocator_type &alloc, TContextArgs &&... contextArgs) {
+#ifdef _DEBUG
+            return DetachN(workerFunc, maxQueue, 1, alloc,
+                           std::forward<TContextArgs>(contextArgs)...);
+#else
             return DetachN(workerFunc, maxQueue, std::thread::hardware_concurrency(),
                            alloc, std::forward<TContextArgs>(contextArgs)...);
+#endif
         }
 
 #pragma endregion

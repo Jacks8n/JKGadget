@@ -145,8 +145,12 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
     if (!nleaves) return;
     if (nleaves < 3) {
         std::move(leaf_getter(il.begin()), leaf_getter(il.end()), _leaves.begin());
-        bound_t b = _leaves[0].bound;
-        _nodes.emplace_back(true, 0, true, 1, nleaves == 2 ? b.extend(_leaves[1].bound) : b);
+        if (nleaves == 1)
+            _nodes.emplace_back(true, 0, false, 1, _leaves[0].bound);
+        else {
+            bound_t b = _leaves[0].bound;
+            _nodes.emplace_back(true, 0, true, 1, b.extend(_leaves[1].bound));
+        }
         return;
     }
 

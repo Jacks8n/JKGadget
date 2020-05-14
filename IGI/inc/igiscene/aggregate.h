@@ -109,6 +109,8 @@ namespace igi {
                         else
                             itrtmp.push(&_nodes[curr->children[i]]);
                 }
+
+                itrtmp.pop();
             } while (itrtmp.size() > emptySize);
 
             return false;

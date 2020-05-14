@@ -33,7 +33,7 @@ namespace igi {
             return SingleInfinity;
         }
 
-        bound_t getBound() const override {
+        bound_t getBound(const transform &trans) const override {
             return bound_t::Inf();
         }
 
@@ -49,10 +49,11 @@ namespace igi {
                 r.setT(t);
 
                 vec3f n = MakeReversedOrient(r.getDirection(), _normal);
-                vec3f v = r.getEndpoint() - _origin;
+                vec3f e = r.getEndpoint();
+                vec3f v = e - _origin;
                 vec2f uv(Dot(_tangentU, v), Dot(_tangentV, v));
 
-                *res = surface_helper::CalculateInteraction(this, r, n, uv);
+                *res = surface_helper::CalculateInteraction(this, r, e, n, uv);
                 return true;
             }
             return false;

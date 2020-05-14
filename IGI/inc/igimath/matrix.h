@@ -20,10 +20,11 @@ namespace igi {
         matrix_base()                    = default;
         matrix_base(const matrix_base &) = default;
         matrix_base(matrix_base &&)      = default;
-        matrix_base(std::initializer_list<T> list) { std::copy(list.begin(), list.end(), _elem); }
+        matrix_base(std::initializer_list<T> list) {
+            std::copy(list.begin(), list.end(), _elem);
+        }
 
-        template <typename... Ts,
-                  std::enable_if_t<std::is_convertible_v<first_arg_t<Ts...>, T>, int> = 0>
+        template <typename... Ts, std::enable_if_t<all_convertible_v<T, Ts...>, int> = 0>
         constexpr matrix_base(Ts &&... ts) : _elem { static_cast<T>(ts)... } { }
 
         template <typename FromT,
@@ -32,9 +33,9 @@ namespace igi {
             foreach([&](T & e, size_t i, size_t j) constexpr { e = static_cast<FromT>(o.get(i, j)); });
         }
 
-        template <typename Fn>
-        constexpr matrix_base(Fn &&fn,
-                              std::enable_if_t<std::is_convertible_v<decltype(fn(size_t(), size_t())), T>, int> = 0) {
+        template <typename Fn, std::enable_if_t<
+                                   std::is_convertible_v<std::invoke_result_t<Fn(size_t, size_t)>, T>, int> = 0>
+        constexpr matrix_base(Fn &&fn) {
             foreach([&](T & e, size_t i, size_t j) constexpr { e = fn(i, j); });
         }
 
@@ -43,11 +44,17 @@ namespace igi {
 
         ~matrix_base() = default;
 
-        static constexpr matrix_base One(T val = 1) { return one_impl(val, std::make_index_sequence<Nrow * Ncol>()); }
+        static constexpr matrix_base One(T val = 1) {
+            return one_impl(val, std::make_index_sequence<Nrow * Ncol>());
+        }
 
-        constexpr T &get(size_t r, size_t c) { return _elem[r * Ncol + c]; }
+        constexpr T &get(size_t r, size_t c) {
+            return _elem[r * Ncol + c];
+        }
 
-        constexpr const T &get(size_t r, size_t c) const { return _elem[r * Ncol + c]; }
+        constexpr const T &get(size_t r, size_t c) const {
+            return _elem[r * Ncol + c];
+        }
 
         row_vec_t getRow(size_t r) const {
             row_vec_t res;

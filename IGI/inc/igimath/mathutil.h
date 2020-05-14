@@ -11,8 +11,8 @@ namespace igi {
         return Clamp(static_cast<T>(0), static_cast<T>(1), val);
     }
 
-    template <typename T0, typename T1>
-    constexpr T0 Lerp(T0 lo, T0 hi, T1 val) {
+    template <typename T0, typename TUVIt>
+    constexpr T0 Lerp(T0 lo, T0 hi, TUVIt val) {
         return (hi - lo) * val + lo;
     }
 

@@ -64,7 +64,7 @@ namespace igi {
         }
 
         bound_t getBound() const {
-            return _surf->getBound().transform(getTransform());
+            return _surf->getBound(getTransform());
         }
 
       private:

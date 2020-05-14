@@ -37,8 +37,8 @@ namespace igi {
             return abs(_zMax - _zMin) * PiTwo * _r;
         }
 
-        virtual bound_t getBound() const override {
-            return bound_t(vec3f(-_r, -_r, _zMin), vec3f(_r, _r, _zMax));
+        virtual bound_t getBound(const transform &trans) const override {
+            return bound_t(vec3f(-_r, -_r, _zMin), vec3f(_r, _r, _zMax)).transform(trans);
         }
 
         bool isHit(const ray &r) const override;
