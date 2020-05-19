@@ -1,13 +1,10 @@
-﻿#include <fstream>
-#include "igicamera/camera.h"
+﻿#include "main.h"
 #include "igigeometry/cylinder.h"
 #include "igigeometry/sphere.h"
 #include "igiintegrator/path_trace.h"
+#include "igimaterial/material_debug.h"
 #include "igimaterial/material_emissive.h"
 #include "igimaterial/material_phong.h"
-#include "igiscene/aggregate.h"
-#include "igiscene/scene.h"
-#include "render.h"
 
 int main() {
     igi::mem_arena arena(1024 * 1024 * 10);

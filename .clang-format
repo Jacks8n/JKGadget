@@ -10,7 +10,7 @@ AlignEscapedNewlines: Right
 AlignOperands:   true
 AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: true
-AllowAllConstructorInitializersOnNextLine: true
+AllowAllConstructorInitializersOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortBlocksOnASingleLine: Empty
 AllowShortCaseLabelsOnASingleLine: true
@@ -77,7 +77,7 @@ IncludeIsMainRegex: '(_test)?$'
 IncludeIsMainSourceRegex: ''
 IndentCaseLabels: true
 IndentGotoLabels: false
-IndentPPDirectives: BeforeHash
+IndentPPDirectives: None
 IndentWidth:     4
 IndentWrappedFunctionNames: false
 JavaScriptQuotes: Leave

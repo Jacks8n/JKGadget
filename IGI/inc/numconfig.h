@@ -4,7 +4,7 @@
 
 namespace igi {
 
-#ifdef NUMCONFIG_DOUBLE
+#ifdef IGI_DOUBLE_FLOAT
 
     using single = double;
 
@@ -22,7 +22,7 @@ namespace igi {
 
 #endif
 
-    constexpr single SingleInfinity = 1e200 * 1e200;
+    constexpr single SingleInf = 1e200 * 1e200;
 
 #pragma region Conservative Single Comparison
 
@@ -34,16 +34,16 @@ namespace igi {
     constexpr single operator""_sg(long double val) {
         return static_cast<single>(val);
     }
-    
+
     constexpr single operator""_sg(unsigned long long val) {
         return static_cast<single>(val);
     }
-    
+
     // PS: The suffix of function name, i.e. .*(cf), indicates Conservative Floating Point
 
-    constexpr bool IsPositivecf(single v) { return v > SingleEpsilon; }
+    constexpr bool IsPoscf(single v) { return v > SingleEpsilon; }
 
-    constexpr bool IsNegativecf(single v) { return v < -SingleEpsilon; }
+    constexpr bool IsNegcf(single v) { return v < -SingleEpsilon; }
 
     constexpr bool NotZero(single v) { return v > SingleEpsilon || v < -SingleEpsilon; }
 
@@ -72,7 +72,7 @@ namespace igi {
                    ? Lesscf(v1, v2) ? 2 : 1
                    : Lesscf(v0, v2) ? 2 : 0;
     }
-    
+
     constexpr size_t MinIcf(single v0, single v1, single v2) {
         return Lesscf(v0, v1)
                    ? Lesscf(v0, v2) ? 0 : 2

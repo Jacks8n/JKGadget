@@ -135,7 +135,7 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
         return n < 1 ? 1 : n > MaxBinCount ? MaxBinCount : n;
     };
     constexpr auto getBinIndex = [](single coord, single binSizeInv, size_t binCount) -> size_t {
-        if (!IsPositivecf(coord)) return 0;
+        if (!IsPoscf(coord)) return 0;
 
         size_t i = static_cast<size_t>(coord * binSizeInv);
         return i < binCount ? i : binCount - 1;
@@ -210,7 +210,7 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
         }
 
         bound_t bound_left, bound_right, bound_splitLeft, bound_splitRight;
-        single cost_min = SingleInfinity;
+        single cost_min = SingleInf;
         single costs[3], &cost_left = costs[0], &cost_right = costs[1], &cost_split = costs[2];
         size_t minSplitI = 0;
         for (size_t i = 0; i < splits.size(); i++) {

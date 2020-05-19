@@ -29,7 +29,7 @@ namespace igi {
             return *_surf;
         }
 
-        const IMaterial& getMaterial() const {
+        const IMaterial &getMaterial() const {
             return *_mat;
         }
 
@@ -42,41 +42,19 @@ namespace igi {
         }
 
         bool isHit(const ray &r) const {
-            return _surf->isHit(toLocalRay(r));
+            return _surf->isHit(r, getTransform());
         }
 
         bool tryHit(ray &r, interaction *res) const {
-            ray localr = toLocalRay(r);
-
-            if (!_surf->tryHit(localr, &res->surface))
+            if (!_surf->tryHit(r, getTransform(), &res->surface))
                 return false;
 
-            r.setT(localr.getT());
             res->material = _mat;
-
-            const transform &trans = getTransform();
-            res->surface.position  = trans.mulPos(res->surface.position);
-            res->surface.normal    = trans.mulNormal(res->surface.normal);
-            res->surface.dpdu      = trans.mulVec(res->surface.dpdu);
-            res->surface.dpdv      = trans.mulVec(res->surface.dpdv);
-
             return true;
         }
 
         bound_t getBound() const {
             return _surf->getBound(getTransform());
-        }
-
-      private:
-        ray toLocalRay(const ray &r) const {
-            ray lr;
-
-            const transform &trans = getTransform();
-            lr.setOrigin(trans.mulPosInv(r.getOrigin()));
-            lr.setEndpoint(trans.mulPosInv(r.getEndpoint()));
-            lr.normalizeDirection();
-
-            return lr;
         }
     };
 }  // namespace igi

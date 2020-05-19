@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <memory_resource>
 #include "igiacceleration/task_queue.h"
@@ -8,7 +8,8 @@
 
 namespace igi {
     template <typename TCam, typename TInt>
-    inline void render(const TCam &camera, texture_rgb &res, const TInt &integrator, mem_arena &arena, size_t spp = 1) {
+    inline void render(const TCam &camera, texture_rgb &res, const TInt &integrator,
+                       mem_arena &arena, size_t spp = 1) {
         struct task {
             size_t u, v;
             color_rgb *res;
@@ -62,8 +63,7 @@ namespace igi {
         for (size_t j = 0; j < res.getHeight(); j++)
             for (size_t i = 0; i < res.getWidth(); i++) {
                 color_rgb &c = res.get(i, j);
-
-                c = c * sppinv;
+                c            = c * sppinv;
             }
     }
 }  // namespace igi

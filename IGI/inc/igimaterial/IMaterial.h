@@ -10,7 +10,7 @@ namespace igi {
 
         single pdf;
 
-        scatter() = default;
+        scatter() : direction(0_sg, 0_sg, 0_sg), pdf(0_sg) { }
         scatter(const igi::vec3f &d, single p) : direction(d), pdf(p) { }
 
         scatter &operator=(const scatter &) = default;
@@ -21,6 +21,6 @@ namespace igi {
 
         virtual color_rgb getLuminance() const = 0;
 
-        virtual scatter getScatter(const vec3f &i, const mat3x3f& tanCoord, pcg32 &rand) const = 0;
+        virtual scatter getScatter(const vec3f &i, const mat3x3f &tanCoord, pcg32 &rand) const = 0;
     };
 }  // namespace igi

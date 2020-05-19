@@ -40,7 +40,7 @@ namespace igi {
         }
 
         vec3f mulNormal(const vec3f& n) const {
-            mat4x4f m = Transpose(_inv);
+            mat4x4f m = _inv.transpose();
             return m.mulVec(n);
         }
 

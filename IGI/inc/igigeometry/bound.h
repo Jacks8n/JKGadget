@@ -13,12 +13,12 @@ namespace igi {
         constexpr aabb(const vec3f &min, const vec3f &max) : _min(min), _max(max) { }
 
         static constexpr aabb Inf() {
-            constexpr aabb inf(-vec3f::Infinity(), vec3f::Infinity());
+            constexpr aabb inf(-vec3f::One(SingleInf), vec3f::One(SingleInf));
             return inf;
         }
 
         static constexpr aabb NegInf() {
-            constexpr aabb inf(vec3f::Infinity(), -vec3f::Infinity());
+            constexpr aabb inf(vec3f::One(SingleInf), vec3f::One(-SingleInf));
             return inf;
         }
 

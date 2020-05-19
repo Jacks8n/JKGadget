@@ -1,6 +1,8 @@
 ﻿#include "igigeometry/cylinder.h"
 
-bool igi::cylinder::isHit(const ray &r) const {
+bool igi::cylinder::isHit(const ray &wr, const transform &trans) const {
+    ray r = surface_helper::ToLocalRay(wr, trans);
+
     single zmin = r.getOrigin()[2], zmax = r.getEndpoint()[2];
     if (Lesscf(zmax, zmin))
         std::swap(zmax, zmin);
@@ -13,16 +15,18 @@ bool igi::cylinder::isHit(const ray &r) const {
     return Lesscf((oxy + dxy * p).magnitudeSqr(), _r * _r);
 }
 
-bool igi::cylinder::tryHit(ray &r, surface_interaction *res) const {
-    vec2f oxy = static_cast<vec2f>(r.getOrigin());
-    vec2f dxy = static_cast<vec2f>(r.getDirection());
+bool igi::cylinder::tryHit(ray &wr, const transform &trans, surface_interaction *res) const {
+    ray r = surface_helper::ToLocalRay(wr, trans);
+
+    vec2f oxy(r.getOrigin());
+    vec2f dxy(r.getDirection());
 
     single a = Dot(dxy, dxy);
     single b = Dot(oxy, dxy) * 2_sg;
     single c = Dot(oxy, oxy) - _r * _r;
     single d = b * b - 4_sg * a * c;
 
-    if (!IsPositivecf(d)) return false;
+    if (!IsPoscf(d)) return false;
 
     a = .5_sg / a;
     b = -b * a;
@@ -33,24 +37,24 @@ bool igi::cylinder::tryHit(ray &r, surface_interaction *res) const {
 
     if (InRangecf(r.getTMin(), r.getT(), b - d)
         && InRangecf(_zMin, _zMax, oz + dz * (b - d)))
-        r.setT(b - d);
+        wr.setT(b - d);
     else if (InRangecf(r.getTMin(), r.getT(), b + d)
              && InRangecf(_zMin, _zMax, oz + dz * (b + d)))
-        r.setT(b + d);
+        wr.setT(b + d);
     else
         return false;
 
-    res->normal = res->position = r.getEndpoint();
-
-    res->normal[2] = 0_sg;
-    res->normal *= 1_sg / _r;
-    if (IsPositivecf(Dot(res->normal, r.getDirection())))
-        res->normal = -res->normal;
+    res->normal   = r.getEndpoint().normalized();
+    res->position = res->normal * _r;
 
     res->dpdu = vec3f(-res->normal[1], res->normal[0], 0_sg);
     res->dpdv = vec3f(0_sg, 0_sg, _zMax - _zMin);
 
     res->uv = vec2f(Saturate(PiTwoToZeroOne(atan2(res->normal[1], res->normal[0]))),
                     Saturate(Ratio(_zMin, _zMax, res->position[2])));
+
+    res->normal = MakeReversedOrient(r.getDirection(), res->normal);
+
+    surface_helper::ResToWorldSpace(trans, res);
     return true;
 }

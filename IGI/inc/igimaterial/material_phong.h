@@ -19,8 +19,8 @@ namespace igi {
         }
 
         scatter getScatter(const vec3f &i, const mat3x3f &tanCoord, random_engine_t &rand) const override {
-            scatter s;
             hemisphere_cos_distribution hcd;
+            scatter s;
             s.direction = tanCoord * hcd(rand, &s.pdf);
             return s;
         }
