@@ -6,14 +6,14 @@ namespace igi {
     class scene {
         const aggregate &_aggregate;
 
-        color_rgb _background;
+        color3 _background;
 
       public:
-        scene(const aggregate &aggregate, color_rgb background = palette_rgb::black)
+        scene(const aggregate &aggregate, color3 background = palette::black)
             : _aggregate(aggregate), _background(background) { }
 
         const aggregate &getAggregate() const { return _aggregate; }
 
-        color_rgb getBackground() const { return _background; }
+        color3 getBackground() const { return _background; }
     };
 }  // namespace igi

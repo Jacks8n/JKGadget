@@ -8,20 +8,21 @@ namespace igi {
     template <typename T>
     class texture;
 
-    template <typename T, std::enable_if_t<(color_n_channel_v<T> > 0), int> = 0>
-    class texture_color255_iterator {
+    template <typename T>
+    class texture_color255_iterator : public std::iterator_traits<pngparvus::pixel_rgb *> {
         friend class texture<T>;
 
-        using color_t = colorI<color_n_channel_v<T>, uint8_t>;
-
         const std::shared_ptr<T[]> _buf;
+
         size_t _index;
 
-        explicit texture_color255_iterator(std::shared_ptr<T[]> buf) : _buf(buf), _index(0) { }
+        explicit texture_color255_iterator(const std::shared_ptr<T[]> &buf) : _buf(buf), _index(0) { }
 
       public:
-        color_t operator*() const {
-            return ToColor255<color_n_channel_v<T>, uint8_t>(_buf[_index]);
+        pngparvus::pixel_rgb operator*() const {
+            T col = (_buf[_index] * 255_col).clamp(0_col, 255_col);
+            return pngparvus::pixel_rgb(static_cast<uint8_t>(col.r),
+                                        static_cast<uint8_t>(col.g), static_cast<uint8_t>(col.b));
         }
 
         texture_color255_iterator &operator++() {
@@ -29,13 +30,13 @@ namespace igi {
             return *this;
         }
 
-        bool operator==(const texture_color255_iterator &o) const {
-            return _buf == o._buf;
+        bool operator!=(const texture_color255_iterator &o) const {
+            return _buf != o._buf;
         }
     };
 
     template <typename T>
-    class texture : public pngparvus::IPNG<texture_color255_iterator<T>, colorI<color_n_channel_v<T>, uint8_t>> {
+    class texture : public pngparvus::IPNG<texture_color255_iterator<T>> {
       public:
         using allocator_type = std::pmr::polymorphic_allocator<T>;
 
@@ -92,6 +93,5 @@ namespace igi {
         }
     };
 
-    using texture_rgb  = texture<color_rgb>;
-    using texture_rgba = texture<color_rgba>;
+    using texture_rgb = texture<color3>;
 }  // namespace igi

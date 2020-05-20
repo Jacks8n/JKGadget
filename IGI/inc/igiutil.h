@@ -6,7 +6,7 @@
 
 namespace igi {
     template <typename T0, typename... Ts>
-    struct all_same{
+    struct all_same {
         static constexpr bool value = (std::is_same_v<T0, Ts> && ... && true);
     };
 

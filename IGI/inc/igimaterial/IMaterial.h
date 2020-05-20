@@ -17,9 +17,9 @@ namespace igi {
     };
 
     struct IMaterial {
-        virtual color_rgb operator()(const vec3f &i, const vec3f &o, const vec3f &n) const = 0;
+        virtual color3 operator()(const vec3f &i, const vec3f &o, const vec3f &n) const = 0;
 
-        virtual color_rgb getLuminance() const = 0;
+        virtual color3 getLuminance() const = 0;
 
         virtual scatter getScatter(const vec3f &i, const mat3x3f &tanCoord, pcg32 &rand) const = 0;
     };

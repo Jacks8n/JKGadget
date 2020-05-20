@@ -1,0 +1,1 @@
+igi::surface_interaction::getNormalSpace() doesn't do normalization

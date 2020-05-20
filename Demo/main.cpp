@@ -1,8 +1,8 @@
 ﻿#include "main.h"
+#include <iostream>
 #include "igigeometry/cylinder.h"
 #include "igigeometry/sphere.h"
 #include "igiintegrator/path_trace.h"
-#include "igimaterial/material_debug.h"
 #include "igimaterial/material_emissive.h"
 #include "igimaterial/material_phong.h"
 
@@ -11,8 +11,8 @@ int main() {
 
     // A sphere with radius being 1000
     igi::sphere sp(1000);
-    // A cylinder with radius being 0.3 and z ranging from -0.3 to 0.3
-    igi::cylinder cy(.3, -.3, .3);
+    // A cylinder with radius being 0.35 and z ranging from -0.35 to 0.35
+    igi::cylinder cy(.35, -.35, .35);
 
     // White emissive material with luminance being 35 nits
     igi::material_emissive m0(35);
@@ -47,7 +47,7 @@ int main() {
 
     // Result texture
     igi::texture_rgb t(w, h, &arena);
-    render(c, t, pt, arena, 1);
+    render(c, t, pt, arena, 1024, &std::cout);
 
     std::ofstream o("demo.png", std::ios_base::binary);
     pngparvus::png_writer().write(o, t);

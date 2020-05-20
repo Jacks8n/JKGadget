@@ -4,24 +4,27 @@ namespace igi {
     class material_phong : public IMaterial {
         single _shin;
 
-        color_rgb _spec;
+        color3 _spec;
 
       public:
-        material_phong(single shin = 5, color_rgb spec = palette_rgb::white)
+        material_phong(single shin = 5_sg, color3 spec = palette::white)
             : _shin(shin), _spec(spec) { }
 
-        color_rgb operator()(const vec3f &i, const vec3f &o, const vec3f &n) const override {
-            return _spec * pow(Dot(Reflect(i, n), o), _shin);
+        color3 operator()(const vec3f &i, const vec3f &o, const vec3f &n) const override {
+            single d = Dot(Reflect(i, n), o);
+            if (IsPoscf(d))
+                return _spec * pow(d, _shin);
+            return 0_sg;
         }
 
-        color_rgb getLuminance() const override {
-            return palette_rgb::black;
+        color3 getLuminance() const override {
+            return palette::black;
         }
 
-        scatter getScatter(const vec3f &i, const mat3x3f &tanCoord, random_engine_t &rand) const override {
+        scatter getScatter(const vec3f &i, const mat3x3f &normalSpace, random_engine_t &rand) const override {
             hemisphere_cos_distribution hcd;
             scatter s;
-            s.direction = tanCoord * hcd(rand, &s.pdf);
+            s.direction = normalSpace * hcd(rand, &s.pdf);
             return s;
         }
     };

@@ -4,8 +4,6 @@
 #include "igimath/vec.h"
 
 namespace igi {
-    using mat4x4f = matrix<single, 4, 4>;
-
     template <>
     class alignas(32) matrix<float, 4, 4> : public matrix_base_sqr<float, 4> {
       public:
@@ -14,20 +12,22 @@ namespace igi {
         matrix() = default;
 
         vec3f mulPos(const vec3f &p) const {
-            vec4f vp(p, 1);
+            vec<float, 4> vp(p, 1_sg);
             vp = operator*(vp);
-            return static_cast<vec3f>(vp * vp[3]);
+            return vec3f(vp) * vp[3];
         }
 
         vec3f mulVec(const vec3f &v) const {
-            vec4f vp(v, 0);
-            return static_cast<vec3f>(operator*(vp));
+            vec<float, 4> vp(v, 0);
+            return vec3f(operator*(vp));
         }
 
-        vec4f operator*(const vec4f &r) const {
+        vec4f operator*(const vec<float, 4> &r) const {
             alignas(32) float res[8];
-            std::copy_n(&r.get(0, 0), 4, &res[0]);
-            std::copy_n(&r.get(0, 0), 4, &res[4]);
+            for (size_t i = 0; i < 4; i++) {
+                res[i]     = r[i];
+                res[i + 4] = r[i];
+            }
 
             __m256 row01 = _mm256_load_ps(&get(0, 0));
             __m256 row23 = _mm256_load_ps(&get(2, 0));
@@ -47,7 +47,7 @@ namespace igi {
             return vec4f(res[0], res[1], res[2], res[3]);
         }
 
-        mat4x4f operator*(const mat4x4f &r) const {
+        matrix operator*(const matrix &r) const {
             matrix res;
 
             __m256 row01 = _mm256_load_ps(&get(0, 0));
@@ -122,10 +122,7 @@ namespace igi {
 
             return res;
         }
-
-        matrix &operator*=(const matrix &m) {
-            *this = *this * m;
-            return *this;
-        }
     };
+
+    using mat4x4f = matrix<single, 4, 4>;
 }  // namespace igi

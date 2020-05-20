@@ -9,8 +9,8 @@ namespace igi {
                && Lesscf(p, r.getT() * r.getDirection().magnitudeSqr());
     }
 
-    bool sphere::tryHit(ray &wr, const transform &trans, surface_interaction *res) const {
-        ray r = surface_helper::ToLocalRay(wr, trans);
+    bool sphere::tryHit(ray &wr, const transform &o2w, surface_interaction *res) const {
+        const ray r = surface_helper::ToLocalRay(wr, o2w);
 
         single a = r.getDirection().magnitudeSqr();
         single b = 2_sg * Dot(r.getDirection(), r.getOrigin());
@@ -23,14 +23,17 @@ namespace igi {
         b = -b * a;
         d = sqrt(d) * a;
 
+        single t;
+
         if (InRangecf(r.getTMin(), r.getT(), b - d))
-            wr.setT(b - d);
+            t = b - d;
         else if (InRangecf(r.getTMin(), r.getT(), b + d))
-            wr.setT(b + d);
+            t = b + d;
         else
             return false;
 
-        res->normal   = r.getEndpoint().normalized();
+        wr.setT(t);
+        res->normal   = r.cast(t).normalized();
         res->position = res->normal * _r;
 
         vec2f xy(res->normal);
@@ -46,7 +49,7 @@ namespace igi {
 
         res->normal = MakeReversedOrient(r.getDirection(), res->normal);
 
-        surface_helper::ResToWorldSpace(trans, res);
+        surface_helper::ResToWorldSpace(o2w, res);
         return true;
     }
 }  // namespace igi

@@ -15,7 +15,7 @@ namespace igi {
         path_trace(const scene &scene, size_t depth = 4, size_t split = 1)
             : _scene(scene), _depth(depth), _split(split < 1 ? 1 : split) { }
 
-        color_rgb integrate(ray &r, integrator_context &context) const override {
+        color3 integrate(ray &r, integrator_context &context) const override {
             interaction i;
             return _scene.getAggregate().tryHit(r, &i, context.itrtmp)
                        ? integrate_impl(r.getDirection(), i, _depth, context)
@@ -23,7 +23,7 @@ namespace igi {
         }
 
       private:
-        color_rgb integrate_impl(const igi::vec3f &o, const igi::interaction &interaction,
-                                 size_t depth, integrator_context &context) const;
+        color3 integrate_impl(const igi::vec3f &o, const igi::interaction &interaction,
+                              size_t depth, integrator_context &context) const;
     };
 }  // namespace igi

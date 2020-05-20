@@ -16,19 +16,19 @@ namespace igi {
       protected:
         class surface_helper {
           public:
-            static ray ToLocalRay(const ray &r, const transform &o2w) {
-                ray lr;
-                lr.setOrigin(o2w.mulPosInv(r.getOrigin()))
-                    .setEndpoint(o2w.mulPosInv(r.getEndpoint()))
+            static ray ToLocalRay(const ray &wr, const transform &o2w) {
+                ray r;
+                r.setOrigin(o2w.mulPosInv(wr.getOrigin()))
+                    .setEndpoint(o2w.mulPosInv(wr.getEndpoint()))
                     .normalizeDirection();
-                return lr;
+                return r;
             }
 
             static void ResToWorldSpace(const transform &o2w, surface_interaction *res) {
                 res->position = o2w.mulPos(res->position);
-                res->normal   = o2w.mulNormal(res->normal);
-                res->dpdu     = o2w.mulVec(res->dpdu);
-                res->dpdv     = o2w.mulVec(res->dpdv);
+                res->normal   = o2w.mulNormal(res->normal).normalized();
+                res->dpdu     = o2w.mulVec(res->dpdu).normalized();
+                res->dpdv     = o2w.mulVec(res->dpdv).normalized();
             }
 
             template <typename T, std::enable_if_t<std::is_base_of_v<ISurface, T>, size_t> = 0>

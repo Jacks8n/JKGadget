@@ -12,7 +12,7 @@ namespace igi {
             size_t children[2];
             bound_t bound;
 
-            node() { }
+            node() : childIsLeaf { false, false }, children { 0, 0 } { }
             node(bool leftIsLeaf, size_t left, bool rightIsLeaf, size_t right, bound_t bound)
                 : childIsLeaf { leftIsLeaf, rightIsLeaf }, children { left, right }, bound(bound) { }
         };
@@ -21,7 +21,7 @@ namespace igi {
             const entity *entity;
             bound_t bound;
 
-            leaf() { }
+            leaf() : entity(nullptr) { }
             constexpr leaf(const igi::entity *ep, bound_t b) : entity(ep), bound(b) { }
         };
 
@@ -77,13 +77,13 @@ namespace igi {
         ~aggregate() = default;
 
         bool isHit(const ray &r, itr_stack_t &itrtmp) const {
-            return hit_impl(r, itrtmp,
-                            [](const entity &e, const ray &r) { return e.isHit(r); });
+            return hit_impl<true>(r, itrtmp,
+                                  [](const entity &e, const ray &r) { return e.isHit(r); });
         }
 
         bool tryHit(ray &r, interaction *res, itr_stack_t &itrtmp) const {
-            return hit_impl(r, itrtmp,
-                            [=](const entity &e, ray &r) { return e.tryHit(r, res); });
+            return hit_impl<false>(r, itrtmp,
+                                   [=](const entity &e, ray &r) { return e.tryHit(r, res); });
         }
 
       private:
@@ -92,28 +92,38 @@ namespace igi {
 
         void initBuild(const initializer_list_t &il, allocator_type alloc);
 
-        template <typename TRay, typename TFn>
+        template <bool FindFirst, typename TRay, typename TFn>
         bool hit_impl(TRay &&r, itr_stack_t &itrtmp, TFn &&fn) const {
-            size_t emptySize = itrtmp.size();
+            const size_t emptySize = itrtmp.size();
 
-            itrtmp.push(&_nodes[0]);
+            bool hit = false;
+            itrtmp.push(_nodes.data());
             do {
                 const node *curr = static_cast<const node *>(itrtmp.top());
                 if (curr->bound.isHit(r)) {
                     for (size_t i = 0; i < 2; i++)
                         if (curr->childIsLeaf[i]) {
                             const leaf &l = _leaves[curr->children[i]];
-                            if (l.bound.isHit(r) && fn(*l.entity, r))
-                                return true;
+                            if (l.bound.isHit(r) && fn(*l.entity, r)) {
+                                hit = true;
+
+                                if constexpr (FindFirst) {
+                                    do
+                                        itrtmp.pop();
+                                    while (itrtmp.size() > emptySize);
+                                    goto end;
+                                }
+                            }
                         }
-                        else
+                        else if (curr->children[i])
                             itrtmp.push(&_nodes[curr->children[i]]);
                 }
 
                 itrtmp.pop();
             } while (itrtmp.size() > emptySize);
 
-            return false;
+end:
+            return hit;
         }
     };
 }  // namespace igi

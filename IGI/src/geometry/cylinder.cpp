@@ -16,7 +16,7 @@ bool igi::cylinder::isHit(const ray &wr, const transform &trans) const {
 }
 
 bool igi::cylinder::tryHit(ray &wr, const transform &trans, surface_interaction *res) const {
-    ray r = surface_helper::ToLocalRay(wr, trans);
+    const ray r = surface_helper::ToLocalRay(wr, trans);
 
     vec2f oxy(r.getOrigin());
     vec2f dxy(r.getDirection());
@@ -34,20 +34,23 @@ bool igi::cylinder::tryHit(ray &wr, const transform &trans, surface_interaction 
 
     single oz = r.getOrigin()[2];
     single dz = r.getDirection()[2];
+    single t;
 
     if (InRangecf(r.getTMin(), r.getT(), b - d)
         && InRangecf(_zMin, _zMax, oz + dz * (b - d)))
-        wr.setT(b - d);
+        t = b - d;
     else if (InRangecf(r.getTMin(), r.getT(), b + d)
              && InRangecf(_zMin, _zMax, oz + dz * (b + d)))
-        wr.setT(b + d);
+        t = b + d;
     else
         return false;
 
-    res->normal   = r.getEndpoint().normalized();
-    res->position = res->normal * _r;
+    wr.setT(t);
+    res->position = r.cast(t);
 
-    res->dpdu = vec3f(-res->normal[1], res->normal[0], 0_sg);
+    res->normal = vec3f(res->position[0], res->position[1], 0_sg);
+
+    res->dpdu = vec3f(-res->position[1], res->position[0], 0_sg);
     res->dpdv = vec3f(0_sg, 0_sg, _zMax - _zMin);
 
     res->uv = vec2f(Saturate(PiTwoToZeroOne(atan2(res->normal[1], res->normal[0]))),

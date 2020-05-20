@@ -20,6 +20,9 @@ namespace igi {
     template <typename T, size_t Nrow, size_t Ncol>
     struct matrix_trait<matrix_base<T, Nrow, Ncol>> {
         static constexpr bool value = true;
+
+        using elem_t = T;
+
         static constexpr size_t row = Nrow;
         static constexpr size_t col = Ncol;
     };
@@ -27,12 +30,18 @@ namespace igi {
     template <typename T, size_t Nrow, size_t Ncol>
     struct matrix_trait<matrix<T, Nrow, Ncol>> {
         static constexpr bool value = true;
+
+        using elem_t = T;
+
         static constexpr size_t row = Nrow;
         static constexpr size_t col = Ncol;
     };
 
     template <typename T>
     constexpr bool is_matrix_v = matrix_trait<T>::value;
+
+    template <typename T>
+    using matrix_elem_t = typename matrix_trait<T>::elem_t;
 
     template <typename T, size_t Nrow, size_t Ncol>
     class matrix_base {
@@ -113,7 +122,7 @@ namespace igi {
         }
 
         constexpr matrix<T, 1, Ncol> row(size_t r) const {
-            return row_impl(r, std::make_index_sequence<Ncol>());
+            return row_impl(r, makeColSeq());
         }
 
         constexpr auto rows() const {
@@ -122,7 +131,7 @@ namespace igi {
         }
 
         constexpr matrix<T, Nrow, 1> col(size_t c) const {
-            return col_impl(c, std::make_index_sequence<Nrow>());
+            return col_impl(c, makeRowSeq());
         }
 
         constexpr auto cols() const {
@@ -260,6 +269,14 @@ namespace igi {
         constexpr auto asTuple() const {
             constexpr auto seq = makeNCompSeq();
             return convert_impl<decltype(MakeTupleN<T>(seq))>(seq);
+        }
+
+        static constexpr auto makeRowSeq() {
+            return std::make_index_sequence<Nrow>();
+        }
+
+        static constexpr auto makeColSeq() {
+            return std::make_index_sequence<Ncol>();
         }
 
         static constexpr auto makeNCompSeq() {

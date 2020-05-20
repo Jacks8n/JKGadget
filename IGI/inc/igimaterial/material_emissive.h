@@ -4,17 +4,17 @@
 
 namespace igi {
     class material_emissive : public IMaterial {
-        color_rgb _e;
+        color3 _e;
 
       public:
-        material_emissive(single il = 1, const color_rgb &e = palette_rgb::white)
-            : _e(ToBaseColor(e) * il) { }
+        material_emissive(single il = 1, const color3 &e = palette::white)
+            : _e(e.base() * il) { }
 
-        color_rgb operator()(const vec3f &i, const vec3f &o, const vec3f &n) const override {
-            return palette_rgb::black;
+        color3 operator()(const vec3f &i, const vec3f &o, const vec3f &n) const override {
+            return palette::black;
         }
 
-        color_rgb getLuminance() const override {
+        color3 getLuminance() const override {
             return _e;
         }
 
