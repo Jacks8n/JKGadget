@@ -162,21 +162,21 @@ TEST(ReflitestTest, Apply) {
 
     constexpr auto meta0 = GetMemberMeta(refl_sample, "field_int");
     meta0.apply(foo, 12);
+    EXPECT_EQ(12, foo.field_int);
 
     constexpr auto meta1 = GetMemberMeta(refl_sample, "field_float");
     meta1.apply(foo, 42.f);
+    EXPECT_EQ(42.f, foo.field_float);
 
     refl_sample2 bar;
 
     constexpr auto meta2 = GetMemberMeta(refl_sample2, "field_func");
 
     int res0 = meta2.apply(bar, 24, 18);
+    EXPECT_EQ(42, res0);
+
     meta2.assign(bar, [](int l, int r) { return l * r; });
     int res1 = meta2.apply(bar, 21, 2);
-
-    EXPECT_EQ(12, foo.field_int);
-    EXPECT_EQ(42.f, foo.field_float);
-    EXPECT_EQ(42, res0);
     EXPECT_EQ(42, res1);
 }
 
