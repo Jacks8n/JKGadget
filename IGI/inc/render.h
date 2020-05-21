@@ -88,7 +88,7 @@ namespace igi {
             *logos << "finished in " << elapsed.count() * 1e-9 << "s" << std::endl;
 
             logos->precision(prec);
-            logos << std::defaultfloat;
+            *logos << std::defaultfloat;
         }
 
         single sppinv = 1_sg / spp;

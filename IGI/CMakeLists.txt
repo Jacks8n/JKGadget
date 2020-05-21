@@ -1,5 +1,5 @@
 ﻿# Immersive Graphic Illusion
-project(IGI)
+project(IGI CXX)
 
 aux_source_directory(src/geometry SOURCES)
 aux_source_directory(src/integrator SOURCES)
@@ -9,10 +9,8 @@ add_library(${PROJECT_NAME} STATIC ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC inc)
 
-target_link_libraries(${PROJECT_NAME} PNGParvus Reflitest)
+target_link_libraries(${PROJECT_NAME} INTERFACE PNGParvus Reflitest RapidJSON)
 
-target_compile_options(IGI PUBLIC ${COMPILE_OPTIONS} "-mavx")
-
-if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-target_compile_options(IGI PUBLIC ${COMPILE_OPTIONS} "/clang:-ffast-math")
+if(${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
+target_compile_options(${PROJECT_NAME} PUBLIC ${COMPILE_OPTIONS} "-mavx" "/clang:-ffast-math")
 endif()
