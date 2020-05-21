@@ -7,7 +7,7 @@ using namespace reflitest;
 
 class refl_sample {
   public:
-    META_BEGIN_A(refl_sample, std::string_view("class meta"))
+    META_BEGIN(refl_sample, std::string_view("class meta"))
 
     META(field_int, (int)42, std::string_view("the answer"))
     int field_int;
@@ -82,7 +82,7 @@ TEST(ReflitestTest, MemberMetaValue) {
 }
 
 TEST(ReflitestTest, MetaCount) {
-    constexpr size_t count = meta_of<refl_sample>::get_meta_count();
+    constexpr size_t count = meta_of<refl_sample>::get_meta_count<>();
     EXPECT_EQ(2, count);
 }
 
@@ -175,7 +175,9 @@ TEST(ReflitestTest, Apply) {
     int res0 = meta2.apply(bar, 24, 18);
     EXPECT_EQ(42, res0);
 
-    meta2.assign(bar, [](int l, int r) { return l * r; });
+    meta2.apply(bar, [](int l, int r) { return l * r; });
+    //meta2.assign(bar, [](int l, int r) { return l * r; });
+
     int res1 = meta2.apply(bar, 21, 2);
     EXPECT_EQ(42, res1);
 }
