@@ -7,7 +7,7 @@ using namespace reflitest;
 
 class refl_sample {
   public:
-    META_BEGIN(refl_sample, std::string_view("class meta"))
+    META_BEGIN(refl_sample, "refl_sample", std::string_view("class meta"))
 
     META(field_int, (int)42, std::string_view("the answer"))
     int field_int;
@@ -15,7 +15,7 @@ class refl_sample {
     META(field_float, 2.71828f, std::string_view("natural constant"))
     float field_float;
 
-    META_END
+    META_END_RT
 
     template <typename T>
     static T deserialize(std::string_view src) {
@@ -82,7 +82,7 @@ TEST(ReflitestTest, MemberMetaValue) {
 }
 
 TEST(ReflitestTest, MetaCount) {
-    constexpr size_t count = meta_of<refl_sample>::get_meta_count<>();
+    constexpr size_t count = meta_of<refl_sample>::template get_meta_count<>();
     EXPECT_EQ(2, count);
 }
 
@@ -180,6 +180,55 @@ TEST(ReflitestTest, Apply) {
 
     int res1 = meta2.apply(bar, 21, 2);
     EXPECT_EQ(42, res1);
+}
+
+TEST(ReflitestTest, DynamicRegist) {
+    refl_class rc = refl_table::get_class("refl_sample");
+
+    EXPECT_EQ(2, rc.count());
+    EXPECT_EQ("field_int", rc[0].name());
+    EXPECT_EQ("field_float", rc[1].name());
+}
+
+TEST(ReflitestTest, DynamicAccess0) {
+    const refl_class &rc = refl_table::get_class("refl_sample");
+
+    const refl_member &meta0 = rc[0];
+    const refl_member &meta1 = rc["field_float"];
+
+    refl_sample foo { 42, 12.f };
+    int i;
+    float f;
+
+    meta0.get(&foo, &i);
+    meta1.get(&foo, &f);
+
+    EXPECT_EQ(foo.field_int, i);
+    EXPECT_EQ(foo.field_float, f);
+
+    i = 12;
+    f = 42.f;
+    meta0.set(&foo, &i);
+    meta1.set(&foo, &f);
+
+    EXPECT_EQ(foo.field_int, i);
+    EXPECT_EQ(foo.field_float, f);
+}
+
+TEST(ReflitestTest, DynamicAccess1) {
+    const refl_class &rc = refl_table::get_class("refl_sample");
+
+    void *buf = operator new[](rc.size(), rc.align(), std::nothrow);
+    auto view = rc.view(buf);
+
+    view["field_int"].as<int>()     = 42;
+    view["field_float"].as<float>() = 12.f;
+
+    refl_sample foo = *reinterpret_cast<refl_sample *>(buf);
+    operator delete[](buf, rc.size(), rc.align());
+
+    EXPECT_EQ(foo.field_int, 42);
+    EXPECT_EQ(foo.field_float, 12.f);
 }
 
 int main(int argc, char **argv) {
