@@ -5,8 +5,7 @@
 
 using namespace reflitest;
 
-class refl_sample {
-  public:
+struct refl_sample {
     META_BEGIN(refl_sample, "refl_sample", std::string_view("class meta"))
 
     META(field_int, (int)42, std::string_view("the answer"))
@@ -15,15 +14,18 @@ class refl_sample {
     META(field_float, 2.71828f, std::string_view("natural constant"))
     float field_float;
 
-    META_END_RT
+    META_END
+
+    refl_sample() : field_int(0), field_float(0.f) { }
+    refl_sample(int i, float f) : field_int(i), field_float(f) { }
 
     template <typename T>
     static T deserialize(std::string_view src) {
         T res;
 
         meta_of<T>::foreach_meta([&](auto &&meta) {
-            constexpr auto prop  = meta.template get_attr<std::string_view>();
-            meta.get_ref_of(res) = std::atoi(src.substr(src.find(prop) + prop.size()).data());
+            constexpr auto prop = meta.template get_attr<std::string_view>();
+            meta.of(res)        = std::atoi(src.substr(src.find(prop) + prop.size()).data());
         });
 
         return res;
@@ -36,7 +38,7 @@ class refl_sample {
         meta_of<T>::foreach_meta([&](auto &&meta) {
             res.append(meta.member_name());
             res.push_back(':');
-            res.append(std::to_string(meta.get_ref_of(ins)));
+            res.append(std::to_string(meta.of(ins)));
             res.push_back(' ');
         });
 
@@ -82,18 +84,18 @@ TEST(ReflitestTest, MemberMetaValue) {
 }
 
 TEST(ReflitestTest, MetaCount) {
-    constexpr size_t count = meta_of<refl_sample>::template get_meta_count<>();
+    constexpr size_t count = meta_of<refl_sample>::get_meta_count();
     EXPECT_EQ(2, count);
 }
 
 TEST(ReflitestTest, MemberPointer) {
-    refl_sample foo { 12, 3.14159f };
+    const refl_sample foo { 12, 3.14159f };
 
     constexpr auto meta0 = GetMemberMeta(refl_sample, "field_int");
     constexpr auto meta1 = GetMemberMeta(refl_sample, "field_float");
 
-    int val0   = meta0.get_ref_of(foo);
-    float val1 = meta1.get_ref_of(foo);
+    int val0   = meta0.of(foo);
+    float val1 = meta1.of(foo);
 
     EXPECT_EQ(foo.field_int, val0);
     EXPECT_EQ(foo.field_float, val1);
@@ -154,6 +156,11 @@ struct refl_sample2 {
     META(field_func, (long)12, std::string_view("add up"))
     std::function<int(int, int)> field_func = [](int l, int r) { return l + r; };
 
+    META(func)
+    int func(int val) {
+        return val + 1;
+    }
+
     META_END
 };
 
@@ -161,74 +168,94 @@ TEST(ReflitestTest, Apply) {
     refl_sample foo { 1024, 12.f };
 
     constexpr auto meta0 = GetMemberMeta(refl_sample, "field_int");
-    meta0.apply(foo, 12);
+    meta0.assign(foo, 12);
     EXPECT_EQ(12, foo.field_int);
 
     constexpr auto meta1 = GetMemberMeta(refl_sample, "field_float");
-    meta1.apply(foo, 42.f);
+    meta1.assign(foo, 42.f);
     EXPECT_EQ(42.f, foo.field_float);
 
     refl_sample2 bar;
 
     constexpr auto meta2 = GetMemberMeta(refl_sample2, "field_func");
 
-    int res0 = meta2.apply(bar, 24, 18);
+    int res0 = meta2.of(bar)(24, 18);
     EXPECT_EQ(42, res0);
 
-    meta2.apply(bar, [](int l, int r) { return l * r; });
+    meta2.assign(bar, [](int l, int r) { return l * r; });
     //meta2.assign(bar, [](int l, int r) { return l * r; });
 
-    int res1 = meta2.apply(bar, 21, 2);
+    int res1 = meta2.of(bar)(21, 2);
     EXPECT_EQ(42, res1);
 }
 
+struct refl_sample3 {
+    META_BEGIN(refl_sample3, "sample")
+
+    META(field_int, std::string_view("live more"))
+    int field_int;
+
+    META(field_float, std::string_view("leave more"))
+    float field_float;
+
+    META_END_RT
+};
+
 TEST(ReflitestTest, DynamicRegist) {
-    refl_class rc = refl_table::get_class("refl_sample");
+    refl_class rc = refl_table::get_class("sample");
 
     EXPECT_EQ(2, rc.count());
     EXPECT_EQ("field_int", rc[0].name());
     EXPECT_EQ("field_float", rc[1].name());
 }
 
-TEST(ReflitestTest, DynamicAccess0) {
-    const refl_class &rc = refl_table::get_class("refl_sample");
+TEST(ReflitestTest, DynamicAccess) {
+    const refl_class &rc = refl_table::get_class("sample");
 
-    const refl_member &meta0 = rc[0];
+    const refl_member &meta0 = rc["field_int"];
     const refl_member &meta1 = rc["field_float"];
+    refl_sample3 foo { 42, 12.f };
 
-    refl_sample foo { 42, 12.f };
     int i;
-    float f;
-
     meta0.get(&foo, &i);
-    meta1.get(&foo, &f);
-
     EXPECT_EQ(foo.field_int, i);
+
+    float f;
+    meta1.get(&foo, &f);
     EXPECT_EQ(foo.field_float, f);
 
     i = 12;
-    f = 42.f;
     meta0.set(&foo, &i);
-    meta1.set(&foo, &f);
-
     EXPECT_EQ(foo.field_int, i);
+
+    f = 42.f;
+    meta1.set(&foo, &f);
     EXPECT_EQ(foo.field_float, f);
 }
 
-TEST(ReflitestTest, DynamicAccess1) {
-    const refl_class &rc = refl_table::get_class("refl_sample");
+TEST(ReflitestTest, DynamicAllocate) {
+    const refl_class &rc = refl_table::get_class("sample");
 
-    void *buf = operator new[](rc.size(), rc.align(), std::nothrow);
-    auto view = rc.view(buf);
+    void *buf               = rc.allocate(1);
+    refl_class_view cview   = rc.view(buf);
+    refl_member_view mview0 = cview["field_int"];
+    refl_member_view mview1 = cview["field_float"];
 
-    view["field_int"].as<int>()     = 42;
-    view["field_float"].as<float>() = 12.f;
+    mview0.as<int>()   = 42;
+    mview1.as<float>() = 12.f;
 
-    refl_sample foo = *reinterpret_cast<refl_sample *>(buf);
-    operator delete[](buf, rc.size(), rc.align());
+    refl_sample3 foo = cview.as<refl_sample3>();
+    rc.deallocate(buf, 1);
 
     EXPECT_EQ(foo.field_int, 42);
     EXPECT_EQ(foo.field_float, 12.f);
+}
+
+TEST(ReflitestTest, DynamicInvoke) {
+    const refl_class &rc = refl_table::get_class("sample");
+
+    void *buf = rc.allocate(1);
+    rc.deallocate(buf);
 }
 
 int main(int argc, char **argv) {
