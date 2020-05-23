@@ -157,8 +157,13 @@ struct refl_sample2 {
     std::function<int(int, int)> field_func = [](int l, int r) { return l + r; };
 
     META(func, (int)12, (int)30)
-    int func(int l, int r) const {
+    constexpr int func(int l, int r) const {
         return l + r;
+    }
+
+    META(static_func, (int)21, (int)2)
+    static constexpr int static_func(int l, int r) {
+        return l * r;
     }
 
     META_END
@@ -180,10 +185,14 @@ TEST(ReflitestTest, Assign) {
 
 TEST(ReflitestTest, Invoke) {
     constexpr auto meta0 = GetMemberMeta(refl_sample2, "func");
+    constexpr auto meta1 = GetMemberMeta(refl_sample2, "static_func");
 
     refl_sample2 bar;
-    int res = meta0.invoke(bar, meta0.get_nth_attr<0>(), meta0.get_nth_attr<1>());
-    EXPECT_EQ(42, res);
+    constexpr int res0 = meta0.invoke(bar, meta0.get_nth_attr<0>(), meta0.get_nth_attr<1>());
+    EXPECT_EQ(42, res0);
+
+    constexpr int res1 = meta1.invoke(meta1.get_nth_attr<0>(), meta1.get_nth_attr<1>());
+    EXPECT_EQ(42, res1);
 }
 
 struct refl_sample3 {
@@ -201,7 +210,7 @@ struct refl_sample3 {
 TEST(ReflitestTest, DynamicRegist) {
     refl_class rc = refl_table::get_class("sample");
 
-    EXPECT_EQ(2, rc.count());
+    EXPECT_EQ(2, rc.member_count());
     EXPECT_EQ("field_int", rc[0].name());
     EXPECT_EQ("field_float", rc[1].name());
 }
@@ -217,42 +226,72 @@ TEST(ReflitestTest, DynamicAccess) {
     meta0.get(&foo, &i);
     EXPECT_EQ(foo.field_int, i);
 
-    float f;
-    meta1.get(&foo, &f);
+    float f = meta1.of<float>(&foo);
     EXPECT_EQ(foo.field_float, f);
 
     i = 12;
     meta0.set(&foo, &i);
     EXPECT_EQ(foo.field_int, i);
 
-    f = 42.f;
-    meta1.set(&foo, &f);
+    f                     = 42.f;
+    meta1.of<float>(&foo) = f;
     EXPECT_EQ(foo.field_float, f);
 }
 
 TEST(ReflitestTest, DynamicAllocate) {
     const refl_class &rc = refl_table::get_class("sample");
 
-    void *buf               = rc.allocate(1);
-    refl_class_view cview   = rc.view(buf);
-    refl_member_view mview0 = cview["field_int"];
-    refl_member_view mview1 = cview["field_float"];
+    refl_instance foo      = rc.make(1);
+    refl_class_view cview  = foo[0];
+    refl_member_view view0 = cview["field_int"];
+    refl_member_view view1 = cview["field_float"];
 
-    mview0.as<int>()   = 42;
-    mview1.as<float>() = 12.f;
+    view0.as<int>()   = 42;
+    view1.as<float>() = 12.f;
 
-    refl_sample3 foo = cview.as<refl_sample3>();
-    rc.deallocate(buf, 1);
+    refl_sample3 bar = cview.as<refl_sample3>();
 
-    EXPECT_EQ(foo.field_int, 42);
-    EXPECT_EQ(foo.field_float, 12.f);
+    EXPECT_EQ(bar.field_int, 42);
+    EXPECT_EQ(bar.field_float, 12.f);
 }
 
-TEST(ReflitestTest, DynamicInvoke) {
-    const refl_class &rc = refl_table::get_class("sample");
+struct refl_sample4 {
+    META_BEGIN(refl_sample4, "sample2")
 
-    void *buf = rc.allocate(1);
-    rc.deallocate(buf);
+    META(func0)
+    static int func0(int l, int r) {
+        return l + r;
+    }
+
+    META(func1)
+    int func1(int l, int r) {
+        return l - r;
+    }
+
+    META(func2)
+    int func2(int l, int r) const {
+        return l * r;
+    }
+
+    META_END_RT
+};
+
+TEST(ReflitestTest, DynamicInvoke) {
+    const refl_class &rc = refl_table::get_class("sample2");
+
+    refl_instance foo     = rc.make(1);
+    refl_class_view cview = foo[0];
+
+    int res;
+
+    cview["func0"].invoke(&res, 12, 30);
+    EXPECT_EQ(res, 42);
+
+    cview["func1"].invoke(&res, 42, 30);
+    EXPECT_EQ(res, 12);
+
+    cview["func2"].invoke(&res, 7, 6);
+    EXPECT_EQ(res, 42);
 }
 
 int main(int argc, char **argv) {
