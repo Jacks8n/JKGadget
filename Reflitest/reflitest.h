@@ -17,7 +17,7 @@
 
 #define REFL_META_INFO_BEGIN REFL_META_INFO_NAME<REFL_META_INFO_BEGIN_ID>
 
-#define REFL_META_INFO_TYPE(l)    REFL_META_INFO_NAME<l>::get_meta_type()
+#define REFL_META_INFO_TYPE_OF(l) REFL_META_INFO_NAME<l>::get_meta_type()
 #define REFL_META_INFO_TYPE_NULL  0
 #define REFL_META_INFO_TYPE_ENTRY 1
 #define REFL_META_INFO_TYPE_END   2
@@ -32,12 +32,12 @@
                                                                                                              \
         template <size_t Nth, size_t Lo = _MId>                                                              \
         static constexpr auto get_nth_meta_impl() noexcept {                                                 \
-            if constexpr (REFL_META_INFO_TYPE(Lo + 1) == REFL_META_INFO_TYPE_ENTRY)                          \
+            if constexpr (REFL_META_INFO_TYPE_OF(Lo + 1) == REFL_META_INFO_TYPE_ENTRY)                       \
                 if constexpr (Nth > 0)                                                                       \
                     return get_nth_meta_impl<Nth - 1, Lo + 2>();                                             \
                 else                                                                                         \
                     return REFL_META_INFO_NAME<Lo + 1>();                                                    \
-            else if constexpr (REFL_META_INFO_TYPE(Lo + 1) == REFL_META_INFO_TYPE_NULL)                      \
+            else if constexpr (REFL_META_INFO_TYPE_OF(Lo + 1) == REFL_META_INFO_TYPE_NULL)                   \
                 return get_nth_meta_impl<Nth, Lo + 1>();                                                     \
             else                                                                                             \
                 return REFL_META_INFO_NULL();                                                                \
@@ -51,6 +51,16 @@
                     std::tuple<Ts..., decltype(nthinfo)>());                                                 \
             else                                                                                             \
                 return t;                                                                                    \
+        }                                                                                                    \
+                                                                                                             \
+        template <typename T, typename... Ts>                                                                \
+        static constexpr size_t get_meta_id_impl(std::string_view member, std::tuple<T, Ts...> t) noexcept { \
+            return T::member_name() == member ? T::get_id() : get_meta_id_impl(member, std::tuple<Ts...>()); \
+        }                                                                                                    \
+                                                                                                             \
+        template <typename Fn, size_t... Is>                                                                 \
+        static constexpr void foreach_meta_impl(Fn &&fn, std::index_sequence<Is...>) noexcept {              \
+            ((void)fn(get_nth_meta<Is>()), ...);                                                             \
         }                                                                                                    \
                                                                                                              \
       public:                                                                                                \
@@ -99,17 +109,6 @@
         static constexpr T get_attr() noexcept {                                                             \
             return std::get<T>(get_attr_all());                                                              \
         }                                                                                                    \
-                                                                                                             \
-      private:                                                                                               \
-        template <typename T, typename... Ts>                                                                \
-        static constexpr size_t get_meta_id_impl(std::string_view member, std::tuple<T, Ts...> t) noexcept { \
-            return T::member_name() == member ? T::get_id() : get_meta_id_impl(member, std::tuple<Ts...>()); \
-        }                                                                                                    \
-                                                                                                             \
-        template <typename Fn, size_t... Is>                                                                 \
-        static constexpr void foreach_meta_impl(Fn &&fn, std::index_sequence<Is...>) noexcept {              \
-            ((void)fn(get_nth_meta<Is>()), ...);                                                             \
-        }                                                                                                    \
     };
 
 #define META(member, ...)                                                                            \
@@ -154,7 +153,7 @@
         }                                                                                            \
                                                                                                      \
         static constexpr bool is_function() noexcept {                                               \
-            return ::reflitest::impl::is_member_function_v<decltype(member_ptr())>;                  \
+            return std::is_member_function_pointer_v<decltype(member_ptr())>;                        \
         }                                                                                            \
                                                                                                      \
         template <template <typename> typename T>                                                    \
@@ -163,59 +162,25 @@
             return T<member_t>::value;                                                               \
         }                                                                                            \
                                                                                                      \
-      private:                                                                                       \
-        template <typename T>                                                                        \
-        struct access_impl;                                                                          \
-                                                                                                     \
-        template <typename T, typename M>                                                            \
-        struct access_impl<T M::*const> {                                                            \
-            explicit constexpr access_impl(T M::*const) { }                                          \
-                                                                                                     \
-            static constexpr auto &get(owner_t &ins, T M::*ptr) noexcept {                           \
-                return ins.*ptr;                                                                     \
-            }                                                                                        \
-                                                                                                     \
-            static constexpr const auto &get(const owner_t &ins, T M::*const ptr) noexcept {         \
-                return ins.*ptr;                                                                     \
-            }                                                                                        \
-                                                                                                     \
-            template <typename... Ts>                                                                \
-            static void assign(owner_t &ins, Ts... ts) {                                             \
-                using member_t    = ::reflitest::impl::member_ptr_value_t<decltype(member_ptr())>;   \
-                ins.*member_ptr() = member_t(std::forward<Ts>(ts)...);                               \
-            }                                                                                        \
-        };                                                                                           \
-                                                                                                     \
-        template <typename T, typename M, typename... Ts>                                            \
-        struct access_impl<T (M::*const)(Ts...)> {                                                   \
-            explicit constexpr access_impl(T (M::*const)(Ts...)) { }                                 \
-                                                                                                     \
-            static constexpr auto get(const owner_t &ins, T (M::*const ptr)(Ts...)) noexcept {       \
-                return ptr;                                                                          \
-            }                                                                                        \
-                                                                                                     \
-            template <typename... _>                                                                 \
-            static constexpr void assign(_ &&...) noexcept { }                                       \
-        };                                                                                           \
-                                                                                                     \
-        template <typename T, typename M>                                                            \
-        access_impl(T M::*const) -> access_impl<T M::*const>;                                        \
-                                                                                                     \
-        template <typename T, typename M, typename... Ts>                                            \
-        access_impl(T (M::*const)(Ts...)) -> access_impl<T (M::*const)(Ts...)>;                      \
-                                                                                                     \
       public:                                                                                        \
         static constexpr decltype(auto) of(owner_t &ins) noexcept {                                  \
-            return access_impl(member_ptr()).get(ins, member_ptr());                                 \
+            return ::reflitest::impl::access_impl(member_ptr()).of(ins, member_ptr());               \
         }                                                                                            \
                                                                                                      \
         static constexpr decltype(auto) of(const owner_t &ins) noexcept {                            \
-            return access_impl(member_ptr()).get(ins, member_ptr());                                 \
+            return ::reflitest::impl::access_impl(member_ptr()).of(ins, member_ptr());               \
         }                                                                                            \
                                                                                                      \
         template <typename... Ts>                                                                    \
-        static void assign(owner_t &ins, Ts... ts) {                                                 \
-            access_impl(member_ptr()).assign(ins, std::forward<Ts>(ts)...);                          \
+        static constexpr decltype(auto) invoke(owner_t &ins, Ts &&... ts) {                          \
+            return ::reflitest::impl::access_impl(member_ptr())                                      \
+                .invoke(ins, member_ptr(), std::forward<Ts>(ts)...);                                 \
+        }                                                                                            \
+                                                                                                     \
+        template <typename... Ts>                                                                    \
+        static constexpr decltype(auto) invoke(const owner_t &ins, Ts &&... ts) {                    \
+            return ::reflitest::impl::access_impl(member_ptr())                                      \
+                .invoke(ins, member_ptr(), std::forward<Ts>(ts)...);                                 \
         }                                                                                            \
     };
 
@@ -267,6 +232,57 @@ namespace reflitest::impl {
 
     template <typename T>
     static constexpr bool is_member_function_v = member_ptr_traits<T>::is_function;
+
+    template <typename T>
+    struct access_impl;
+
+    template <typename T, typename M>
+    struct access_impl<T M::*> {
+        explicit constexpr access_impl(T M::*) { }
+
+        template <typename U>
+        static constexpr decltype(auto) of(U &&ins, T M::*ptr) noexcept {
+            return ins.*ptr;
+        }
+
+        template <typename... _>
+        static constexpr void invoke(_ &&...) noexcept { }
+    };
+
+    template <typename T, typename M, typename... Ts>
+    struct access_impl<T (M::*)(Ts...)> {
+        explicit constexpr access_impl(T (M::*)(Ts...)) { }
+
+        template <typename... _>
+        static constexpr void of(_ &&...) noexcept { }
+
+        template <typename... Us>
+        static constexpr decltype(auto) invoke(M &ins, T (M::*ptr)(Ts...), Us &&... us) {
+            return (ins.*ptr)(std::forward<Us>(us)...);
+        }
+    };
+
+    template <typename T, typename M, typename... Ts>
+    struct access_impl<T (M::*)(Ts...) const> {
+        explicit constexpr access_impl(T (M::*)(Ts...) const) { }
+
+        template <typename... _>
+        static constexpr void of(_ &&...) noexcept { }
+
+        template <typename... Us>
+        static constexpr decltype(auto) invoke(const M &ins, T (M::*ptr)(Ts...) const, Us &&... us) {
+            return (ins.*ptr)(std::forward<Us>(us)...);
+        }
+    };
+
+    template <typename T, typename M>
+    access_impl(T M::*) -> access_impl<T M::*>;
+
+    template <typename T, typename M, typename... Ts>
+    access_impl(T (M::*)(Ts...)) -> access_impl<T (M::*)(Ts...)>;
+
+    template <typename T, typename M, typename... Ts>
+    access_impl(T (M::*)(Ts...) const) -> access_impl<T (M::*)(Ts...) const>;
 
     template <typename T>
     static constexpr size_t meta_id_v = std::remove_reference_t<T>::template meta_info<0>::get_id();

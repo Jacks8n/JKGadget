@@ -156,37 +156,34 @@ struct refl_sample2 {
     META(field_func, (long)12, std::string_view("add up"))
     std::function<int(int, int)> field_func = [](int l, int r) { return l + r; };
 
-    META(func)
-    int func(int val) {
-        return val + 1;
+    META(func, (int)12, (int)30)
+    int func(int l, int r) const {
+        return l + r;
     }
 
     META_END
 };
 
-TEST(ReflitestTest, Apply) {
-    refl_sample foo { 1024, 12.f };
-
-    constexpr auto meta0 = GetMemberMeta(refl_sample, "field_int");
-    meta0.assign(foo, 12);
-    EXPECT_EQ(12, foo.field_int);
-
-    constexpr auto meta1 = GetMemberMeta(refl_sample, "field_float");
-    meta1.assign(foo, 42.f);
-    EXPECT_EQ(42.f, foo.field_float);
+TEST(ReflitestTest, Assign) {
+    constexpr auto meta0 = GetMemberMeta(refl_sample2, "field_func");
 
     refl_sample2 bar;
 
-    constexpr auto meta2 = GetMemberMeta(refl_sample2, "field_func");
-
-    int res0 = meta2.of(bar)(24, 18);
+    int res0 = meta0.of(bar)(24, 18);
     EXPECT_EQ(42, res0);
 
-    meta2.assign(bar, [](int l, int r) { return l * r; });
-    //meta2.assign(bar, [](int l, int r) { return l * r; });
+    meta0.of(bar) = [](int l, int r) { return l * r; };
 
-    int res1 = meta2.of(bar)(21, 2);
+    int res1 = meta0.of(bar)(21, 2);
     EXPECT_EQ(42, res1);
+}
+
+TEST(ReflitestTest, Invoke) {
+    constexpr auto meta0 = GetMemberMeta(refl_sample2, "func");
+
+    refl_sample2 bar;
+    int res = meta0.invoke(bar, meta0.get_nth_attr<0>(), meta0.get_nth_attr<1>());
+    EXPECT_EQ(42, res);
 }
 
 struct refl_sample3 {
