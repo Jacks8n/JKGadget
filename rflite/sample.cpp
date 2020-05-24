@@ -5,8 +5,10 @@
 
 using namespace rflite;
 
+#pragma region static reflection
+
 struct refl_sample {
-    META_BEGIN(refl_sample, "refl_sample", std::string_view("class meta"))
+    META_BEGIN(refl_sample, std::string_view("class meta"))
 
     META(field_int, (int)42, std::string_view("the answer"))
     int field_int;
@@ -14,36 +16,13 @@ struct refl_sample {
     META(field_float, 2.71828f, std::string_view("natural constant"))
     float field_float;
 
+    META(field_static, std::string_view("jk motto"), std::string_view("live more, leave more"))
+    static inline std::string_view field_static;
+
     META_END
 
     refl_sample() : field_int(0), field_float(0.f) { }
     refl_sample(int i, float f) : field_int(i), field_float(f) { }
-
-    template <typename T>
-    static T deserialize(std::string_view src) {
-        T res;
-
-        meta_of<T>::foreach_meta([&](auto &&meta) {
-            constexpr auto prop = meta.template get_attr<std::string_view>();
-            meta.of(res)        = std::atoi(src.substr(src.find(prop) + prop.size()).data());
-        });
-
-        return res;
-    }
-
-    template <typename T>
-    static std::string serialize(T &&ins) {
-        std::string res;
-
-        meta_of<T>::foreach_meta([&](auto &&meta) {
-            res.append(meta.member_name());
-            res.push_back(':');
-            res.append(std::to_string(meta.of(ins)));
-            res.push_back(' ');
-        });
-
-        return res;
-    }
 };
 
 TEST(rflite_test, ClassMeta) {
@@ -58,7 +37,11 @@ TEST(rflite_test, MemberType) {
 
     constexpr auto meta1 = GetMemberMeta(refl_sample, "field_float");
     constexpr bool isd   = meta1.is_type<double>();
-    EXPECT_TRUE(!isd);
+    EXPECT_FALSE(isd);
+
+    constexpr auto meta2 = GetMemberMeta(refl_sample, "field_static");
+    constexpr bool issv  = meta2.is_type<std::string_view>();
+    EXPECT_TRUE(issv);
 }
 
 TEST(rflite_test, MemberName) {
@@ -67,50 +50,73 @@ TEST(rflite_test, MemberName) {
 
     constexpr std::string_view name1 = GetMemberMeta(refl_sample, "field_float").member_name();
     EXPECT_EQ("field_float", name1);
+
+    constexpr std::string_view name2 = GetMemberMeta(refl_sample, "field_static").member_name();
+    EXPECT_EQ("field_static", name2);
 }
 
 TEST(rflite_test, MemberMetaValue) {
     constexpr auto meta0            = GetMemberMeta(refl_sample, "field_int");
-    constexpr auto val0             = meta0.template get_attr<int>();
+    constexpr int val0              = meta0.template get_attr<int>();
     constexpr std::string_view str0 = meta0.template get_attr<std::string_view>();
     EXPECT_EQ(42, val0);
     EXPECT_EQ("the answer", str0);
 
     constexpr auto meta1            = GetMemberMeta(refl_sample, "field_float");
-    constexpr auto val1             = meta1.template get_nth_attr<0>();
+    constexpr float val1            = meta1.template get_nth_attr<0>();
     constexpr std::string_view str1 = meta1.template get_nth_attr<1>();
     EXPECT_EQ(2.71828f, val1);
     EXPECT_EQ("natural constant", str1);
+
+    constexpr auto meta2            = GetMemberMeta(refl_sample, "field_static");
+    constexpr std::string_view str2 = meta2.template get_nth_attr<0>();
+    constexpr std::string_view str3 = meta2.template get_nth_attr<1>();
+    EXPECT_EQ("jk motto", str2);
+    EXPECT_EQ("live more, leave more", str3);
 }
 
 TEST(rflite_test, MetaCount) {
     constexpr size_t count = meta_of<refl_sample>::get_meta_count();
-    EXPECT_EQ(2, count);
+    EXPECT_EQ(3, count);
 }
 
-TEST(rflite_test, MemberPointer) {
+TEST(rflite_test, MemberMap) {
     const refl_sample foo { 12, 3.14159f };
 
     constexpr auto meta0 = GetMemberMeta(refl_sample, "field_int");
     constexpr auto meta1 = GetMemberMeta(refl_sample, "field_float");
+    constexpr auto meta2 = GetMemberMeta(refl_sample, "field_static");
 
-    int val0   = meta0.of(foo);
-    float val1 = meta1.of(foo);
+    int val0              = meta0.map(foo);
+    float val1            = meta1.map(foo);
+    std::string_view val2 = meta2.map();
 
     EXPECT_EQ(foo.field_int, val0);
     EXPECT_EQ(foo.field_float, val1);
+    EXPECT_EQ(foo.field_static, val2);
 }
 
 TEST(rflite_test, ForEach) {
-    meta_of<refl_sample>::foreach_meta([](auto meta) {
+    meta_of<refl_sample>::foreach<member_type::any>([](auto meta) {
         constexpr bool bl = std::is_same_v<decltype(meta.template get_nth_attr<1>()), std::string_view>;
         EXPECT_TRUE(bl);
     });
 }
 
 TEST(rflite_test, Serialize) {
+    constexpr auto serialize = [](auto &&ins) {
+        std::string res;
+        meta_of<decltype(ins)>::foreach([&](auto &&meta) {
+            res.append(meta.member_name());
+            res.push_back(':');
+            res.append(std::to_string(meta.map(ins)));
+            res.push_back(' ');
+        });
+        return res;
+    };
+
     refl_sample foo { 1024, 12.f };
-    std::string ser = foo.serialize(foo);
+    std::string ser = serialize(foo);
 
     std::string exp("field_int:");
     exp.append(std::to_string(foo.field_int));
@@ -123,8 +129,16 @@ TEST(rflite_test, Serialize) {
 }
 
 TEST(rflite_test, Deserialize) {
+    constexpr auto deserialize = [](std::string_view src, auto &&res) {
+        meta_of<decltype(res)>::foreach([&](auto &&meta) {
+            constexpr auto prop = meta.template get_attr<std::string_view>();
+            meta.map(res)       = std::atoi(src.substr(src.find(prop) + prop.size()).data());
+        });
+    };
+
     std::string src = "natural constant 12 the answer 1024";
-    refl_sample bar = refl_sample::deserialize<refl_sample>(src);
+    refl_sample bar;
+    deserialize(src, bar);
 
     EXPECT_EQ(1024, bar.field_int);
     EXPECT_EQ(12.f, bar.field_float);
@@ -150,65 +164,24 @@ TEST(rflite_test, BindTraits) {
     EXPECT_TRUE(!traits1);
 }
 
+#pragma endregion
+
+#pragma region dynamic reflection member
+
 struct refl_sample2 {
-    META_BEGIN(refl_sample2)
+    META_BEGIN(refl_sample2, "sample")
 
-    META(field_func, (long)12, std::string_view("add up"))
-    std::function<int(int, int)> field_func = [](int l, int r) { return l + r; };
-
-    META(func, (int)12, (int)30)
-    constexpr int func(int l, int r) const {
-        return l + r;
-    }
-
-    META(static_func, (int)21, (int)2)
-    static constexpr int static_func(int l, int r) {
-        return l * r;
-    }
-
-    META_END
-};
-
-TEST(rflite_test, Assign) {
-    constexpr auto meta0 = GetMemberMeta(refl_sample2, "field_func");
-
-    refl_sample2 bar;
-
-    int res0 = meta0.of(bar)(24, 18);
-    EXPECT_EQ(42, res0);
-
-    meta0.of(bar) = [](int l, int r) { return l * r; };
-
-    int res1 = meta0.of(bar)(21, 2);
-    EXPECT_EQ(42, res1);
-}
-
-TEST(rflite_test, Invoke) {
-    constexpr auto meta0 = GetMemberMeta(refl_sample2, "func");
-    constexpr auto meta1 = GetMemberMeta(refl_sample2, "static_func");
-
-    refl_sample2 bar;
-    constexpr int res0 = meta0.invoke(bar, meta0.get_nth_attr<0>(), meta0.get_nth_attr<1>());
-    EXPECT_EQ(42, res0);
-
-    constexpr int res1 = meta1.invoke(meta1.get_nth_attr<0>(), meta1.get_nth_attr<1>());
-    EXPECT_EQ(42, res1);
-}
-
-struct refl_sample3 {
-    META_BEGIN(refl_sample3, "sample")
-
-    META(field_int, std::string_view("live more"))
+    META(field_int)
     int field_int;
 
-    META(field_float, std::string_view("leave more"))
-    float field_float;
+    META(field_float)
+    static inline float field_float = 0.f;
 
     META_END_RT
 };
 
 TEST(rflite_test, DynamicRegist) {
-    refl_class rc = refl_table::get_class("sample");
+    const refl_class &rc = refl_table::get_class("sample");
 
     EXPECT_EQ(2, rc.member_count());
     EXPECT_EQ("field_int", rc[0].name());
@@ -216,46 +189,48 @@ TEST(rflite_test, DynamicRegist) {
 }
 
 TEST(rflite_test, DynamicAccess) {
-    const refl_class &rc = refl_table::get_class("sample");
-
+    const refl_class &rc     = refl_table::get_class("sample");
     const refl_member &meta0 = rc["field_int"];
     const refl_member &meta1 = rc["field_float"];
-    refl_sample3 foo { 42, 12.f };
+
+    refl_sample2 foo { 42 };
 
     int i;
     meta0.get(&foo, &i);
     EXPECT_EQ(foo.field_int, i);
 
-    float f = meta1.of<float>(&foo);
+    float f;
+    f = meta1.of<float>();
     EXPECT_EQ(foo.field_float, f);
 
     i = 12;
     meta0.set(&foo, &i);
     EXPECT_EQ(foo.field_int, i);
 
-    meta1.of<float>(&foo) = 42.f;
-    EXPECT_EQ(foo.field_float, 42.f);
+    meta1.of<float>(&foo) = f = 42.f;
+    EXPECT_EQ(foo.field_float, f);
 }
 
 TEST(rflite_test, DynamicAllocate) {
-    const refl_class &rc = refl_table::get_class("sample");
+    const refl_class &rc  = refl_table::get_class("sample");
+    refl_instance foo     = rc.make(1);
+    refl_class_view cview = foo[0];
 
-    refl_instance foo      = rc.make(1);
-    refl_class_view cview  = foo[0];
-    refl_member_view view0 = cview["field_int"];
-    refl_member_view view1 = cview["field_float"];
+    cview["field_int"].as<int>()     = 42;
+    cview["field_float"].as<float>() = 12.f;
 
-    view0.as<int>()   = 42;
-    view1.as<float>() = 12.f;
-
-    refl_sample3 bar = cview.as<refl_sample3>();
+    refl_sample2 bar = cview.as<refl_sample2>();
 
     EXPECT_EQ(bar.field_int, 42);
     EXPECT_EQ(bar.field_float, 12.f);
 }
 
-struct refl_sample4 {
-    META_BEGIN(refl_sample4, "sample2")
+#pragma endregion
+
+#pragma region dynamic reflection function
+
+struct refl_sample3 {
+    META_BEGIN(refl_sample3)
 
     META(func0)
     static int func0(int l, int r) {
@@ -280,7 +255,7 @@ struct refl_sample4 {
 };
 
 TEST(rflite_test, DynamicInvoke) {
-    const refl_class &rc = refl_table::get_class("sample2");
+    const refl_class &rc = refl_table::get_class("refl_sample3");
 
     refl_instance foo     = rc.make(1);
     refl_class_view cview = foo[0];
@@ -300,6 +275,8 @@ TEST(rflite_test, DynamicInvoke) {
     EXPECT_EQ(rref, 0);
     EXPECT_EQ(res, 42);
 }
+
+#pragma endregion
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
