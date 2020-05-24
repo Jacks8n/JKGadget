@@ -46,12 +46,12 @@ struct refl_sample {
     }
 };
 
-TEST(ReflitestTest, ClassMeta) {
+TEST(rflite_test, ClassMeta) {
     constexpr auto meta = meta_of<refl_sample>::get_attr<std::string_view>();
     EXPECT_TRUE(("class meta" == meta));
 }
 
-TEST(ReflitestTest, MemberType) {
+TEST(rflite_test, MemberType) {
     constexpr auto meta0 = GetMemberMeta(refl_sample, "field_int");
     constexpr bool isi   = meta0.is_type<int>();
     EXPECT_TRUE(isi);
@@ -61,7 +61,7 @@ TEST(ReflitestTest, MemberType) {
     EXPECT_TRUE(!isd);
 }
 
-TEST(ReflitestTest, MemberName) {
+TEST(rflite_test, MemberName) {
     constexpr std::string_view name0 = GetMemberMeta(refl_sample, "field_int").member_name();
     EXPECT_EQ("field_int", name0);
 
@@ -69,7 +69,7 @@ TEST(ReflitestTest, MemberName) {
     EXPECT_EQ("field_float", name1);
 }
 
-TEST(ReflitestTest, MemberMetaValue) {
+TEST(rflite_test, MemberMetaValue) {
     constexpr auto meta0            = GetMemberMeta(refl_sample, "field_int");
     constexpr auto val0             = meta0.template get_attr<int>();
     constexpr std::string_view str0 = meta0.template get_attr<std::string_view>();
@@ -83,12 +83,12 @@ TEST(ReflitestTest, MemberMetaValue) {
     EXPECT_EQ("natural constant", str1);
 }
 
-TEST(ReflitestTest, MetaCount) {
+TEST(rflite_test, MetaCount) {
     constexpr size_t count = meta_of<refl_sample>::get_meta_count();
     EXPECT_EQ(2, count);
 }
 
-TEST(ReflitestTest, MemberPointer) {
+TEST(rflite_test, MemberPointer) {
     const refl_sample foo { 12, 3.14159f };
 
     constexpr auto meta0 = GetMemberMeta(refl_sample, "field_int");
@@ -101,14 +101,14 @@ TEST(ReflitestTest, MemberPointer) {
     EXPECT_EQ(foo.field_float, val1);
 }
 
-TEST(ReflitestTest, ForEach) {
+TEST(rflite_test, ForEach) {
     meta_of<refl_sample>::foreach_meta([](auto meta) {
         constexpr bool bl = std::is_same_v<decltype(meta.template get_nth_attr<1>()), std::string_view>;
         EXPECT_TRUE(bl);
     });
 }
 
-TEST(ReflitestTest, Serialize) {
+TEST(rflite_test, Serialize) {
     refl_sample foo { 1024, 12.f };
     std::string ser = foo.serialize(foo);
 
@@ -122,7 +122,7 @@ TEST(ReflitestTest, Serialize) {
     EXPECT_EQ(exp, ser);
 }
 
-TEST(ReflitestTest, Deserialize) {
+TEST(rflite_test, Deserialize) {
     std::string src = "natural constant 12 the answer 1024";
     refl_sample bar = refl_sample::deserialize<refl_sample>(src);
 
@@ -130,7 +130,7 @@ TEST(ReflitestTest, Deserialize) {
     EXPECT_EQ(12.f, bar.field_float);
 }
 
-TEST(ReflitestTest, Traits) {
+TEST(rflite_test, Traits) {
     constexpr auto meta0   = GetMemberMeta(refl_sample, "field_int");
     constexpr bool traits0 = meta0.satisfy_traits<std::is_integral>();
     EXPECT_TRUE(traits0);
@@ -140,7 +140,7 @@ TEST(ReflitestTest, Traits) {
     EXPECT_TRUE(!traits1);
 }
 
-TEST(ReflitestTest, BindTraits) {
+TEST(rflite_test, BindTraits) {
     constexpr auto meta0   = GetMemberMeta(refl_sample, "field_int");
     constexpr bool traits0 = meta0.satisfy_traits<bind_traits<0, std::is_same, int>::traits>();
     EXPECT_TRUE(traits0);
@@ -169,7 +169,7 @@ struct refl_sample2 {
     META_END
 };
 
-TEST(ReflitestTest, Assign) {
+TEST(rflite_test, Assign) {
     constexpr auto meta0 = GetMemberMeta(refl_sample2, "field_func");
 
     refl_sample2 bar;
@@ -183,7 +183,7 @@ TEST(ReflitestTest, Assign) {
     EXPECT_EQ(42, res1);
 }
 
-TEST(ReflitestTest, Invoke) {
+TEST(rflite_test, Invoke) {
     constexpr auto meta0 = GetMemberMeta(refl_sample2, "func");
     constexpr auto meta1 = GetMemberMeta(refl_sample2, "static_func");
 
@@ -207,7 +207,7 @@ struct refl_sample3 {
     META_END_RT
 };
 
-TEST(ReflitestTest, DynamicRegist) {
+TEST(rflite_test, DynamicRegist) {
     refl_class rc = refl_table::get_class("sample");
 
     EXPECT_EQ(2, rc.member_count());
@@ -215,7 +215,7 @@ TEST(ReflitestTest, DynamicRegist) {
     EXPECT_EQ("field_float", rc[1].name());
 }
 
-TEST(ReflitestTest, DynamicAccess) {
+TEST(rflite_test, DynamicAccess) {
     const refl_class &rc = refl_table::get_class("sample");
 
     const refl_member &meta0 = rc["field_int"];
@@ -237,7 +237,7 @@ TEST(ReflitestTest, DynamicAccess) {
     EXPECT_EQ(foo.field_float, 42.f);
 }
 
-TEST(ReflitestTest, DynamicAllocate) {
+TEST(rflite_test, DynamicAllocate) {
     const refl_class &rc = refl_table::get_class("sample");
 
     refl_instance foo      = rc.make(1);
@@ -279,7 +279,7 @@ struct refl_sample4 {
     META_END_RT
 };
 
-TEST(ReflitestTest, DynamicInvoke) {
+TEST(rflite_test, DynamicInvoke) {
     const refl_class &rc = refl_table::get_class("sample2");
 
     refl_instance foo     = rc.make(1);

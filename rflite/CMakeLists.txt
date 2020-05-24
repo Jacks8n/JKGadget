@@ -1,5 +1,4 @@
-# refitest: reflection/lite/static
-project(Reflitest)
+project(rflite)
 
 add_library(${PROJECT_NAME} INTERFACE)
 
@@ -10,12 +9,12 @@ enable_testing()
 
 include_directories(${gtest_SOURCE_DIR}/include)
 
-add_executable(ReflitestTest sample.cpp)
+add_executable(rflite_test sample.cpp)
 
-target_link_libraries(ReflitestTest PRIVATE
-    Reflitest
+target_link_libraries(rflite_test PRIVATE
+    rflite
     gtest
     gtest_main
 )
 
-add_test(ReflitestTest ReflitestTest)
+add_test(rflite_test rflite_test)

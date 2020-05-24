@@ -3,7 +3,7 @@
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
-#include "reflitest.h"
+#include "rflite.h"
 
 namespace igi {
     class scene_parser {

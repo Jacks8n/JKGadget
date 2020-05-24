@@ -9,7 +9,7 @@ add_library(${PROJECT_NAME} STATIC ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC inc)
 
-target_link_libraries(${PROJECT_NAME} INTERFACE PNGParvus Reflitest RapidJSON)
+target_link_libraries(${PROJECT_NAME} INTERFACE PNGParvus rflite RapidJSON)
 
 if(${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
 target_compile_options(${PROJECT_NAME} PUBLIC ${COMPILE_OPTIONS} "-mavx" "/clang:-ffast-math")
