@@ -106,7 +106,7 @@ TEST(rflite_test, ForEach) {
 TEST(rflite_test, Serialize) {
     constexpr auto serialize = [](auto &&ins) {
         std::string res;
-        meta_of<decltype(ins)>::foreach([&](auto &&meta) {
+        meta_of<decltype(ins)>::template foreach<member_type::field>([&](auto &&meta) {
             res.append(meta.member_name());
             res.push_back(':');
             res.append(std::to_string(meta.map(ins)));

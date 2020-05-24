@@ -212,7 +212,7 @@
     };
 
 namespace rflite {
-    enum member_type {
+    enum class member_type : size_t {
         null            = 0,
         field           = 1,
         field_static    = 2,
@@ -227,7 +227,7 @@ namespace rflite {
     };
 
     constexpr bool has_flag(member_type type, member_type flag) {
-        return type & flag;
+        return static_cast<size_t>(type) & static_cast<size_t>(flag);
     }
 
     constexpr bool is_field(member_type type) {
