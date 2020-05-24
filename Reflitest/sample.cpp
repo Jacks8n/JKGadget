@@ -1,9 +1,9 @@
 ﻿#include "gtest/gtest.h"
 #include <functional>
 #include <string>
-#include "reflitest.h"
+#include "rflite.h"
 
-using namespace reflitest;
+using namespace rflite;
 
 struct refl_sample {
     META_BEGIN(refl_sample, "refl_sample", std::string_view("class meta"))
@@ -233,9 +233,8 @@ TEST(ReflitestTest, DynamicAccess) {
     meta0.set(&foo, &i);
     EXPECT_EQ(foo.field_int, i);
 
-    f                     = 42.f;
-    meta1.of<float>(&foo) = f;
-    EXPECT_EQ(foo.field_float, f);
+    meta1.of<float>(&foo) = 42.f;
+    EXPECT_EQ(foo.field_float, 42.f);
 }
 
 TEST(ReflitestTest, DynamicAllocate) {
@@ -264,13 +263,17 @@ struct refl_sample4 {
     }
 
     META(func1)
-    int func1(int l, int r) {
-        return l - r;
+    int func1(int l, int &r) {
+        int tmp = r;
+        r       = 0;
+        return l - tmp;
     }
 
     META(func2)
-    int func2(int l, int r) const {
-        return l * r;
+    int func2(int &&l, int r) const {
+        int tmp = l;
+        l       = 0;
+        return tmp * r;
     }
 
     META_END_RT
@@ -287,10 +290,14 @@ TEST(ReflitestTest, DynamicInvoke) {
     cview["func0"].invoke(&res, 12, 30);
     EXPECT_EQ(res, 42);
 
-    cview["func1"].invoke(&res, 42, 30);
+    int lref = 30;
+    cview["func1"].invoke(&res, 42, lref);
+    EXPECT_EQ(lref, 0);
     EXPECT_EQ(res, 12);
 
-    cview["func2"].invoke(&res, 7, 6);
+    int rref = 7;
+    cview["func2"].invoke(&res, rref, 6);
+    EXPECT_EQ(rref, 0);
     EXPECT_EQ(res, 42);
 }
 
