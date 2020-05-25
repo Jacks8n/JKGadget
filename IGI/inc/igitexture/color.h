@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "igimath/mathutil.h"
+#include "rflite/rflite.h"
 
 namespace igi {
     // type of color channel
@@ -16,7 +17,18 @@ namespace igi {
 
     class color3 {
       public:
-        col_c_t r, g, b;
+        META_BEGIN(color3)
+
+        META(r)
+        col_c_t r;
+
+        META(g)
+        col_c_t g;
+
+        META(b)
+        col_c_t b;
+
+        META_END
 
         constexpr color3(col_c_t r = 0_col, col_c_t g = 0_col, col_c_t b = 0_col) : r(r), g(g), b(b) { }
 
@@ -85,6 +97,24 @@ namespace igi {
 
         constexpr color3 operator/(col_c_t s) const {
             return color3(r / s, g / s, b / s);
+        }
+
+        col_c_t &operator[](size_t index) {
+            assert(index < 3);
+            switch (index) {
+                case 0: return r;
+                case 1: return g;
+                default: return b;
+            }
+        }
+
+        constexpr col_c_t operator[](size_t index) const {
+            assert(index < 3);
+            switch (index) {
+                case 0: return r;
+                case 1: return g;
+                default: return b;
+            }
         }
     };
 

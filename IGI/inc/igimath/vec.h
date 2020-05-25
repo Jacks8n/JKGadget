@@ -49,6 +49,8 @@ namespace igi {
 
     template <typename T, size_t N>
     using vec = matrix<T, N, 1>;
+    template <size_t N>
+    using vecf = matrix<single, N, 1>;
 
     template <typename T>
     using vec2 = vec<T, 2>;

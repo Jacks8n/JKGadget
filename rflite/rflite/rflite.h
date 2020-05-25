@@ -2,6 +2,8 @@
 
 #pragma region static reflection
 
+#include <assert.h>
+#include <functional>
 #include <string_view>
 #include <tuple>
 
@@ -194,7 +196,7 @@
                                                                                                           \
         template <typename... T>                                                                          \
         static constexpr decltype(auto) map(T &&... t) noexcept {                                         \
-            return RFLITE_IMPL rflite_impl(member_ptr()).map(std::forward<T>(t)..., member_ptr());        \
+            return RFLITE_IMPL rflite_impl(member_ptr()).map(::std::forward<T>(t)..., member_ptr());      \
         }                                                                                                 \
                                                                                                           \
         template <typename... Ts>                                                                         \
@@ -249,7 +251,7 @@ namespace rflite {
         template <typename... Ts>
         struct tuple_has<::std::tuple<Ts...>> {
             template <typename T>
-            static constexpr bool value = (std::is_same_v<T, Ts> || ...);
+            static constexpr bool value = (::std::is_same_v<T, Ts> || ...);
         };
 
         template <typename TTuple, typename T>
@@ -271,10 +273,16 @@ namespace rflite {
             }
 
             template <typename... _>
-            static constexpr void map(_ &&...) noexcept { }
+            static constexpr int map(_ &&...) noexcept {
+                static_assert(sizeof...(_) != sizeof...(_), "bad mapping of static variables");
+                return 0;
+            }
 
             template <typename... _>
-            static constexpr void invoke(_ &&...) noexcept { }
+            static constexpr int invoke(_ &&...) noexcept {
+                static_assert(sizeof...(_) != sizeof...(_), "variables can't be invoked");
+                return 0;
+            }
         };
 
         template <typename T, typename C>
@@ -292,7 +300,10 @@ namespace rflite {
             }
 
             template <typename... _>
-            static constexpr void invoke(_ &&...) noexcept { }
+            static constexpr int invoke(_ &&...) noexcept {
+                static_assert(sizeof...(_) != sizeof...(_), "variables can't be invoked");
+                return 0;
+            }
         };
 
         template <typename T, typename C, typename... Ts>
@@ -306,7 +317,10 @@ namespace rflite {
             explicit constexpr rflite_impl(T (C::*)(Ts...)) { }
 
             template <typename... _>
-            static constexpr void map(_ &&...) noexcept { }
+            static constexpr int map(_ &&...) noexcept {
+                static_assert(sizeof...(_) != sizeof...(_), "functions can't be mapped");
+                return 0;
+            }
 
             template <typename... Us>
             static constexpr decltype(auto) invoke(T (C::*ptr)(Ts...), C &ins, Us &&... us) {
@@ -325,7 +339,10 @@ namespace rflite {
             explicit constexpr rflite_impl(T (C::*)(Ts...) const) { }
 
             template <typename... _>
-            static constexpr void map(_ &&...) noexcept { }
+            static constexpr int map(_ &&...) noexcept {
+                static_assert(sizeof...(_) != sizeof...(_), "functions can't be mapped");
+                return 0;
+            }
 
             template <typename... Us>
             static constexpr decltype(auto) invoke(T (C::*ptr)(Ts...) const, const C &ins, Us &&... us) {
@@ -343,7 +360,10 @@ namespace rflite {
             explicit constexpr rflite_impl(T (*)(Ts...)) { }
 
             template <typename... _>
-            static constexpr void map(_ &&...) noexcept { }
+            static constexpr int map(_ &&...) noexcept {
+                static_assert(sizeof...(_) != sizeof...(_), "functions can't be mapped");
+                return 0;
+            }
 
             template <typename... Us>
             static constexpr decltype(auto) invoke(T (*ptr)(Ts...), Us &&... us) {
@@ -386,7 +406,7 @@ namespace rflite {
     static constexpr member_type member_ptr_type_v = RFLITE_IMPL rflite_impl<::std::remove_reference_t<T>>::type;
 
     template <typename T>
-    using meta_of = typename ::std::remove_reference_t<T>::template RFLITE_META_INFO_NAME<impl::meta_id_v<T>>;
+    using meta_of = typename ::std::remove_reference_t<T>::template RFLITE_META_INFO_NAME<RFLITE_IMPL meta_id_v<T>>;
 
     template <size_t N, template <typename...> typename TT, typename... Ts>
     class bind_traits {
@@ -420,6 +440,49 @@ namespace rflite {
             static constexpr auto value = type::value;
         };
     };
+
+    struct attribute { };
+
+    struct note_a : attribute {
+        const ::std::string_view note;
+
+        constexpr note_a(::std::string_view note) : note(note) { }
+    };
+
+    struct name_a : attribute {
+        const ::std::string_view name;
+
+        constexpr name_a(::std::string_view name) : name(name) { }
+    };
+
+    template <typename T>
+    struct optional_a : attribute {
+        const T value;
+
+        constexpr optional_a(const T &value) : value(value) { }
+    };
+
+    optional_a(const char *)->optional_a<::std::string_view>;
+
+    template <typename T>
+    struct ctor_a;
+
+    template <typename TRet, typename... TArgs>
+    struct ctor_a<::std::function<TRet(TArgs...)>> : attribute {
+        static constexpr size_t args_count_v = RFLITE_IMPL func_ptr_args_count_v<decltype(&T::operator())>;
+
+        const ::std::function<TRet(TArgs...)> fn;
+
+        template <typename TFn>
+        constexpr ctor_a(TFn &&fn) : fn(fn) { }
+
+        TRet &&invoke(TArgs &&... args) const {
+            return fn(::std::forward<TArgs &&>(args)...);
+        }
+    };
+
+    template <typename TFn>
+    ctor_a(TFn &&) -> ctor_a<decltype(::std::function(*(::std::remove_reference_t<TFn> *)nullptr))>;
 }  // namespace rflite
 
 #pragma region helper macro
@@ -433,8 +496,6 @@ namespace rflite {
 
 #pragma endregion
 #pragma endregion
-
-#define RFLITE_DYNAMIC
 
 #pragma region dynamic reflection
 #ifdef RFLITE_DYNAMIC
@@ -506,7 +567,7 @@ namespace rflite::impl {
     class any_ptr {
         struct _ { };
 
-        mutable char _buf[impl::max(sizeof(void *), sizeof(_ _::*), sizeof(_ (_::*)()), sizeof(_ (_::*)() const))];
+        mutable char _buf[RFLITE_IMPL max(sizeof(_ *), sizeof(_ (*)()), sizeof(_ _::*), sizeof(_ (_::*)()), sizeof(_ (_::*)() const))];
 
       public:
         template <typename T>
@@ -535,17 +596,17 @@ namespace rflite {
 
         template <typename T>
         static constexpr decltype(auto) cast_res_ref(void *ptr) {
-            return *reinterpret_cast<::std::remove_reference_t<impl::member_ptr_value_t<T>> *>(ptr);
+            return *reinterpret_cast<::std::remove_reference_t<RFLITE_IMPL member_ptr_value_t<T>> *>(ptr);
         }
 
         template <typename T>
         static constexpr decltype(auto) cast_class_ref(void *ptr) {
-            return cast_arg_ref<impl::member_ptr_class_t<T>>(ptr);
+            return cast_arg_ref<RFLITE_IMPL member_ptr_class_t<T>>(ptr);
         }
 
         template <typename T>
         static void access_field(void *res, void **args, const RFLITE_IMPL any_ptr &ptr) {
-            *reinterpret_cast<impl::member_ptr_value_t<T> **>(res) = &(cast_class_ref<T>(*args).*(ptr.cast<T>()));
+            *reinterpret_cast<RFLITE_IMPL member_ptr_value_t<T> **>(res) = &(cast_class_ref<T>(*args).*(ptr.cast<T>()));
         }
 
         template <typename T>
@@ -587,11 +648,11 @@ namespace rflite {
             if constexpr (type == member_type::field_static)
                 return &access_field_static<T>;
             if constexpr (type == member_type::function_static)
-                return access<access_func_static, T, RFLITE_IMPL func_ptr_args_t<T>>(::std::make_index_sequence<impl::func_ptr_args_count_v<T>>());
+                return access<access_func_static, T, RFLITE_IMPL func_ptr_args_t<T>>(::std::make_index_sequence<RFLITE_IMPL func_ptr_args_count_v<T>>());
             if constexpr (type == member_type::function)
-                return access<access_func_member, T, RFLITE_IMPL func_ptr_args_t<T>>(::std::make_index_sequence<impl::func_ptr_args_count_v<T>>());
+                return access<access_func_member, T, RFLITE_IMPL func_ptr_args_t<T>>(::std::make_index_sequence<RFLITE_IMPL func_ptr_args_count_v<T>>());
             if constexpr (type == member_type::function_const)
-                return access<access_func_member_const, T, RFLITE_IMPL func_ptr_args_t<T>>(::std::make_index_sequence<impl::func_ptr_args_count_v<T>>());
+                return access<access_func_member_const, T, RFLITE_IMPL func_ptr_args_t<T>>(::std::make_index_sequence<RFLITE_IMPL func_ptr_args_count_v<T>>());
             return nullptr;
         }
 
@@ -613,7 +674,7 @@ namespace rflite {
         refl_member(T &&meta)
             : _name(meta.member_name()),
               _memberType(member_ptr_type_v<decltype(meta.member_ptr())>),
-              _size(sizeof(impl::member_ptr_value_t<decltype(meta.member_ptr())>)),
+              _size(sizeof(RFLITE_IMPL member_ptr_value_t<decltype(meta.member_ptr())>)),
               _memberPtr(meta.member_ptr()),
               _handler(access<decltype(meta.member_ptr())>()) { }
 
@@ -660,7 +721,7 @@ namespace rflite {
 
         template <typename T>
         T &of() const {
-            assert_is_type(member_type::field_static);
+            assert(_memberType == member_type::field_static);
 
             void *mp;
             _handler(&mp, nullptr, _memberPtr);
@@ -683,18 +744,11 @@ namespace rflite {
 
       private:
         void assert_not_func() const {
-            if (is_function(_memberType))
-                throw;
+            assert(is_function(_memberType));
         }
 
         void assert_is_func() const {
-            if (!is_function(_memberType))
-                throw;
-        }
-
-        void assert_is_type(member_type type) const {
-            if (_memberType != type)
-                throw;
+            assert(!is_function(_memberType));
         }
 
         void copy_impl(void *src, void *dest) const {
@@ -744,10 +798,8 @@ namespace rflite {
         template <typename... Ts>
         void invoke(void *buf, Ts &&... args) {
             if (has_flag(_meta.type(), member_type::function_this)) {
-                if (_ins)
-                    _meta.invoke(buf, _ins, ::std::forward<Ts>(args)...);
-                else
-                    throw;
+                assert(_ins);
+                _meta.invoke(buf, _ins, ::std::forward<Ts>(args)...);
             }
             else
                 _meta.invoke(buf, ::std::forward<Ts>(args)...);
@@ -801,9 +853,7 @@ namespace rflite {
         refl_instance make(size_t n = 1) const;
 
         const refl_member &operator[](size_t index) const {
-            if (index >= _count)
-                throw;
-
+            assert(index < _count);
             return _members[index];
         }
 
@@ -935,7 +985,7 @@ namespace rflite {
         }
 
         refl_class_view operator[](size_t index) const {
-            if (index >= _count) throw;
+            assert(index < _count);
             return _refl.view(at(index));
         }
 
@@ -968,15 +1018,15 @@ namespace rflite {
 
       public:
         template <typename T>
-        static std::string_view regist() {
-            if constexpr (meta_of<T>::template has_attr<const char *>())
-                return regist<T>(meta_of<T>::template get_attr<const char *>());
+        static ::std::string_view regist() {
+            if constexpr (meta_of<T>::template has_attr<name_a>())
+                return regist<T>(meta_of<T>::template get_attr<name_a>().name);
             else
                 return regist<T>(meta_of<T>::name());
         }
 
         template <typename T>
-        static std::string_view regist(::std::string_view id) {
+        static ::std::string_view regist(::std::string_view id) {
             constexpr size_t nrefl = meta_of<T>::get_meta_count();
 
             ::std::shared_ptr<refl_member[]> ap(
@@ -1004,7 +1054,7 @@ namespace rflite {
 
 #define META_END_RT \
     META_END        \
-    static inline const std::string_view meta_info_rt = ::rflite::refl_table::regist<typename RFLITE_META_INFO_NULL::owner_t>();
+    static inline const ::std::string_view meta_info_rt = ::rflite::refl_table::regist<typename RFLITE_META_INFO_NULL::owner_t>();
 
 #endif
 #pragma endregion

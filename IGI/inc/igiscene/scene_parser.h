@@ -1,27 +1,25 @@
 ﻿#pragma once
 
+#include "igiscene/scene.h"
 #include "rapidjson/document.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
-#include "rflite.h"
 
 namespace igi {
     class scene_parser {
-        template <typename T>
-        void parse(const rapidjson::Document &json, T *res) {
-            const rapidjson::Value &obj = json[reflitest::meta_of<T>::get_attr<std::string_view>()];
+      public:
+        using parse_res_t    = std::pair<scene, std::shared_ptr<aggregate>>;
+        using allocator_type = typename aggregate::allocator_type;
 
-            meta_of<T>::foreach_meta([&](auto &&meta) {
-                const rapidjson::Value &prop = obj[meta.get_attr<std::string_view>()];
-
-                auto &field = meta.get_ref_of(*res);
-                if constexpr (meta.satisfy_traits<std::is_integral>())
-                    field = prop.GetInt();
-                else if constexpr (meta.satisfy_traits<std::is_floating_point>())
-                    field = prop.GetFloat();
-                else if constexpr (meta.satisfy_traits<std::is_class>())
-                    parse(json, &field);
-            });
+        template <typename TIStream>
+        static parse_res_t ParseStream(TIStream &&input, const allocator_type &alloc) {
+            rapidjson::Document doc;
+            return Parse(doc.ParseStream(std::forward<TIStream>(input)), alloc);
         }
+
+        static parse_res_t ParseInsitu(char *buf, const allocator_type &alloc) {
+            rapidjson::Document doc;
+            return Parse(doc.ParseInsitu(buf), alloc);
+        }
+
+        static parse_res_t Parse(rapidjson::Document &doc, const allocator_type &alloc);
     };
 }  // namespace igi

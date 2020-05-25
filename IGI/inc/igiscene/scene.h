@@ -4,15 +4,15 @@
 
 namespace igi {
     class scene {
-        const aggregate &_aggregate;
+        std::shared_ptr<aggregate> _aggregate;
 
         color3 _background;
 
       public:
-        scene(const aggregate &aggregate, color3 background = palette::black)
-            : _aggregate(aggregate), _background(background) { }
+        scene(std::shared_ptr<aggregate> aggregate, color3 background = palette::black)
+            : _aggregate(std::move(aggregate)), _background(background) { }
 
-        const aggregate &getAggregate() const { return _aggregate; }
+        const aggregate &getAggregate() const { return *_aggregate; }
 
         color3 getBackground() const { return _background; }
     };

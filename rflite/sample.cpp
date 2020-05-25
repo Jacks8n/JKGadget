@@ -1,7 +1,9 @@
-﻿#include "gtest/gtest.h"
+﻿#define RFLITE_DYNAMIC
+
+#include "gtest/gtest.h"
 #include <functional>
 #include <string>
-#include "rflite.h"
+#include "rflite/rflite.h"
 
 using namespace rflite;
 
@@ -164,12 +166,45 @@ TEST(rflite_test, BindTraits) {
     EXPECT_TRUE(!traits1);
 }
 
+struct refl_sample2 {
+    META_BEGIN(refl_sample2)
+
+    META(field)
+    int field;
+
+    META(func)
+    constexpr int func() const {
+        return 42;
+    }
+
+    META(func2)
+    static constexpr int func2() {
+        return 12;
+    }
+
+    META_END
+};
+
+TEST(rflite_test, Invoke) {
+    // this may incur an compiler error: "... variables can't be invoked"
+    // constexpr auto meta0 = GetMemberMeta(refl_sample2, "field");
+    // constexpr auto bad_invoke = meta0.invoke();
+
+    constexpr auto meta1 = GetMemberMeta(refl_sample2, "func");
+    constexpr int res1    = meta1.invoke(refl_sample2());
+    EXPECT_EQ(res1, 42);
+    
+    constexpr auto meta2 = GetMemberMeta(refl_sample2, "func2");
+    constexpr int res2    = meta2.invoke();
+    EXPECT_EQ(res2, 12);
+}
+
 #pragma endregion
 
 #pragma region dynamic reflection member
 
-struct refl_sample2 {
-    META_BEGIN(refl_sample2, "sample")
+struct refl_sample3 {
+    META_BEGIN(refl_sample3, name_a("sample"))
 
     META(field_int)
     int field_int;
@@ -193,7 +228,7 @@ TEST(rflite_test, DynamicAccess) {
     const refl_member &meta0 = rc["field_int"];
     const refl_member &meta1 = rc["field_float"];
 
-    refl_sample2 foo { 42 };
+    refl_sample3 foo { 42 };
 
     int i;
     meta0.get(&foo, &i);
@@ -219,7 +254,7 @@ TEST(rflite_test, DynamicAllocate) {
     cview["field_int"].as<int>()     = 42;
     cview["field_float"].as<float>() = 12.f;
 
-    refl_sample2 bar = cview.as<refl_sample2>();
+    refl_sample3 bar = cview.as<refl_sample3>();
 
     EXPECT_EQ(bar.field_int, 42);
     EXPECT_EQ(bar.field_float, 12.f);
@@ -229,8 +264,8 @@ TEST(rflite_test, DynamicAllocate) {
 
 #pragma region dynamic reflection function
 
-struct refl_sample3 {
-    META_BEGIN(refl_sample3)
+struct refl_sample4 {
+    META_BEGIN(refl_sample4)
 
     META(func0)
     static int func0(int l, int r) {
@@ -255,7 +290,7 @@ struct refl_sample3 {
 };
 
 TEST(rflite_test, DynamicInvoke) {
-    const refl_class &rc = refl_table::get_class("refl_sample3");
+    const refl_class &rc = refl_table::get_class("refl_sample4");
 
     refl_instance foo     = rc.make(1);
     refl_class_view cview = foo[0];

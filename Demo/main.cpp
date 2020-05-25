@@ -1,14 +1,13 @@
 ﻿#include "main.h"
-#include <iostream>
 #include "igigeometry/cylinder.h"
 #include "igigeometry/sphere.h"
 #include "igiintegrator/path_trace.h"
 #include "igimaterial/material_emissive.h"
 #include "igimaterial/material_phong.h"
 
-int main() {
-    igi::mem_arena arena(1024 * 1024 * 10);
+using namespace demo;
 
+int main() {
     // A sphere with radius being 1000
     igi::sphere sp(1000);
     // A cylinder with radius being 0.35 and z ranging from -0.35 to 0.35
@@ -30,26 +29,11 @@ int main() {
         .rotation(igi::vec3f(igi::ToRad(45), igi::ToRad(45), igi::ToRad(45)))
         .translation(igi::vec3f(0, 0, 2));
 
-    // Simplest aggregate of entities
-    igi::aggregate av({ e0, e1 }, &arena);
-    // Scene with black background
-    igi::scene s(av);
-    // Integrator to use
-    // Reflect 4 times
-    // Split into 4 rays at every reflection
-    igi::path_trace pt(s, 4, 4);
+    run<1024, igi::path_trace>( // sample 1024 times per pixel, using path_tracing
+        "demo.png",             // output to demo.png
+        512, 512,               // size of result image is 512 * 512
+        { e0, e1 },             // entities to be rendered
+        4, 4);                  // reflect 4 times, split to 4 rays at each reflection
 
-    constexpr size_t w = 512, h = 512;
-
-    // Camera to observe the scene
-    // igi::camera_orthographic c(2, 2);
-    igi::camera_perspective c(70, igi::AsSingle(w) / h);
-
-    // Result texture
-    igi::texture_rgb t(w, h, &arena);
-    render(c, t, pt, arena, 1024, &std::cout);
-
-    std::ofstream o("demo.png", std::ios_base::binary);
-    pngparvus::png_writer().write(o, t);
     return 0;
 }

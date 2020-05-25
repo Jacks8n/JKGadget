@@ -51,11 +51,10 @@ namespace igi {
             }
         };
 
-        using initializer_list_t = std::initializer_list<const std::reference_wrapper<entity>>;
-
       public:
-        using allocator_type = std::pmr::polymorphic_allocator<leaf>;
-        using itr_stack_t    = std::stack<const void *, std::pmr::vector<const void *>>;
+        using initializer_list_t = std::initializer_list<const std::reference_wrapper<entity>>;
+        using allocator_type     = std::pmr::polymorphic_allocator<leaf>;
+        using itr_stack_t        = std::stack<const void *, std::pmr::vector<const void *>>;
 
         aggregate(const allocator_type &alloc)
             : _nodes(alloc), _leaves(alloc) { }

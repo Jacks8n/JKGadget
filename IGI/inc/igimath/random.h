@@ -49,7 +49,7 @@ namespace igi {
         template <typename Te>
         vec2f operator()(Te &&engine) {
             single p;
-            return operator()(engine, &p);
+            return operator()(std::forward<Te>(engine), &p);
         }
 
         template <typename Te>
@@ -67,7 +67,7 @@ namespace igi {
         template <typename Te>
         vec2f operator()(Te &&engine) {
             single p;
-            return operator()(engine, &p);
+            return operator()(std::forward<Te>(engine), &p);
         }
 
         template <typename Te>
@@ -89,13 +89,39 @@ namespace igi {
         template <typename Te>
         vec3f operator()(Te &&engine) {
             single p;
-            return operator()(engine, &p);
+            return operator()(std::forward<Te>(engine), &p);
         }
 
         template <typename Te>
         vec3f operator()(Te &&engine, single *p) {
             vec2f v = _udd(engine, p);
             return vec3f(v, sqrt(Saturate(1 - v.magnitudeSqr())));
+        }
+    };
+
+    template <size_t Dim>
+    class uniform_vector_distribution {
+        std::uniform_real_distribution<single> _urd[Dim];
+
+      public:
+        uniform_vector_distribution(const vecf<Dim> &lo, const vecf<Dim> &hi) {
+            for (size_t i = 0; i < Dim; i++)
+                _urd[i] = std::uniform_real_distribution<single>(lo[i], hi[i]);
+        }
+
+        template <typename Te>
+        vecf<Dim> operator()(Te &&engine) {
+            single p;
+            return operator()(std::forward<Te>(engine), &p);
+        }
+
+        template <typename Te>
+        vecf<Dim> operator()(Te &&engine, single *p) {
+            vecf<Dim> res;
+            for (size_t i = 0; i < Dim; i++)
+                res[i] = _urd[i](engine);
+            *p = 1;
+            return res;
         }
     };
 }  // namespace igi
