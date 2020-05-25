@@ -45,6 +45,7 @@
 
 using namespace igi;
 using namespace rapidjson;
+using namespace rflite;
 
 const char *const entry_background = "background";
 const char *const entry_material   = "material";

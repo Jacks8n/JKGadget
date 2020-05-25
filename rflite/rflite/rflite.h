@@ -441,22 +441,65 @@ namespace rflite {
         };
     };
 
-    struct attribute { };
+    class is_attribute_typed {
+        template <template <typename> typename>
+        struct typed;
 
-    struct note_a : attribute {
+      public:
+        template <typename T>
+        static constexpr bool value(typed<T::template typed> *) { return true; }
+        template <typename T>
+        static constexpr bool value(...) { return false; }
+    };
+
+    template <typename T>
+    static constexpr bool is_attribute_typed_v = is_attribute_typed::value<T>(nullptr);
+
+    template <typename T>
+    struct attribute {
+        template <typename TOwner>
+        constexpr decltype(auto) get() const {
+            return get_impl<TOwner>();
+        }
+
+      private:
+        template <typename, typename _ = T, ::std::enable_if_t<!is_attribute_typed_v<_>, int> = 0>
+        constexpr auto get_impl() const {
+            return static_cast<T>(*this);
+        }
+
+        template <typename TOwner, typename _ = T, ::std::enable_if_t<is_attribute_typed_v<_>, int> = 0>
+        constexpr auto get_impl() const {
+            return get_impl<T::template typed, TOwner>();
+        }
+
+        template <template <typename> typename TTyped, typename TOwner,
+                  ::std::enable_if_t<::std::is_default_constructible_v<TTyped<TOwner>>, int> = 0>
+        constexpr TTyped<TOwner> get_impl() const {
+            return TTyped<TOwner>();
+        }
+
+        template <template <typename> typename TTyped, typename TOwner,
+                  ::std::enable_if_t<!::std::is_default_constructible_v<TTyped<TOwner>>, int> = 0>
+        constexpr TTyped<TOwner> get_impl() const {
+            return TTyped<TOwner>(static_cast<const T &>(*this));
+        }
+    };
+
+    struct note_a : attribute<note_a> {
         const ::std::string_view note;
 
         constexpr note_a(::std::string_view note) : note(note) { }
     };
 
-    struct name_a : attribute {
+    struct name_a : attribute<name_a> {
         const ::std::string_view name;
 
         constexpr name_a(::std::string_view name) : name(name) { }
     };
 
     template <typename T>
-    struct optional_a : attribute {
+    struct optional_a : attribute<optional_a<T>> {
         const T value;
 
         constexpr optional_a(const T &value) : value(value) { }
@@ -464,25 +507,17 @@ namespace rflite {
 
     optional_a(const char *)->optional_a<::std::string_view>;
 
-    template <typename T>
-    struct ctor_a;
-
-    template <typename TRet, typename... TArgs>
-    struct ctor_a<::std::function<TRet(TArgs...)>> : attribute {
-        static constexpr size_t args_count_v = RFLITE_IMPL func_ptr_args_count_v<decltype(&T::operator())>;
-
-        const ::std::function<TRet(TArgs...)> fn;
-
-        template <typename TFn>
-        constexpr ctor_a(TFn &&fn) : fn(fn) { }
-
-        TRet &&invoke(TArgs &&... args) const {
-            return fn(::std::forward<TArgs &&>(args)...);
-        }
+    template <typename... TArgs>
+    struct ctor_a : attribute<ctor_a<TArgs...>> {
+        template <typename TRet>
+        struct typed {
+            template <typename... Args, 
+                ::std::enable_if_t<::std::conjunction_v<::std::is_convertible_v<Args, TArgs>...>, int> = 0>
+            static constexpr TRet construct(Args &&... args) {
+                return TRet(::std::forward<Args>(args)...);
+            }
+        };
     };
-
-    template <typename TFn>
-    ctor_a(TFn &&) -> ctor_a<decltype(::std::function(*(::std::remove_reference_t<TFn> *)nullptr))>;
 }  // namespace rflite
 
 #pragma region helper macro
