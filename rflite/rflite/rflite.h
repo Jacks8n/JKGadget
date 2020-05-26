@@ -82,6 +82,25 @@
             foreach_impl(::std::forward<Fn>(fn), seq, ::std::index_sequence<>(), is);                                                                                  \
         }                                                                                                                                                              \
                                                                                                                                                                        \
+        template <template <typename...> typename T, typename TTuple, size_t... Is>                                                                                    \
+        static constexpr auto has_attr_impl(::std::index_sequence<Is...>) noexcept {                                                                                   \
+            return (RFLITE is_specialization_of_v<T, ::std::tuple_element_t<Is, TTuple>> || ...);                                                                      \
+        }                                                                                                                                                              \
+                                                                                                                                                                       \
+        template <template <typename...> typename T, typename TTuple, size_t... Is>                                                                                    \
+        static constexpr auto get_attr_impl(TTuple &&t, ::std::index_sequence<Is...>) noexcept {                                                                       \
+            return ::std::get<RFLITE index_of_first_v<true, (RFLITE is_specialization_of_v<T, ::std::tuple_element_t<Is, ::std::remove_reference_t<TTuple>>>)...>>(t); \
+        }                                                                                                                                                              \
+                                                                                                                                                                       \
+        template <typename T>                                                                                                                                          \
+        static constexpr decltype(auto) get_attr_impl(T &&t) noexcept {                                                                                                \
+            using attr_t = ::std::remove_reference_t<T>;                                                                                                               \
+            if constexpr (::std::is_base_of_v<RFLITE attribute<T>, attr_t>)                                                                                            \
+                return t.get<type>();                                                                                                                                  \
+            else                                                                                                                                                       \
+                return ::std::forward<T>(t);                                                                                                                           \
+        }                                                                                                                                                              \
+                                                                                                                                                                       \
       public:                                                                                                                                                          \
         using owner_t = type;                                                                                                                                          \
                                                                                                                                                                        \
@@ -123,9 +142,18 @@
             return ::std::make_tuple(__VA_ARGS__);                                                                                                                     \
         }                                                                                                                                                              \
                                                                                                                                                                        \
+        static constexpr auto get_attr_count() noexcept {                                                                                                              \
+            return ::std::tuple_size_v<decltype(get_attr_all())>;                                                                                                      \
+        }                                                                                                                                                              \
+                                                                                                                                                                       \
         template <typename T>                                                                                                                                          \
         static constexpr bool has_attr() noexcept {                                                                                                                    \
             return RFLITE_IMPL tuple_has_v<decltype(get_attr_all()), T>;                                                                                               \
+        }                                                                                                                                                              \
+                                                                                                                                                                       \
+        template <template <typename...> typename T>                                                                                                                   \
+        static constexpr bool has_attr() noexcept {                                                                                                                    \
+            return has_attr_impl<T, decltype(get_attr_all())>(::std::make_index_sequence<get_attr_count()>());                                                         \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         template <size_t Nth>                                                                                                                                          \
@@ -135,7 +163,12 @@
                                                                                                                                                                        \
         template <typename T>                                                                                                                                          \
         static constexpr T get_attr() noexcept {                                                                                                                       \
-            return ::std::get<T>(get_attr_all());                                                                                                                      \
+            return get_attr_impl(::std::get<T>(get_attr_all()));                                                                                                       \
+        }                                                                                                                                                              \
+                                                                                                                                                                       \
+        template <template <typename...> typename T>                                                                                                                   \
+        static constexpr auto get_attr() noexcept {                                                                                                                    \
+            return get_attr_impl((get_attr_impl<T>(get_attr_all(), ::std::make_index_sequence<get_attr_count()>())));                                                  \
         }                                                                                                                                                              \
     };
 
@@ -400,6 +433,9 @@ namespace rflite {
 
         template <typename T>
         static constexpr size_t meta_id_v = ::std::remove_reference_t<T>::template RFLITE_META_INFO_NAME<0>::get_id();
+
+        template <typename... Ts>
+        struct meta_of_foreach;
     }  // namespace impl
 
     template <typename T>
@@ -408,18 +444,106 @@ namespace rflite {
     template <typename T>
     using meta_of = typename ::std::remove_reference_t<T>::template RFLITE_META_INFO_NAME<RFLITE_IMPL meta_id_v<T>>;
 
-    template <size_t N, template <typename...> typename TT, typename... Ts>
-    class bind_traits {
-        template <size_t Lo, size_t Len>
-        static constexpr auto sub_pack() noexcept {
-            return sub_pack<Lo>(::std::make_index_sequence<Len>());
+    template <typename... Ts>
+    struct RFLITE_IMPL meta_of_foreach {
+        template <typename Fn>
+        static constexpr auto invoke(Fn &&fn) {
+            return ::std::make_tuple((fn(meta_of<Ts>()), ...));
+        }
+    };
+    
+    template <typename... Ts>
+    struct RFLITE_IMPL meta_of_foreach<::std::tuple<Ts...>> {
+        template <typename Fn>
+        static constexpr auto invoke(Fn &&fn) {
+            return meta_of_foreach<Ts...>::invoke(::std::forward<Fn>(fn));
+        }
+    };
+
+    template <typename Fn, typename... Ts>
+    constexpr auto meta_of_foreach(Fn &&fn) {
+        return RFLITE_IMPL meta_of_foreach<Ts...>(::std::forward<Fn>(fn));
+    }
+
+    template <auto Val, auto... Vals>
+    class index_of_first {
+        template <size_t I, auto V>
+        static constexpr size_t find() {
+            return I;
         }
 
+        template <size_t I, auto V, auto V0, auto... Vs>
+        static constexpr size_t find() {
+            return V != V0 ? find<I + 1, V>(Vs...) : I;
+        }
+
+      public:
+        static constexpr size_t value = find<0, Val, Vals...>();
+    };
+
+    template <auto Val, auto... Vals>
+    static constexpr size_t index_of_first_v = index_of_first<Val, Vals...>::value;
+
+    template <size_t ILo, size_t ILen, typename... Ts>
+    class sub_type_pack {
         template <size_t Lo, size_t... Is>
         static constexpr auto sub_pack(::std::index_sequence<Is...>) noexcept {
             return ::std::tuple<::std::tuple_element_t<Lo + Is, ::std::tuple<Ts...>>...>();
         }
 
+      public:
+        using type = decltype(sub_pack<ILo>(::std::make_index_sequence<ILen>()));
+    };
+
+    template <size_t Lo, size_t Len, typename... Ts>
+    using sub_type_pack_t = typename sub_type_pack<Lo, Len, Ts...>::type;
+
+    template <size_t ILo, size_t ILen, typename T, T... Vals>
+    class sub_val_pack {
+        template <size_t Lo, size_t... Is>
+        static constexpr auto sub_pack(::std::index_sequence<Is...>) noexcept {
+            return ::std::integer_sequence<T, ::std::get<Lo + Is>(::std::integer_sequence<T, Vals...>())...>();
+        }
+
+      public:
+        using type = decltype(sub_pack<ILo>(::std::make_index_sequence<ILen>()));
+    };
+
+    template <size_t Lo, size_t Len, typename T, T... Vals>
+    using sub_val_pack_t = typename sub_val_pack<Lo, Len, T, Vals...>::type;
+
+    template <typename T, bool... Vals>
+    class mask_tuple {
+        template <typename TTuple, typename... Ts, bool... Vs>
+        static constexpr auto mask(::std::tuple<Ts...>, ::std::integer_sequence<bool, Vs...>) {
+            static_assert(sizeof...(Ts) == sizeof...(Vs));
+
+            constexpr size_t index = index_of_first_v<true, Vs...>;
+
+            if constexpr (index < sizeof...(Ts)) {
+                using truet = sub_type_pack_t<index, 1, Ts...>;
+                using subt  = sub_type_pack_t<index + 1, sizeof...(Ts) - index - 1, Ts...>;
+                using subv  = sub_val_pack_t<index + 1, sizeof...(Vs) - index - 1, bool, Vs...>;
+
+                return mask<decltype(::std::tuple_cat(TTuple(), ::std::tuple<truet>()))>(subt(), subv());
+            }
+            else
+                return TTuple();
+        }
+
+        template <typename... Ts>
+        static constexpr auto mask(::std::tuple<Ts...>) {
+            return mask<::std::tuple<>>(::std::tuple<Ts...>(), ::std::integer_sequence<bool, Vals...>());
+        }
+
+        using type = decltype(mask(T()));
+    };
+
+    template <typename TTuple, bool... Vals>
+    using mask_tuple_t = mask_tuple<TTuple, Vals...>;
+
+    template <size_t N, template <typename...> typename TT, typename... Ts>
+    class bind {
         template <typename... Us>
         struct impl;
 
@@ -431,15 +555,24 @@ namespace rflite {
       public:
         template <typename T>
         struct traits {
-          private:
-            using lo   = decltype(sub_pack<0, N>());
-            using hi   = decltype(sub_pack<N, sizeof...(Ts) - N>());
-            using type = typename impl<T, lo, hi>::type;
-
-          public:
-            static constexpr auto value = type::value;
+            static constexpr auto value = impl<T, sub_type_pack_t<0, N, Ts...>, sub_type_pack_t<N, sizeof...(Ts) - N, Ts...>>::type::value;
         };
     };
+
+    template <typename T>
+    struct is_specialization_of {
+        template <template <typename...> typename U>
+        static constexpr bool value = false;
+    };
+
+    template <template <typename...> typename T, typename... Ts>
+    struct is_specialization_of<T<Ts...>> {
+        template <template <typename...> typename U>
+        static constexpr bool value = ::std::is_same_v<T<Ts...>, U<Ts...>>;
+    };
+
+    template <template <typename...> typename T, typename TSpec>
+    static constexpr bool is_specialization_of_v = is_specialization_of<TSpec>::template value<T>;
 
     class is_attribute_typed {
         template <template <typename> typename>
@@ -457,7 +590,7 @@ namespace rflite {
 
     template <typename T>
     struct attribute {
-        template <typename TOwner>
+        template <typename TOwner = void>
         constexpr decltype(auto) get() const {
             return get_impl<TOwner>();
         }
@@ -465,7 +598,7 @@ namespace rflite {
       private:
         template <typename, typename _ = T, ::std::enable_if_t<!is_attribute_typed_v<_>, int> = 0>
         constexpr auto get_impl() const {
-            return static_cast<T>(*this);
+            return *static_cast<const T *>(this);
         }
 
         template <typename TOwner, typename _ = T, ::std::enable_if_t<is_attribute_typed_v<_>, int> = 0>
@@ -499,20 +632,21 @@ namespace rflite {
     };
 
     template <typename T>
-    struct optional_a : attribute<optional_a<T>> {
+    struct default_a : attribute<default_a<T>> {
         const T value;
 
-        constexpr optional_a(const T &value) : value(value) { }
+        constexpr default_a(const T &value) : value(value) { }
     };
 
-    optional_a(const char *)->optional_a<::std::string_view>;
+    default_a(const char *)->default_a<::std::string_view>;
 
     template <typename... TArgs>
     struct ctor_a : attribute<ctor_a<TArgs...>> {
         template <typename TRet>
         struct typed {
-            template <typename... Args, 
-                ::std::enable_if_t<::std::conjunction_v<::std::is_convertible_v<Args, TArgs>...>, int> = 0>
+            using args_t = ::std::tuple<TArgs...>;
+
+            template <typename... Args, ::std::enable_if_t<::std::is_invocable_v<void(TArgs...), Args...>, int> = 0>
             static constexpr TRet construct(Args &&... args) {
                 return TRet(::std::forward<Args>(args)...);
             }

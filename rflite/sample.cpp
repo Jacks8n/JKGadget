@@ -9,7 +9,7 @@ using namespace rflite;
 
 #pragma region static reflection
 
-struct refl_sample {
+    struct refl_sample {
     META_BEGIN(refl_sample, std::string_view("class meta"))
 
     META(field_int, (int)42, std::string_view("the answer"))
@@ -158,11 +158,11 @@ TEST(rflite_test, Traits) {
 
 TEST(rflite_test, BindTraits) {
     constexpr auto meta0   = GetMemberMeta(refl_sample, "field_int");
-    constexpr bool traits0 = meta0.satisfy_traits<bind_traits<0, std::is_same, int>::traits>();
+    constexpr bool traits0 = meta0.satisfy_traits<bind<0, std::is_same, int>::traits>();
     EXPECT_TRUE(traits0);
 
     constexpr auto meta1   = GetMemberMeta(refl_sample, "field_float");
-    constexpr bool traits1 = meta1.satisfy_traits<bind_traits<1, std::is_same, double>::traits>();
+    constexpr bool traits1 = meta1.satisfy_traits<bind<1, std::is_same, double>::traits>();
     EXPECT_TRUE(!traits1);
 }
 
@@ -191,11 +191,11 @@ TEST(rflite_test, Invoke) {
     // constexpr auto bad_invoke = meta0.invoke();
 
     constexpr auto meta1 = GetMemberMeta(refl_sample2, "func");
-    constexpr int res1    = meta1.invoke(refl_sample2());
+    constexpr int res1   = meta1.invoke(refl_sample2());
     EXPECT_EQ(res1, 42);
-    
+
     constexpr auto meta2 = GetMemberMeta(refl_sample2, "func2");
-    constexpr int res2    = meta2.invoke();
+    constexpr int res2   = meta2.invoke();
     EXPECT_EQ(res2, 12);
 }
 
