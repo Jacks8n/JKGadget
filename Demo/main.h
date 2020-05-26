@@ -6,7 +6,6 @@
 #include "igiintegrator/path_trace.h"
 #include "igiscene/aggregate.h"
 #include "igiscene/scene.h"
-#include "igiscene/scene_parser.h"
 #include "render.h"
 
 namespace demo {
@@ -18,15 +17,15 @@ namespace demo {
 
         igi::scene s(a);
 
-        TAlg alg(std::forward<TArgs>(args)...);
+        TAlg alg(s, std::forward<TArgs>(args)...);
 
-        igi::camera_perspective cam(70_sg, igi::AsSingle(w) / igi::AsSingle(h));
+        igi::camera_perspective cam(igi::AsSingle(70), igi::AsSingle(w) / igi::AsSingle(h));
 
         igi::texture_rgb img(w, h, &arena);
 
-        igi::render(cam, img, alg, arena, SPP, std::cout);
+        igi::render(cam, img, alg, arena, SPP, &std::cout);
 
         std::ofstream o(path, std::ios_base::binary);
-        pngparvus::png_writer().write(o, t);
+        pngparvus::png_writer().write(o, img);
     }
 }  // namespace demo

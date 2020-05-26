@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <functional>
 #include <memory_resource>
@@ -62,12 +62,17 @@ namespace igi {
             : _nodes(o._nodes, alloc), _leaves(o._leaves, alloc) { }
         aggregate(aggregate &&o, const allocator_type &alloc)
             : _nodes(std::move(o._nodes), alloc), _leaves(o._leaves, alloc) { }
-        aggregate(const initializer_list_t &il, const allocator_type &alloc)
-            : aggregate(il, alloc, alloc) { }
-        aggregate(const initializer_list_t &il, const allocator_type &alloc,
+
+        template <typename T,
+                  std::enable_if_t<!std::is_same_v<aggregate, std::remove_reference_t<T>>, int> = 0>
+        aggregate(T &&entities, const allocator_type &alloc)
+            : aggregate(entities, alloc, alloc) { }
+
+        template <typename T>
+        aggregate(T &&entities, const allocator_type &alloc,
                   const allocator_type &tempAlloc)
-            : _nodes(alloc), _leaves(il.size(), alloc) {
-            initBuild(il, tempAlloc);
+            : _nodes(alloc), _leaves(entities.size(), alloc) {
+            initBuild(std::forward<T>(entities), tempAlloc);
         }
 
         aggregate &operator=(const aggregate &) = delete;
@@ -89,7 +94,25 @@ namespace igi {
         std::pmr::vector<node> _nodes;
         std::pmr::vector<leaf> _leaves;
 
-        void initBuild(const initializer_list_t &il, allocator_type alloc);
+        void initBuild(allocator_type tempAlloc);
+
+        template <typename T>
+        void initBuild(T entities, allocator_type alloc) {
+            if (!entities.size()) return;
+            std::move(leaf_getter(entities.begin()), leaf_getter(entities.end()), _leaves.begin());
+
+            if (entities.size() < 3) {
+                if (entities.size() == 1)
+                    _nodes.emplace_back(true, 0, false, 0, _leaves[0].bound);
+                else {
+                    bound_t b = _leaves[0].bound;
+                    _nodes.emplace_back(true, 0, true, 1, b.extend(_leaves[1].bound));
+                }
+                return;
+            }
+
+            initBuild(alloc);
+        }
 
         template <bool FindFirst, typename TRay, typename TFn>
         bool hit_impl(TRay &&r, itr_stack_t &itrtmp, TFn &&fn) const {

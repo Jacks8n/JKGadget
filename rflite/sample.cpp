@@ -9,8 +9,8 @@ using namespace rflite;
 
 #pragma region static reflection
 
-    struct refl_sample {
-    META_BEGIN(refl_sample, std::string_view("class meta"))
+struct refl_sample {
+    META_B(refl_sample, std::string_view("class meta"))
 
     META(field_int, (int)42, std::string_view("the answer"))
     int field_int;
@@ -21,7 +21,7 @@ using namespace rflite;
     META(field_static, std::string_view("jk motto"), std::string_view("live more, leave more"))
     static inline std::string_view field_static;
 
-    META_END
+    META_E
 
     refl_sample() : field_int(0), field_float(0.f) { }
     refl_sample(int i, float f) : field_int(i), field_float(f) { }
@@ -158,16 +158,16 @@ TEST(rflite_test, Traits) {
 
 TEST(rflite_test, BindTraits) {
     constexpr auto meta0   = GetMemberMeta(refl_sample, "field_int");
-    constexpr bool traits0 = meta0.satisfy_traits<bind<0, std::is_same, int>::traits>();
+    constexpr bool traits0 = meta0.satisfy_traits<bind_traits<0, std::is_same, int>::type>();
     EXPECT_TRUE(traits0);
 
     constexpr auto meta1   = GetMemberMeta(refl_sample, "field_float");
-    constexpr bool traits1 = meta1.satisfy_traits<bind<1, std::is_same, double>::traits>();
+    constexpr bool traits1 = meta1.satisfy_traits<bind_traits<1, std::is_same, double>::type>();
     EXPECT_TRUE(!traits1);
 }
 
 struct refl_sample2 {
-    META_BEGIN(refl_sample2)
+    META_B(refl_sample2)
 
     META(field)
     int field;
@@ -182,7 +182,7 @@ struct refl_sample2 {
         return 12;
     }
 
-    META_END
+    META_E
 };
 
 TEST(rflite_test, Invoke) {
@@ -204,7 +204,7 @@ TEST(rflite_test, Invoke) {
 #pragma region dynamic reflection member
 
 struct refl_sample3 {
-    META_BEGIN(refl_sample3, name_a("sample"))
+    META_B(refl_sample3, name_a("sample"))
 
     META(field_int)
     int field_int;
@@ -212,7 +212,7 @@ struct refl_sample3 {
     META(field_float)
     static inline float field_float = 0.f;
 
-    META_END_RT
+    META_E_RT
 };
 
 TEST(rflite_test, DynamicRegist) {
@@ -265,7 +265,7 @@ TEST(rflite_test, DynamicAllocate) {
 #pragma region dynamic reflection function
 
 struct refl_sample4 {
-    META_BEGIN(refl_sample4)
+    META_B(refl_sample4)
 
     META(func0)
     static int func0(int l, int r) {
@@ -286,7 +286,7 @@ struct refl_sample4 {
         return tmp * r;
     }
 
-    META_END_RT
+    META_E_RT
 };
 
 TEST(rflite_test, DynamicInvoke) {

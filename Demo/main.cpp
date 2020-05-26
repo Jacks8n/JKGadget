@@ -28,7 +28,7 @@ int main() {
     e1.getTransform()
         .rotation(igi::vec3f(igi::ToRad(45), igi::ToRad(45), igi::ToRad(45)))
         .translation(igi::vec3f(0, 0, 2));
-
+    
     run<1024, igi::path_trace>( // sample 1024 times per pixel, using path_tracing
         "demo.png",             // output to demo.png
         512, 512,               // size of result image is 512 * 512

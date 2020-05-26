@@ -1,10 +1,10 @@
-#include "igiscene/aggregate.h"
+﻿#include "igiscene/aggregate.h"
 #include "igigeometry/triangle.h"
 
 /// This implementation of Spatial-Split BVH doesn't fully comply with the original idea
 /// "Shrinking bounding box" procedure is omitted because it requires perplexing interface design
 
-void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type tempAlloc) {
+void igi::aggregate::initBuild(allocator_type tempAlloc) {
     class bounded_vector {
       protected:
         std::pmr::vector<leaf> _leaves;
@@ -141,21 +141,10 @@ void igi::aggregate::initBuild(const initializer_list_t &il, allocator_type temp
         return i < binCount ? i : binCount - 1;
     };
 
-    size_t nleaves = il.size();
-    if (!nleaves) return;
-    if (nleaves < 3) {
-        std::move(leaf_getter(il.begin()), leaf_getter(il.end()), _leaves.begin());
-        if (nleaves == 1)
-            _nodes.emplace_back(true, 0, false, 0, _leaves[0].bound);
-        else {
-            bound_t b = _leaves[0].bound;
-            _nodes.emplace_back(true, 0, true, 1, b.extend(_leaves[1].bound));
-        }
-        return;
-    }
+    std::pmr::vector<leaf> leaves(_leaves, tempAlloc);
 
-    size_t nbin = nleaves - 1 > MaxBinCount ? MaxBinCount : nleaves - 1;
-    std::pmr::vector<leaf> leaves(leaf_getter(il.begin()), leaf_getter(il.end()), tempAlloc);
+    size_t nleaves = _leaves.size();
+    size_t nbin    = nleaves - 1 > MaxBinCount ? MaxBinCount : nleaves - 1;
     std::pmr::vector<bin> bins(nbin, tempAlloc);
     std::pmr::vector<split> splits(nbin - 1, tempAlloc);
     std::pmr::vector<std::pair<sah, sah>> binBounds(nbin - 1, std::make_pair(sah(), sah()), tempAlloc);

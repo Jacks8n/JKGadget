@@ -14,16 +14,8 @@ namespace igi {
         const IMaterial *_mat = nullptr;
 
       public:
-        entity()               = default;
-        entity(const entity &) = default;
-        entity(entity &&)      = default;
-        entity(const ISurface *surf, const IMaterial *mat)
+        entity(const ISurface *surf = nullptr, const IMaterial *mat = nullptr)
             : _surf(surf), _mat(mat) { }
-
-        entity &operator=(const entity &) = default;
-        entity &operator=(entity &&) = default;
-
-        ~entity() = default;
 
         const ISurface &getSurface() const {
             return *_surf;
