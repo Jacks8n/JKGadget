@@ -17,7 +17,7 @@ namespace igi {
 
     class color3 {
       public:
-        META_BEGIN(color3)
+        META_B(color3)
 
         META(r)
         col_c_t r;
@@ -28,7 +28,7 @@ namespace igi {
         META(b)
         col_c_t b;
 
-        META_END
+        META_E
 
         constexpr color3(col_c_t r = 0_col, col_c_t g = 0_col, col_c_t b = 0_col) : r(r), g(g), b(b) { }
 

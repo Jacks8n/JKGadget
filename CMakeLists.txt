@@ -1,7 +1,9 @@
 ﻿cmake_minimum_required (VERSION 3.8)
 
-SET(CMAKE_CXX_STANDARD 17)
+SET(CMAKE_CXX_STANDARD 20)
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_compile_definitions(_SILENCE_CLANG_CONCEPTS_MESSAGE)
 
 project (JKGadgets)
 

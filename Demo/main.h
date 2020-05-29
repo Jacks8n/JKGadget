@@ -11,7 +11,7 @@
 namespace demo {
     template <size_t SPP, typename TAlg, typename... TArgs>
     static void run(const char *path, size_t w, size_t h, typename igi::aggregate::initializer_list_t entities, TArgs &&... args) {
-        igi::mem_arena arena(1024 * 1024 * 10);
+        /*igi::mem_arena arena(1024 * 1024 * 10);
 
         igi::aggregate a(entities, &arena);
 
@@ -26,6 +26,6 @@ namespace demo {
         igi::render(cam, img, alg, arena, SPP, &std::cout);
 
         std::ofstream o(path, std::ios_base::binary);
-        pngparvus::png_writer().write(o, img);
+        pngparvus::png_writer().write(o, img);*/
     }
 }  // namespace demo

@@ -34,7 +34,7 @@ TEST(rflite_test, ClassMeta) {
 
 TEST(rflite_test, MemberType) {
     constexpr auto meta0 = GetMemberMeta(refl_sample, "field_int");
-    constexpr bool isi   = meta0.is_type<int>();
+    constexpr bool isi = meta0.is_type<int>();
     EXPECT_TRUE(isi);
 
     constexpr auto meta1 = GetMemberMeta(refl_sample, "field_float");

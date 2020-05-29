@@ -24,8 +24,8 @@ namespace igi {
             return Deserialize<T>(doc.ParseInsitu(buf).GetObject(), std::forward<TAlloc>(alloc));
         }
 
-        template <typename T, typename TAlloc>
-        static T Deserialize(const serializer_t &ser, TAlloc &&alloc) {
+        template <typename T, typename TAlloc, typename... TArgs>
+        static T Deserialize(const serializer_t &ser, TAlloc &&alloc, TArgs &&... args) {
             using meta_t = rflite::meta_of<T>;
             static_assert(meta_t::template has_attr<rflite::ctor_a>(), "constructor attribute is required to auto deserialize");
 
@@ -37,20 +37,25 @@ namespace igi {
                                       return std::ref(ser);
                                   else if constexpr (std::is_constructible_v<TAlloc &&, type>)
                                       return type(alloc);
-                                  else
-                                      return Deserialize<rflite::meta_of<decltype(meta)>::owner_t>(ser, alloc);
+                                  else {
+                                      constexpr size_t index = rflite::index_of_first_t_v<type, std::remove_reference_t<TArgs>...>;
+                                      if constexpr (index < sizeof...(TArgs))
+                                          return std::get<index>(std::forward_as_tuple(args...));
+                                      else
+                                          return Deserialize<rflite::meta_of<decltype(meta)>::owner_t>(ser, alloc);
+                                  }
                               }));
         }
 
-        template <typename T, template <typename> typename TContainer = std::pmr::vector, typename TAlloc>
-        static TContainer<T> Deserialize(const serializer_t &ser, TAlloc &alloc) {
+        template <typename T, template <typename> typename TContainer = std::pmr::vector, typename TAlloc, typename... TArgs>
+        static TContainer<T> DeserializeArray(const serializer_t &ser, TAlloc &alloc, TArgs &&... args) {
             assert(ser.IsArray());
 
             TContainer<T> arr(ser.Size(), alloc);
             for (auto i = ser.Begin(); i != ser.End(); ++i)
-                arr.push_back(Deserialize<T>(*i, alloc));
+                arr.push_back(Deserialize<T>(*i, alloc, std::forward<TArgs>(args)...);
 
-            return std::move(arr);
+            return arr;
         }
     };
 }  // namespace igi

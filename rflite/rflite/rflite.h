@@ -3,7 +3,7 @@
 #pragma region static reflection
 
 #include <assert.h>
-#include <functional>
+#include <concepts>
 #include <string_view>
 #include <tuple>
 
@@ -31,10 +31,6 @@
     template <size_t Id>                                                                                                                                               \
     struct RFLITE_META_INFO_NAME {                                                                                                                                     \
       private:                                                                                                                                                         \
-        static constexpr size_t get_meta_id_impl(::std::string_view, ::std::tuple<>) noexcept {                                                                        \
-            return RFLITE_META_INFO_NULL_ID;                                                                                                                           \
-        }                                                                                                                                                              \
-                                                                                                                                                                       \
         template <size_t Nth, size_t Lo = Id>                                                                                                                          \
         static constexpr auto get_nth_meta_impl() noexcept {                                                                                                           \
             if constexpr (RFLITE_META_INFO_TYPE_OF(Lo + 1) == RFLITE_META_INFO_TYPE_ENTRY)                                                                             \
@@ -49,49 +45,59 @@
         }                                                                                                                                                              \
                                                                                                                                                                        \
         template <size_t Lo = Id, typename... Ts>                                                                                                                      \
-        static constexpr auto get_all_meta_impl(::std::tuple<Ts...> t) noexcept {                                                                                      \
+        static constexpr auto get_meta_all_impl(::std::tuple<Ts...> t) noexcept {                                                                                      \
             constexpr auto nthinfo = get_nth_meta_impl<0, Lo>();                                                                                                       \
             if constexpr (nthinfo.get_meta_type() == RFLITE_META_INFO_TYPE_ENTRY)                                                                                      \
-                return get_all_meta_impl<nthinfo.get_id() + 1>(                                                                                                        \
+                return get_meta_all_impl<nthinfo.get_id() + 1>(                                                                                                        \
                     ::std::tuple<Ts..., decltype(nthinfo)>());                                                                                                         \
             else                                                                                                                                                       \
                 return t;                                                                                                                                              \
         }                                                                                                                                                              \
                                                                                                                                                                        \
+        static constexpr size_t get_meta_id_impl(const ::std::string_view &member, ::std::tuple<>) noexcept {                                                          \
+            return RFLITE_META_INFO_NULL_ID;                                                                                                                           \
+        }                                                                                                                                                              \
+                                                                                                                                                                       \
         template <typename T, typename... Ts>                                                                                                                          \
-        static constexpr size_t get_meta_id_impl(::std::string_view member, ::std::tuple<T, Ts...> t) noexcept {                                                       \
+        static constexpr size_t get_meta_id_impl(const ::std::string_view &member, ::std::tuple<T, Ts...>) noexcept {                                                  \
             return T::member_name() == member ? T::get_id() : get_meta_id_impl(member, ::std::tuple<Ts...>());                                                         \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         template <typename Fn, size_t... Is>                                                                                                                           \
         static constexpr void foreach_impl(Fn &&fn, ::std::integer_sequence<bool>, ::std::index_sequence<Is...>, ::std::index_sequence<>) noexcept {                   \
-            ((void)fn(get_nth_meta<Is>()), ...);                                                                                                                       \
+            ((void)fn(get_nth_meta_impl<Is>()), ...);                                                                                                                  \
+        }                                                                                                                                                              \
+                                                                                                                                                                       \
+        template <typename Fn, size_t... Is>                                                                                                                           \
+        static constexpr auto foreach_impl(Fn &&fn, ::std::integer_sequence<bool>, ::std::index_sequence<Is...>, ::std::index_sequence<>) noexcept                     \
+            requires((!::std::same_as<void, decltype(fn(get_nth_meta_impl<Is>()))>)&&...) {                                                                            \
+            return ::std::make_tuple((fn(get_nth_meta_impl<Is>()), ...));                                                                                              \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         template <typename Fn, bool B, bool... Bs, size_t I, size_t... IL, size_t... IR>                                                                               \
-        static constexpr void foreach_impl(Fn &&fn, ::std::integer_sequence<bool, B, Bs...>, ::std::index_sequence<IL...>, ::std::index_sequence<I, IR...>) noexcept { \
+        static constexpr auto foreach_impl(Fn &&fn, ::std::integer_sequence<bool, B, Bs...>, ::std::index_sequence<IL...>, ::std::index_sequence<I, IR...>) noexcept { \
             constexpr ::std::integer_sequence<bool, Bs...> bseq;                                                                                                       \
             constexpr ::std::index_sequence<IR...> iseq;                                                                                                               \
             if constexpr (B)                                                                                                                                           \
-                foreach_impl(::std::forward<Fn>(fn), bseq, ::std::index_sequence<IL..., I>(), iseq);                                                                   \
+                return foreach_impl(::std::forward<Fn>(fn), bseq, ::std::index_sequence<IL..., I>(), iseq);                                                            \
             else                                                                                                                                                       \
-                foreach_impl(::std::forward<Fn>(fn), bseq, ::std::index_sequence<IL...>(), iseq);                                                                      \
+                return foreach_impl(::std::forward<Fn>(fn), bseq, ::std::index_sequence<IL...>(), iseq);                                                               \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         template <RFLITE member_type M, typename Fn, size_t... Is>                                                                                                     \
-        static constexpr void foreach_impl(Fn &&fn, ::std::index_sequence<Is...> is) noexcept {                                                                        \
+        static constexpr auto foreach_impl(Fn &&fn, ::std::index_sequence<Is...> is) noexcept {                                                                        \
             constexpr auto seq = ::std::integer_sequence<bool, RFLITE has_flag(RFLITE member_ptr_type_v<decltype(get_nth_meta<Is>().member_ptr())>, M)...>();          \
-            foreach_impl(::std::forward<Fn>(fn), seq, ::std::index_sequence<>(), is);                                                                                  \
+            return foreach_impl(::std::forward<Fn>(fn), seq, ::std::index_sequence<>(), is);                                                                           \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         template <template <typename...> typename T, typename TTuple, size_t... Is>                                                                                    \
         static constexpr auto has_attr_impl(::std::index_sequence<Is...>) noexcept {                                                                                   \
-            return (RFLITE is_specialization_of_v<T, ::std::tuple_element_t<Is, TTuple>> || ...);                                                                      \
+            return (RFLITE is_specialization_of<T, ::std::tuple_element_t<Is, TTuple>> || ...);                                                                        \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         template <template <typename...> typename T, typename TTuple, size_t... Is>                                                                                    \
         static constexpr auto get_attr_impl(TTuple &&t, ::std::index_sequence<Is...>) noexcept {                                                                       \
-            return ::std::get<RFLITE index_of_first_v<true, (RFLITE is_specialization_of_v<T, ::std::tuple_element_t<Is, ::std::remove_reference_t<TTuple>>>)...>>(t); \
+            return ::std::get<RFLITE index_of_first_v<true, (RFLITE is_specialization_of<T, ::std::tuple_element_t<Is, ::std::remove_reference_t<TTuple>>>)...>>(t);   \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         template <typename T>                                                                                                                                          \
@@ -123,21 +129,21 @@
             return get_nth_meta_impl<Nth>();                                                                                                                           \
         }                                                                                                                                                              \
                                                                                                                                                                        \
-        static constexpr auto get_all_meta() noexcept {                                                                                                                \
-            return get_all_meta_impl(::std::tuple<>());                                                                                                                \
+        static constexpr auto get_meta_all() noexcept {                                                                                                                \
+            return get_meta_all_impl(::std::tuple<>());                                                                                                                \
         }                                                                                                                                                              \
                                                                                                                                                                        \
-        static constexpr size_t get_meta_id(::std::string_view member) noexcept {                                                                                      \
-            return get_meta_id_impl(member, get_all_meta());                                                                                                           \
+        static constexpr size_t get_meta_id(const ::std::string_view &member) noexcept {                                                                               \
+            return get_meta_id_impl(member, get_meta_all());                                                                                                           \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         static constexpr size_t get_meta_count() noexcept {                                                                                                            \
-            return ::std::tuple_size_v<decltype(get_all_meta())>;                                                                                                      \
+            return ::std::tuple_size_v<decltype(get_meta_all())>;                                                                                                      \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         template <RFLITE member_type M = RFLITE member_type::field, typename Fn>                                                                                       \
-        static constexpr void foreach(Fn &&fn) noexcept {                                                                                                              \
-            foreach_impl<M>(::std::forward<Fn>(fn), ::std::make_index_sequence<get_meta_count()>());                                                                   \
+        static constexpr auto foreach(Fn &&fn) noexcept {                                                                                                              \
+            return foreach_impl<M>(::std::forward<Fn>(fn), ::std::make_index_sequence<get_meta_count()>());                                                            \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         static constexpr auto get_attr_all() noexcept {                                                                                                                \
@@ -588,34 +594,30 @@ namespace rflite {
         };
     };
 
-    template <typename T>
-    struct is_specialization_of {
-        template <template <typename...> typename U>
-        static constexpr bool value = false;
-    };
+    namespace impl {
+        template <typename T>
+        struct is_specialization_of {
+            template <template <typename...> typename U>
+            static constexpr bool value = false;
+        };
 
-    template <template <typename...> typename T, typename... Ts>
-    struct is_specialization_of<T<Ts...>> {
-        template <template <typename...> typename U>
-        static constexpr bool value = ::std::is_same_v<T<Ts...>, U<Ts...>>;
-    };
+        template <template <typename...> typename T, typename... Ts>
+        struct is_specialization_of<T<Ts...>> {
+            template <template <typename...> typename U>
+            static constexpr bool value = ::std::is_same_v<T<Ts...>, U<Ts...>>;
+        };
+    }  // namespace impl
 
     template <template <typename...> typename T, typename TSpec>
-    static constexpr bool is_specialization_of_v = is_specialization_of<TSpec>::template value<T>;
+    concept is_specialization_of = impl::is_specialization_of<TSpec>::template value<T>;
 
-    class is_attribute_typed {
+    namespace impl {
         template <template <typename> typename>
-        struct typed;
-
-      public:
-        template <typename T>
-        static constexpr int value(typed<T::template typed> *);
-        template <typename T>
-        static constexpr char value(...);
-    };
+        class typed_attribute { };
+    }  // namespace impl
 
     template <typename T>
-    static constexpr bool is_attribute_typed_v = ::std::is_same_v<int, decltype(is_attribute_typed::value<T>(nullptr))>;
+    concept typed_attribute = requires { typename impl::typed_attribute<T::template typed>; };
 
     template <typename T>
     struct attribute {
@@ -625,24 +627,22 @@ namespace rflite {
         }
 
       private:
-        template <typename, typename _ = T, ::std::enable_if_t<!is_attribute_typed_v<_>, int> = 0>
-        constexpr auto get_impl() const {
+        template <typename>
+        constexpr const T &get_impl() const {
             return *static_cast<const T *>(this);
         }
 
-        template <typename TOwner, typename _ = T, ::std::enable_if_t<is_attribute_typed_v<_>, int> = 0>
-        constexpr auto get_impl() const {
+        template <typed_attribute TOwner>
+        constexpr decltype(auto) get_impl() const {
             return get_impl<T::template typed, TOwner>();
         }
 
-        template <template <typename> typename TTyped, typename TOwner,
-                  ::std::enable_if_t<!::std::is_invocable_v<TTyped<TOwner>, const T &>, int> = 0>
+        template <template <typename> typename TTyped, typename TOwner>
         constexpr TTyped<TOwner> get_impl() const {
             return TTyped<TOwner>();
         }
 
-        template <template <typename> typename TTyped, typename TOwner,
-                  ::std::enable_if_t<::std::is_invocable_v<TTyped<TOwner>, const T &>, int> = 0>
+        template <template <typename> typename TTyped, ::std::constructible_from<const T &> TOwner>
         constexpr TTyped<TOwner> get_impl() const {
             return TTyped<TOwner>(static_cast<const T &>(*this));
         }
@@ -675,8 +675,8 @@ namespace rflite {
         struct typed {
             using args_t = ::std::tuple<TArgs...>;
 
-            template <typename... Args, ::std::enable_if_t<::std::is_invocable_v<void(TArgs...), Args &&...>, int> = 0>
-            static constexpr T construct(Args &&... args) {
+            template <typename... Args>
+            static constexpr T construct(Args &&... args) requires ::std::invocable<void(TArgs...), Args &&...> {
                 return T(::std::forward<Args>(args)...);
             }
         };
@@ -688,8 +688,8 @@ namespace rflite {
 
         explicit constexpr ctor_a(TRet (*ctor)(TArgs...)) : _ctor(ctor) { }
 
-        template <typename... Args, ::std::enable_if_t<::std::is_invocable_v<void(TArgs...), Args &&...>, int> = 0>
-        constexpr TRet construct(Args &&... args) const {
+        template <typename... Args>
+        constexpr TRet construct(Args &&... args) const requires ::std::invocable<void(TArgs...), Args &&...> {
             return _ctor(::std::forward<Args>(args)...);
         }
 
@@ -704,8 +704,9 @@ namespace rflite {
         template <typename U>
         explicit constexpr ctor_a(U &&ctor) : _ctor(::std::forward<U>(ctor)) { }
 
-        template <typename... Args, ::std::enable_if_t<::std::is_convertible_v<::std::tuple<Args &&...>, args_t>, int> = 0>
-        constexpr decltype(auto) construct(Args &&... args) const {
+        template <typename... Args>
+        constexpr decltype(auto) construct(Args &&... args) const
+            requires ::std::convertible_to<::std::tuple<Args &&...>, args_t> {
             return _ctor(::std::forward<Args>(args)...);
         }
 
