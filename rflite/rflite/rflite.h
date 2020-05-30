@@ -48,8 +48,7 @@
         static constexpr auto get_meta_all_impl(::std::tuple<Ts...> t) noexcept {                                                                                      \
             constexpr auto nthinfo = get_nth_meta_impl<0, Lo>();                                                                                                       \
             if constexpr (nthinfo.get_meta_type() == RFLITE_META_INFO_TYPE_ENTRY)                                                                                      \
-                return get_meta_all_impl<nthinfo.get_id() + 1>(                                                                                                        \
-                    ::std::tuple<Ts..., decltype(nthinfo)>());                                                                                                         \
+                return get_meta_all_impl<nthinfo.get_id() + 1>(::std::tuple<Ts..., decltype(nthinfo)>());                                                              \
             else                                                                                                                                                       \
                 return t;                                                                                                                                              \
         }                                                                                                                                                              \
@@ -144,6 +143,11 @@
         template <RFLITE member_type M = RFLITE member_type::field, typename Fn>                                                                                       \
         static constexpr auto foreach(Fn &&fn) noexcept {                                                                                                              \
             return foreach_impl<M>(::std::forward<Fn>(fn), ::std::make_index_sequence<get_meta_count()>());                                                            \
+        }                                                                                                                                                              \
+                                                                                                                                                                       \
+        template <RFLITE member_type M = RFLITE member_type::field, typename Fn>                                                                                       \
+        static constexpr void find_meta(std::string_view member, Fn &&fn) {                                                                                            \
+            foreach<M>([&](auto &&meta) { meta.member_name() == member && (fn(meta), true); });                                                                        \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         static constexpr auto get_attr_all() noexcept {                                                                                                                \
@@ -253,6 +257,45 @@
             return RFLITE_META_INFO_TYPE_END;              \
         }                                                  \
     };
+
+namespace rflite::impl {
+    template <size_t... Is>
+    struct extend_seq {
+        template <size_t... Js>
+        using type = ::std::index_sequence<0, (Is + 1)..., Js...>;
+    };
+
+    template <size_t... Is>
+    extend_seq<Is...> extend_seq_impl(std::index_sequence<Is...>);
+
+    template <size_t N>
+    using extend_seq_t = decltype(extend_seq_impl(std::make_index_sequence<N>()));
+}  // namespace rflite::impl
+
+#define RFLITE_ORDERED_ENTRY_BEGIN         \
+    template <size_t I>                    \
+    struct ordered_entry {                 \
+        static constexpr size_t value = I; \
+    };                                     \
+                                           \
+    template <size_t... _>                 \
+    ordered_entry<0> last_ordered_entry(std::index_sequence<_...>);
+
+#define RFLITE_PREV_ENTRY    decltype(RFLITE last_ordered_entry(::std::make_index_sequence<256>()))
+#define RFLITE_PREV_ENTRY_ID (RFLITE_PREV_ENTRY::value)
+#define RFLITE_END_ENTRY_ID  (RFLITE_PREV_ENTRY_ID + 1)
+#define RFLITE_END_ENTRY     ordered_entry<RFLITE_END_ENTRY_ID>
+
+#define RFLITE_ORDERED_ENTRY                                 \
+    template <>                                              \
+    struct RFLITE_END_ENTRY {                                \
+        static constexpr size_t value = RFLITE_END_ENTRY_ID; \
+    };                                                       \
+                                                             \
+    template <size_t... _>                                   \
+    RFLITE_END_ENTRY last_ordered_entry(RFLITE_IMPL extend_seq_t<RFLITE_END_ENTRY_ID>::template type<_...>)
+
+#define RFLITE_ORDERED_ENTRY_END RFLITE_ORDERED_ENTRY
 
 namespace rflite {
     enum class member_type : size_t {
@@ -442,27 +485,19 @@ namespace rflite {
         template <typename T>
         static constexpr size_t meta_id_v = ::std::remove_reference_t<T>::template RFLITE_META_INFO_NAME<0>::get_id();
 
-        class has_meta {
-            template <template <size_t> typename>
-            struct meta;
-
-          public:
-            template <typename T>
-            static constexpr int value(meta<::std::decay_t<T>::template RFLITE_META_INFO_NAME> *);
-            template <typename T>
-            static constexpr char value(...);
-        };
+        template <template <size_t> typename>
+        class has_meta_impl { };
 
         template <typename T>
-        static constexpr bool has_meta_v = ::std::is_same_v<int, decltype(has_meta::value<T>(nullptr))>;
+        concept has_meta = requires { typename has_meta_impl<T::template RFLITE_META_INFO_NAME>; };
 
-        template <typename T, typename = ::std::void_t<>>
+        template <typename T>
         struct meta_of_impl {
             using type = T;
         };
 
-        template <typename T>
-        struct meta_of_impl<T, ::std::void_t<decltype(has_meta_v<T>)>> {
+        template <has_meta T>
+        struct meta_of_impl<T> {
             using type = typename T::template RFLITE_META_INFO_NAME<meta_id_v<T>>;
         };
 
@@ -571,11 +606,12 @@ namespace rflite {
             return mask<::std::tuple<>>(::std::tuple<Ts...>(), ::std::integer_sequence<bool, Vals...>());
         }
 
+      public:
         using type = decltype(mask(T()));
     };
 
     template <typename TTuple, bool... Vals>
-    using mask_tuple_t = mask_tuple<TTuple, Vals...>;
+    using mask_tuple_t = typename mask_tuple<TTuple, Vals...>::type;
 
     template <size_t N, template <typename...> typename TT, typename... Ts>
     class bind_traits {
@@ -596,28 +632,28 @@ namespace rflite {
 
     namespace impl {
         template <typename T>
-        struct is_specialization_of {
+        struct is_specialization_of_impl {
             template <template <typename...> typename U>
             static constexpr bool value = false;
         };
 
         template <template <typename...> typename T, typename... Ts>
-        struct is_specialization_of<T<Ts...>> {
+        struct is_specialization_of_impl<T<Ts...>> {
             template <template <typename...> typename U>
             static constexpr bool value = ::std::is_same_v<T<Ts...>, U<Ts...>>;
         };
     }  // namespace impl
 
     template <template <typename...> typename T, typename TSpec>
-    concept is_specialization_of = impl::is_specialization_of<TSpec>::template value<T>;
+    concept is_specialization_of = impl::is_specialization_of_impl<TSpec>::template value<T>;
 
     namespace impl {
         template <template <typename> typename>
-        class typed_attribute { };
+        class typed_attribute_impl { };
     }  // namespace impl
 
     template <typename T>
-    concept typed_attribute = requires { typename impl::typed_attribute<T::template typed>; };
+    concept typed_attribute = requires { typename impl::typed_attribute_impl<T::template typed>; };
 
     template <typename T>
     struct attribute {
@@ -723,11 +759,11 @@ namespace rflite {
 
 #pragma region helper macro
 
-#define GetMemberMeta(type, member)                                         \
-    ([&]() constexpr {                                                      \
-        constexpr size_t id = ::rflite::meta_of<type>::get_meta_id(member); \
-        static_assert(id != RFLITE_META_INFO_NULL_ID, "Member not found");  \
-        return type::RFLITE_META_INFO_NAME<id>();                           \
+#define GetMemberMeta(type, member)                                        \
+    ([&]() constexpr {                                                     \
+        constexpr size_t id = RFLITE meta_of<type>::get_meta_id(member);   \
+        static_assert(id != RFLITE_META_INFO_NULL_ID, "Member not found"); \
+        return type::RFLITE_META_INFO_NAME<id>();                          \
     }())
 
 #pragma endregion

@@ -34,7 +34,7 @@ TEST(rflite_test, ClassMeta) {
 
 TEST(rflite_test, MemberType) {
     constexpr auto meta0 = GetMemberMeta(refl_sample, "field_int");
-    constexpr bool isi = meta0.is_type<int>();
+    constexpr bool isi   = meta0.is_type<int>();
     EXPECT_TRUE(isi);
 
     constexpr auto meta1 = GetMemberMeta(refl_sample, "field_float");
@@ -99,10 +99,21 @@ TEST(rflite_test, MemberMap) {
 }
 
 TEST(rflite_test, ForEach) {
-    meta_of<refl_sample>::foreach<member_type::any>([](auto meta) {
+    size_t n = 0;
+    meta_of<refl_sample>::foreach<member_type::any>([&](auto &&meta) {
+        n++;
         constexpr bool bl = std::is_same_v<decltype(meta.template get_nth_attr<1>()), std::string_view>;
         EXPECT_TRUE(bl);
     });
+    EXPECT_EQ(n, meta_of<refl_sample>::get_meta_count());
+
+    n = 0;
+    meta_of<refl_sample>::find_meta("field_int", [&](auto &&meta) {
+        n++;
+        constexpr bool bl = meta.template is_type<int>();
+        EXPECT_TRUE(bl);
+    });
+    EXPECT_EQ(n, 1);
 }
 
 TEST(rflite_test, Serialize) {
