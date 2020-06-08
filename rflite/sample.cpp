@@ -119,7 +119,7 @@ TEST(rflite_test, ForEach) {
 TEST(rflite_test, Serialize) {
     constexpr auto serialize = [](auto &&ins) {
         std::string res;
-        meta_of<decltype(ins)>::template foreach<member_type::field>([&](auto &&meta) {
+        meta_d_of<decltype(ins)>::template foreach<member_type::field>([&](auto &&meta) {
             res.append(meta.member_name());
             res.push_back(':');
             res.append(std::to_string(meta.map(ins)));
@@ -143,7 +143,7 @@ TEST(rflite_test, Serialize) {
 
 TEST(rflite_test, Deserialize) {
     constexpr auto deserialize = [](std::string_view src, auto &&res) {
-        meta_of<decltype(res)>::foreach([&](auto &&meta) {
+        meta_d_of<decltype(res)>::foreach([&](auto &&meta) {
             constexpr auto prop = meta.template get_attr<std::string_view>();
             meta.map(res)       = std::atoi(src.substr(src.find(prop) + prop.size()).data());
         });
@@ -320,6 +320,33 @@ TEST(rflite_test, DynamicInvoke) {
     cview["func2"].invoke(&res, rref, 6);
     EXPECT_EQ(rref, 0);
     EXPECT_EQ(res, 42);
+}
+
+struct refl_sample5 {
+    META_EMPTY_RT(refl_sample5)
+};
+
+struct refl_sample6 : refl_sample5 {
+    META_EMPTY_RT(refl_sample6)
+};
+
+struct refl_sample7 : refl_sample5 {
+    META_EMPTY_RT(refl_sample7)
+};
+
+TEST(rflite_test, TypeHierarchy) {
+    const refl_class &rc = refl_table::get_class("refl_sample5");
+
+    const refl_class *childs[2];
+    size_t nchild = rc.childs(&childs[0]);
+
+    const refl_class &rc0 = refl_table::get_class("refl_sample6");
+    const refl_class &rc1 = refl_table::get_class("refl_sample7");
+
+    EXPECT_EQ(nchild, 2);
+    EXPECT_TRUE(*childs[0] == rc0 || *childs[0] == rc1);
+    EXPECT_TRUE(*childs[1] == rc0 || *childs[1] == rc1);
+    EXPECT_NE(*childs[0], *childs[1]);
 }
 
 #pragma endregion

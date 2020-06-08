@@ -9,7 +9,7 @@ enable_testing()
 
 include_directories(${gtest_SOURCE_DIR}/include)
 
-add_executable(rflite_test sample.cpp)
+add_executable(rflite_test sample.cpp )
 
 target_link_libraries(rflite_test PRIVATE
     rflite
