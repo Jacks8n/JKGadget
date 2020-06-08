@@ -349,6 +349,27 @@ TEST(rflite_test, TypeHierarchy) {
     EXPECT_NE(*childs[0], *childs[1]);
 }
 
+struct refl_sample8 {
+    META_B(refl_sample8, note_a("live more, leave more"))
+
+    META(field, note_a("rua"))
+    int field;
+
+    META_E_RT
+};
+
+TEST(rflite_test, DynamicMeta) {
+    const refl_class &rc = refl_table::get_class("refl_sample8");
+
+    const note_a &attr0 = rc.get_attr<note_a>();
+    EXPECT_EQ(attr0.note, "live more, leave more");
+
+    const refl_member &rm = rc["field"];
+
+    const note_a &attr1 = rm.get_attr<note_a>();
+    EXPECT_EQ(attr1.note, "rua");
+}
+
 #pragma endregion
 
 int main(int argc, char **argv) {
