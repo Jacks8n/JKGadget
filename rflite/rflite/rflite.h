@@ -32,7 +32,7 @@
     class RFLITE_META_INFO_NAME {                                                                                                                                      \
         using attribute_tuple_t = decltype(::std::make_tuple(__VA_ARGS__));                                                                                            \
                                                                                                                                                                        \
-        static constexpr const attribute_tuple_t _attributes = ::std::make_tuple(__VA_ARGS__);                                                                         \
+        static constexpr attribute_tuple_t _attributes = ::std::make_tuple(__VA_ARGS__);                                                                         \
                                                                                                                                                                        \
         template <size_t Nth, size_t Lo = Id>                                                                                                                          \
         static constexpr auto get_nth_meta_impl() noexcept {                                                                                                           \
@@ -776,7 +776,9 @@ namespace rflite {
         template <typename... Args>
         constexpr decltype(auto) construct(Args &&... args) const
             requires ::std::convertible_to<::std::tuple<Args &&...>, args_t> {
-            return _ctor(::std::forward<Args>(args)...);
+            return ::std::apply(
+                []<typename... Ts>(Ts && ... a) { return T(::std::forward<Ts>(a)...); },
+                _ctor(::std::forward<Args>(args)...));
         }
 
       private:
@@ -1476,7 +1478,7 @@ namespace rflite {
     }
 
     template <typename TInsIt>
-    size_t refl_class::childs(TInsIt &&it) const {
+    inline size_t refl_class::childs(TInsIt &&it) const {
         for (::std::string_view c : _childs)
             *it++ = &refl_table::get_class(c);
         return _childs.size();

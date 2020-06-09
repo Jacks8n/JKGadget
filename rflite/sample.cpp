@@ -370,6 +370,79 @@ TEST(rflite_test, DynamicMeta) {
     EXPECT_EQ(attr1.note, "rua");
 }
 
+struct refl_samp_a : attribute<refl_samp_a> {
+    char op;
+
+    constexpr refl_samp_a(char op) : op(op) { }
+};
+
+struct refl_sample9 {
+    META_EMPTY_RT(refl_sample9)
+
+    virtual ~refl_sample9() { }
+
+    virtual size_t result() const = 0;
+};
+
+TEST(rflite_test, DynamicSample) {
+    const refl_class *childs[2];
+    refl_table::get_class("refl_sample9").childs(&childs[0]);
+
+    auto calc = [&](std::string_view expr) -> size_t {
+        for (const refl_class *c : childs)
+            if (expr[0] == c->get_attr<refl_samp_a>().op) {
+                auto &ctor = c->get_attr<ctor_a<refl_sample9 *(size_t, size_t)>>();
+
+                size_t l          = std::atoi(expr.substr(2).data());
+                size_t r          = std::atoi(expr.substr(expr.find(' ', 2)).data());
+                refl_sample9 *ins = ctor.construct(l, r);
+                size_t res        = ins->result();
+                delete ins;
+
+                return res;
+            }
+        return 0;
+    };
+
+    size_t res0 = calc("+ 12 30");
+    EXPECT_EQ(res0, 42);
+
+    size_t res1 = calc("- 64 22");
+    EXPECT_EQ(res1, 42);
+}
+
+struct refl_sample10 : refl_sample9 {
+    static refl_sample9 *add(size_t l, size_t r) {
+        return new refl_sample10(l + r);
+    }
+
+    size_t value;
+
+    refl_sample10(size_t val) : value(val) { }
+
+    size_t result() const override {
+        return value;
+    }
+
+    META_EMPTY_RT(refl_sample10, ctor_a(add), refl_samp_a('+'))
+};
+
+struct refl_sample11 : refl_sample9 {
+    static refl_sample9 *sub(size_t l, size_t r) {
+        return new refl_sample11(l - r);
+    }
+
+    size_t value;
+
+    refl_sample11(size_t val) : value(val) { }
+
+    size_t result() const override {
+        return value;
+    }
+
+    META_EMPTY_RT(refl_sample11, ctor_a(sub), refl_samp_a('-'))
+};
+
 #pragma endregion
 
 int main(int argc, char **argv) {
