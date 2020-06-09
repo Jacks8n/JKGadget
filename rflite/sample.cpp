@@ -10,15 +10,15 @@ using namespace rflite;
 #pragma region static reflection
 
 struct refl_sample {
-    META_B(refl_sample, std::string_view("class meta"))
+    META_B(refl_sample, "class meta")
 
-    META(field_int, (int)42, std::string_view("the answer"))
+    META(field_int, (int)42, "the answer")
     int field_int;
 
-    META(field_float, 2.71828f, std::string_view("natural constant"))
+    META(field_float, 2.71828f, "natural constant")
     float field_float;
 
-    META(field_static, std::string_view("jk motto"), std::string_view("live more, leave more"))
+    META(field_static, "jk motto", "live more, leave more")
     static inline std::string_view field_static;
 
     META_E
@@ -102,7 +102,7 @@ TEST(rflite_test, ForEach) {
     size_t n = 0;
     meta_of<refl_sample>::foreach<member_type::any>([&](auto &&meta) {
         n++;
-        constexpr bool bl = std::is_same_v<decltype(meta.template get_nth_attr<1>()), std::string_view>;
+        constexpr bool bl = std::is_same_v<decltype(meta.template get_nth_attr<1>()), any_a<std::string_view>>;
         EXPECT_TRUE(bl);
     });
     EXPECT_EQ(n, meta_of<refl_sample>::get_meta_count());
@@ -336,23 +336,23 @@ struct refl_sample7 : refl_sample5 {
 
 TEST(rflite_test, TypeHierarchy) {
     const refl_class &rc = refl_table::get_class("refl_sample5");
+    ASSERT_EQ(rc.child_count(), 2);
 
     const refl_class *childs[2];
-    size_t nchild = rc.childs(&childs[0]);
+    rc.childs(&childs[0]);
 
     const refl_class &rc0 = refl_table::get_class("refl_sample6");
     const refl_class &rc1 = refl_table::get_class("refl_sample7");
 
-    EXPECT_EQ(nchild, 2);
     EXPECT_TRUE(*childs[0] == rc0 || *childs[0] == rc1);
     EXPECT_TRUE(*childs[1] == rc0 || *childs[1] == rc1);
     EXPECT_NE(*childs[0], *childs[1]);
 }
 
 struct refl_sample8 {
-    META_B(refl_sample8, note_a("live more, leave more"))
+    META_B(refl_sample8, "live more, leave more")
 
-    META(field, note_a("rua"))
+    META(field, "rua")
     int field;
 
     META_E_RT
@@ -361,13 +361,13 @@ struct refl_sample8 {
 TEST(rflite_test, DynamicMeta) {
     const refl_class &rc = refl_table::get_class("refl_sample8");
 
-    const note_a &attr0 = rc.get_attr<note_a>();
-    EXPECT_EQ(attr0.note, "live more, leave more");
+    std::string_view attr0 = rc.get_attr<std::string_view>();
+    EXPECT_EQ(attr0, "live more, leave more");
 
     const refl_member &rm = rc["field"];
 
-    const note_a &attr1 = rm.get_attr<note_a>();
-    EXPECT_EQ(attr1.note, "rua");
+    std::string_view attr1 = rm.get_attr<std::string_view>();
+    EXPECT_EQ(attr1, "rua");
 }
 
 struct refl_samp_a : attribute<refl_samp_a> {

@@ -30,9 +30,9 @@
     friend struct RFLITE_META_INFO_NAME;                                                                                                                               \
     template <size_t Id, typename Base = RFLITE_IMPL base_of_t<_type>>                                                                                                 \
     class RFLITE_META_INFO_NAME {                                                                                                                                      \
-        using attribute_tuple_t = decltype(::std::make_tuple(__VA_ARGS__));                                                                                            \
+        static constexpr auto _attributes = RFLITE_IMPL make_attr_tuple(__VA_ARGS__);                                                                                  \
                                                                                                                                                                        \
-        static constexpr attribute_tuple_t _attributes = ::std::make_tuple(__VA_ARGS__);                                                                         \
+        using attribute_tuple_t = ::std::remove_cv_t<decltype(_attributes)>;                                                                                           \
                                                                                                                                                                        \
         template <size_t Nth, size_t Lo = Id>                                                                                                                          \
         static constexpr auto get_nth_meta_impl() noexcept {                                                                                                           \
@@ -187,7 +187,7 @@
                                                                                                                                                                        \
         template <typename T>                                                                                                                                          \
         static constexpr T get_attr() noexcept {                                                                                                                       \
-            return get_typed_attr(::std::get<T>(get_attr_all()));                                                                                                      \
+            return get_typed_attr(::std::get<RFLITE_IMPL as_attr_t<T>>(get_attr_all()));                                                                               \
         }                                                                                                                                                              \
                                                                                                                                                                        \
         template <template <typename...> typename T>                                                                                                                   \
@@ -199,9 +199,9 @@
 #define META(member, ...)                                                                                            \
     template <typename _>                                                                                            \
     class RFLITE_META_INFO_NAME<__LINE__, _> {                                                                       \
-        using attribute_tuple_t = decltype(::std::make_tuple(__VA_ARGS__));                                          \
+        static constexpr auto _attributes = RFLITE_IMPL make_attr_tuple(__VA_ARGS__);                                \
                                                                                                                      \
-        static constexpr const attribute_tuple_t _attributes = ::std::make_tuple(__VA_ARGS__);                       \
+        using attribute_tuple_t = ::std::remove_cv_t<decltype(_attributes)>;                                         \
                                                                                                                      \
       public:                                                                                                        \
         using owner_t = typename RFLITE_META_INFO_NULL::owner_t;                                                     \
@@ -238,7 +238,7 @@
                                                                                                                      \
         template <typename T>                                                                                        \
         static constexpr T get_attr() noexcept {                                                                     \
-            return ::std::get<T>(get_attr_all());                                                                    \
+            return ::std::get<RFLITE_IMPL as_attr_t<T>>(get_attr_all());                                             \
         }                                                                                                            \
                                                                                                                      \
         template <typename T>                                                                                        \
@@ -717,26 +717,44 @@ namespace rflite {
     template <typename T>
     static constexpr bool is_attribute_v = ::std::is_base_of_v<attribute<T>, T>;
 
-    struct note_a : attribute<note_a> {
-        const ::std::string_view note;
+    template <typename T>
+    struct any_a : attribute<any_a<T>> {
+        const T value;
 
-        constexpr note_a(::std::string_view note) : note(note) { }
+        explicit constexpr any_a(const T &value) : value(value) { }
+
+        constexpr operator const T &() const {
+            return value;
+        }
     };
+
+    template <typename T>
+    any_a(const T &) -> any_a<T>;
+
+    any_a(const char *)->any_a<::std::string_view>;
+
+    namespace impl {
+        template <typename T>
+        using as_attr_t = ::std::conditional_t<is_attribute_v<T>, T, any_a<T>>;
+
+        template <typename... Ts>
+        static constexpr decltype(auto) make_attr_tuple(Ts &&... ts) noexcept {
+            constexpr auto make_attr = []<typename T>(T && t) constexpr {
+                if constexpr (is_attribute_v<::std::remove_reference_t<T>>)
+                    return ::std::forward<T>(t);
+                else
+                    return any_a(t);
+            };
+
+            return ::std::make_tuple(make_attr(::std::forward<Ts>(ts))...);
+        }
+    }  // namespace impl
 
     struct name_a : attribute<name_a> {
         const ::std::string_view name;
 
-        constexpr name_a(::std::string_view name) : name(name) { }
+        explicit constexpr name_a(::std::string_view name) : name(name) { }
     };
-
-    template <typename T>
-    struct default_a : attribute<default_a<T>> {
-        const T value;
-
-        constexpr default_a(const T &value) : value(value) { }
-    };
-
-    default_a(const char *)->default_a<::std::string_view>;
 
     template <typename... TArgs>
     struct ctor_a : attribute<ctor_a<TArgs...>> {
@@ -767,7 +785,7 @@ namespace rflite {
     };
 
     template <typename T>
-    struct ctor_a<T, decltype(&T::operator())> : attribute<ctor_a<T, decltype(&T::operator())>> {
+    struct ctor_a<T> : attribute<ctor_a<T>> {
         using args_t = RFLITE_IMPL func_ptr_args_t<decltype(&T::operator())>;
 
         template <typename U>
@@ -789,7 +807,8 @@ namespace rflite {
     ctor_a(TRet (*)(TArgs...)) -> ctor_a<TRet(TArgs...)>;
 
     template <typename T>
-    ctor_a(T &&t) -> ctor_a<T, decltype(&T::operator())>;
+    requires requires { typename ::std::void_t<decltype(T::operator())>; }
+    ctor_a(T &&t)->ctor_a<T>;
 }  // namespace rflite
 
 #pragma region helper macro
@@ -923,6 +942,7 @@ namespace rflite {
         template <typename... Ts>
         refl_attr_collection(const ::std::tuple<Ts...> &t)
             : refl_attr_collection(t, ::std::index_sequence_for<Ts...>()) {
+            ::std::sort(_attrs, _attrs + _nattr, [](attribute_tag *l, attribute_tag *r) { return l->get_id() < r->get_id(); });
         }
 
       public:
@@ -939,9 +959,11 @@ namespace rflite {
         template <typename T>
         const T &get() const requires is_attribute_v<T> {
             size_t id = attribute_tag::template get_id<T>();
-            for (size_t i = 0; i < _nattr; i++)
-                if (_attrs[i]->get_id() == id)
-                    return *static_cast<T *>(_attrs[i]);
+
+            attribute_tag **tag = ::std::find_if(_attrs, _attrs + _nattr,
+                                                 [=](attribute_tag *t) { return t->get_id() == id; });
+            if (tag < _attrs + _nattr)
+                return *static_cast<T *>(*tag);
             throw;
         }
     };
@@ -1049,8 +1071,8 @@ namespace rflite {
         }
 
         template <typename T>
-        const T &get_attr() const requires is_attribute_v<T> {
-            return _attrs.get<T>();
+        const T &get_attr() const {
+            return _attrs.get<RFLITE_IMPL as_attr_t<T>>();
         }
 
         size_t size() const {
@@ -1130,8 +1152,8 @@ namespace rflite {
         void invoke_impl(void *buf, ::std::index_sequence<Is...>, Ts &&... args) const {
             assert_is_func();
 
-            void *paramp[sizeof...(Ts)] { (&args)... };
-            _handler(buf, paramp, _memberPtr);
+            void *param[sizeof...(Ts)] { (&args)... };
+            _handler(buf, param, _memberPtr);
         }
     };
 
@@ -1229,8 +1251,8 @@ namespace rflite {
         }
 
         template <typename T>
-        const T &get_attr() const requires is_attribute_v<T> {
-            return _attrs.get<T>();
+        const T &get_attr() const {
+            return _attrs.get<RFLITE_IMPL as_attr_t<T>>();
         }
 
         const refl_class &base() const {
@@ -1257,7 +1279,11 @@ namespace rflite {
         refl_instance make(size_t n = 1) const;
 
         template <typename TInsIt>
-        size_t childs(TInsIt &&it) const;
+        void childs(TInsIt &&it) const;
+
+        size_t child_count() const {
+            return _childs.size();
+        }
 
         const refl_member &operator[](size_t index) const {
             assert(index < _nmember);
@@ -1478,10 +1504,9 @@ namespace rflite {
     }
 
     template <typename TInsIt>
-    inline size_t refl_class::childs(TInsIt &&it) const {
+    inline void refl_class::childs(TInsIt &&it) const {
         for (::std::string_view c : _childs)
             *it++ = &refl_table::get_class(c);
-        return _childs.size();
     }
 }  // namespace rflite
 
