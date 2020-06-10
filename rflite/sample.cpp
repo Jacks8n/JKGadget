@@ -328,6 +328,8 @@ struct refl_sample5 {
 
 struct refl_sample6 : refl_sample5 {
     META_EMPTY_RT(refl_sample6)
+
+    size_t fa;
 };
 
 struct refl_sample7 : refl_sample5 {
