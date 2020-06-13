@@ -28,7 +28,7 @@ struct refl_sample {
 };
 
 TEST(rflite_test, ClassMeta) {
-    constexpr auto meta = meta_of<refl_sample>::get_attr<std::string_view>();
+    constexpr auto meta = meta_of<refl_sample>::attributes.get<std::string_view>();
     EXPECT_TRUE(("class meta" == meta));
 }
 
@@ -59,20 +59,20 @@ TEST(rflite_test, MemberName) {
 
 TEST(rflite_test, MemberMetaValue) {
     constexpr auto meta0            = GetMemberMeta(refl_sample, "field_int");
-    constexpr int val0              = meta0.template get_attr<int>();
-    constexpr std::string_view str0 = meta0.template get_attr<std::string_view>();
+    constexpr int val0              = meta0.attributes.get<int>();
+    constexpr std::string_view str0 = meta0.attributes.get<std::string_view>();
     EXPECT_EQ(42, val0);
     EXPECT_EQ("the answer", str0);
 
     constexpr auto meta1            = GetMemberMeta(refl_sample, "field_float");
-    constexpr float val1            = meta1.template get_nth_attr<0>();
-    constexpr std::string_view str1 = meta1.template get_nth_attr<1>();
+    constexpr float val1            = meta1.attributes.get<0>();
+    constexpr std::string_view str1 = meta1.attributes.get<1>();
     EXPECT_EQ(2.71828f, val1);
     EXPECT_EQ("natural constant", str1);
 
     constexpr auto meta2            = GetMemberMeta(refl_sample, "field_static");
-    constexpr std::string_view str2 = meta2.template get_nth_attr<0>();
-    constexpr std::string_view str3 = meta2.template get_nth_attr<1>();
+    constexpr std::string_view str2 = meta2.attributes.get<0>();
+    constexpr std::string_view str3 = meta2.attributes.get<1>();
     EXPECT_EQ("jk motto", str2);
     EXPECT_EQ("live more, leave more", str3);
 }
@@ -101,9 +101,12 @@ TEST(rflite_test, MemberMap) {
 TEST(rflite_test, ForEach) {
     size_t n = 0;
     meta_of<refl_sample>::foreach<member_type::any>([&](auto &&meta) {
-        n++;
-        constexpr bool bl = std::is_same_v<decltype(meta.template get_nth_attr<1>()), any_a<std::string_view>>;
+        using attr_t = std::remove_cvref_t<decltype(meta.attributes.template get<1>())>;
+
+        constexpr bool bl = std::is_same_v<attr_t, any_a<std::string_view>>;
         EXPECT_TRUE(bl);
+
+        n++;
     });
     EXPECT_EQ(n, meta_of<refl_sample>::get_meta_count());
 
@@ -144,7 +147,7 @@ TEST(rflite_test, Serialize) {
 TEST(rflite_test, Deserialize) {
     constexpr auto deserialize = [](std::string_view src, auto &&res) {
         meta_d_of<decltype(res)>::foreach([&](auto &&meta) {
-            constexpr auto prop = meta.template get_attr<std::string_view>();
+            constexpr auto prop = meta.attributes.template get<std::string_view>();
             meta.map(res)       = std::atoi(src.substr(src.find(prop) + prop.size()).data());
         });
     };
@@ -328,8 +331,6 @@ struct refl_sample5 {
 
 struct refl_sample6 : refl_sample5 {
     META_EMPTY_RT(refl_sample6)
-
-    size_t fa;
 };
 
 struct refl_sample7 : refl_sample5 {
@@ -337,6 +338,11 @@ struct refl_sample7 : refl_sample5 {
 };
 
 TEST(rflite_test, TypeHierarchy) {
+    constexpr bool base0 = is_base_v<refl_sample5>;
+    constexpr bool base1 = is_base_v<refl_sample6>;
+    ASSERT_TRUE(base0);
+    ASSERT_FALSE(base1);
+
     const refl_class &rc = refl_table::get_class("refl_sample5");
     ASSERT_EQ(rc.child_count(), 2);
 
@@ -387,8 +393,11 @@ struct refl_sample9 {
 };
 
 TEST(rflite_test, DynamicSample) {
+    const refl_class &rc = refl_table::get_class("refl_sample9");
+    ASSERT_EQ(rc.child_count(), 2);
+
     const refl_class *childs[2];
-    refl_table::get_class("refl_sample9").childs(&childs[0]);
+    rc.childs(&childs[0]);
 
     auto calc = [&](std::string_view expr) -> size_t {
         for (const refl_class *c : childs)
@@ -450,4 +459,5 @@ struct refl_sample11 : refl_sample9 {
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
+    return 0;
 }
