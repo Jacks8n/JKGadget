@@ -402,11 +402,11 @@ TEST(rflite_test, DynamicSample) {
     auto calc = [&](std::string_view expr) -> size_t {
         for (const refl_class *c : childs)
             if (expr[0] == c->get_attr<refl_samp_a>().op) {
-                auto &ctor = c->get_attr<ctor_a<refl_sample9 *(size_t, size_t)>>();
+                auto &ctor = c->get_attr<func_a<refl_sample9 *(size_t, size_t)>>();
 
                 size_t l          = std::atoi(expr.substr(2).data());
                 size_t r          = std::atoi(expr.substr(expr.find(' ', 2)).data());
-                refl_sample9 *ins = ctor.construct(l, r);
+                refl_sample9 *ins = ctor.invoke(l, r);
                 size_t res        = ins->result();
                 delete ins;
 
@@ -427,6 +427,8 @@ struct refl_sample10 : refl_sample9 {
         return new refl_sample10(l + r);
     }
 
+    META_EMPTY_RT(refl_sample10, func_a(add), refl_samp_a('+'))
+
     size_t value;
 
     refl_sample10(size_t val) : value(val) { }
@@ -434,14 +436,14 @@ struct refl_sample10 : refl_sample9 {
     size_t result() const override {
         return value;
     }
-
-    META_EMPTY_RT(refl_sample10, ctor_a(add), refl_samp_a('+'))
 };
 
 struct refl_sample11 : refl_sample9 {
-    static refl_sample9 *sub(size_t l, size_t r) {
-        return new refl_sample11(l - r);
-    }
+    META_EMPTY_RT(refl_sample11,
+                  func_a([](size_t l, size_t r) -> refl_sample9 * {
+                      return meta_helper::template any_new<refl_sample11>(l - r);
+                  }),
+                  refl_samp_a('-'))
 
     size_t value;
 
@@ -450,8 +452,6 @@ struct refl_sample11 : refl_sample9 {
     size_t result() const override {
         return value;
     }
-
-    META_EMPTY_RT(refl_sample11, ctor_a(sub), refl_samp_a('-'))
 };
 
 #pragma endregion

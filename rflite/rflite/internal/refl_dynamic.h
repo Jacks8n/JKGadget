@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef RFLITE_PREPROCESS_ONLY
 #include <assert.h>
@@ -106,23 +106,23 @@ RFLITE_NS {
         friend class refl_class;
         friend class refl_member;
 
-        static inline RFLITE_IMPL allocator_type<attribute_tag *> Alloc = RFLITE_IMPL get_allocator<attribute_tag *>();
+        using indexed_attr_t = ::std::pair<typename attribute_tag::id_t, const attribute_tag *>;
 
-        attribute_tag **_attrs;
+        static inline RFLITE_IMPL allocator_type<indexed_attr_t> Alloc = RFLITE_IMPL get_allocator<indexed_attr_t>();
+
+        indexed_attr_t *_attrs;
 
         const size_t _nattr;
 
         template <typename... Ts, size_t... Is>
         refl_attr_collection(const ::std::tuple<Ts...> &t, ::std::index_sequence<Is...>)
             : _attrs(sizeof...(Is) > 0 ? RFLITE_IMPL allocate(Alloc, sizeof...(Ts)) : nullptr), _nattr(sizeof...(Ts)) {
-            ((*const_cast<const attribute_tag **>(&_attrs[Is]) = &::std::get<Is>(t)), ...);
+            ((RFLITE_IMPL construct(Alloc, _attrs + Is, attribute_tag::template get_id<Ts>(), &::std::get<Is>(t))), ...);
         }
 
         template <typename... Ts>
         refl_attr_collection(const ::std::tuple<Ts...> &t)
-            : refl_attr_collection(t, ::std::index_sequence_for<Ts...>()) {
-            ::std::sort(_attrs, _attrs + _nattr, [](attribute_tag *l, attribute_tag *r) { return l->get_id() < r->get_id(); });
-        }
+            : refl_attr_collection(t, ::std::index_sequence_for<Ts...>()) { }
 
       public:
         refl_attr_collection(const refl_attr_collection &) = delete;
@@ -131,18 +131,29 @@ RFLITE_NS {
         }
 
         ~refl_attr_collection() {
-            if (_attrs)
-                RFLITE_IMPL deallocate(Alloc, _attrs, _nattr);
+            RFLITE_IMPL deallocate(Alloc, _attrs, _nattr);
         }
 
         template <typename T>
-        const T &get() const requires is_attribute_v<T> {
+        const T &get() const requires(!RFLITE_IMPL typed_attribute<RFLITE_IMPL attr_wrap_t<T>>) {
+            using wrap_t = RFLITE_IMPL attr_wrap_t<T>;
+            return *static_cast<const wrap_t *>(get_impl<wrap_t>());
+        }
+
+        template <RFLITE_IMPL typed_attribute T, typename TClass>
+        const typename T::template typed<TClass> &get() const {
+            return *static_cast<const T::template typed<TClass> *>(get_impl<T>());
+        }
+
+      private:
+        template <typename T>
+        const attribute_tag *get_impl() const {
             size_t id = attribute_tag::template get_id<T>();
 
-            attribute_tag **tag = ::std::find_if(_attrs, _attrs + _nattr,
-                                                 [=](attribute_tag *t) { return t->get_id() == id; });
+            const indexed_attr_t *tag = ::std::find_if(_attrs, _attrs + _nattr,
+                                                       [=](const indexed_attr_t &t) { return t.first == id; });
             if (tag < _attrs + _nattr)
-                return *static_cast<T *>(*tag);
+                return tag->second;
             throw;
         }
     };
@@ -250,8 +261,8 @@ RFLITE_NS {
         }
 
         template <typename T>
-        const T &get_attr() const {
-            return _attrs.get<RFLITE_IMPL as_attr_t<T>>();
+        decltype(auto) get_attr() const {
+            return _attrs.get<T>();
         }
 
         size_t size() const {
@@ -430,8 +441,8 @@ RFLITE_NS {
         }
 
         template <typename T>
-        const T &get_attr() const {
-            return _attrs.get<RFLITE_IMPL as_attr_t<T>>();
+        decltype(auto) get_attr() const {
+            return _attrs.get<T>();
         }
 
         const refl_class &base() const {

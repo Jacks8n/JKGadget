@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef RFLITE_PREPROCESS_ONLY
 #include <concepts>
@@ -10,55 +10,88 @@
 
 #define RFLITE_META_ATTRIBUTE meta_attribute
 
+RFLITE_NS {
+    struct attribute_tag {
+        using id_t = uintptr_t;
+
+        template <typename T>
+        static id_t get_id() requires ::std::is_base_of_v<attribute_tag, T> {
+            struct {
+                T value;
+            } *temp = nullptr;
+            return temp->value.get_id();
+        }
+
+        virtual id_t get_id() const = 0;
+    };
+}
+
 RFLITE_IMPL_NS {
     template <template <typename> typename>
     class typed_attribute_impl { };
 
     template <typename T>
     concept typed_attribute = requires { typename RFLITE_IMPL typed_attribute_impl<T::template typed>; };
+
+    template <typename>
+    struct is_tuple_impl {
+        static constexpr bool value = false;
+    };
+
+    template <typename... Ts>
+    struct is_tuple_impl<::std::tuple<Ts...>> {
+        static constexpr bool value = true;
+    };
+
+    template <typename T>
+    concept is_tuple = is_tuple_impl<T>::value;
+
+    template <typename T>
+    struct specialize_typed_attribute {
+        template <typename>
+        static constexpr const T &get(const T &attr) noexcept {
+            return attr;
+        }
+    };
+
+    template <typed_attribute T>
+    struct specialize_typed_attribute<T> {
+        template <typename TClass>
+        static constexpr auto get(const T &attr) noexcept {
+            using typed = typename T::template typed<TClass>;
+
+            struct indexed_typed : RFLITE attribute_tag, typed {
+                using typed::typed;
+
+                id_t get_id() const override {
+                    return attribute_tag::template get_id<T>();
+                }
+            };
+
+            if constexpr (::std::constructible_from<typed, const T &>)
+                return indexed_typed(attr);
+            else
+                return indexed_typed();
+        }
+    };
 }
 
 RFLITE_NS {
-    struct attribute_tag {
-        template <typename T>
-        static uintptr_t get_id() requires ::std::is_base_of_v<attribute_tag, T> {
-            return static_cast<T *>(nullptr)->get_id();
-        }
-
-        virtual uintptr_t get_id() const = 0;
-    };
-
     template <typename T>
     struct attribute : attribute_tag {
-        uintptr_t get_id() const override final {
+        id_t get_id() const override final {
             static T *placeholder;
-            return reinterpret_cast<uintptr_t>(&placeholder);
+            return reinterpret_cast<id_t>(&placeholder);
         }
 
-        template <typename TClass = void>
-        constexpr const T &get() const {
-            return static_cast<const T &>(*this);
-        }
-    };
-
-    template <typename T>
-    // Duplication of `RFLITE typed_attribute`
-    requires requires { typename RFLITE_IMPL typed_attribute_impl<T::template typed>; }
-    struct attribute<T> {
         template <typename TClass>
-        constexpr decltype(auto) get() const {
-            static_assert(::std::is_base_of_v<attribute_tag, T::template typed<TClass>>, "nested template class `typed` must inherit from attribute_tag");
-
-            using typed_t = typename T::template typed<TClass>;
-            if constexpr (::std::constructible_from<typed_t, const T &>)
-                return typed_t(static_cast<const T &>(*this));
-            else
-                return typed_t();
+        constexpr decltype(auto) get() const noexcept {
+            return RFLITE_IMPL specialize_typed_attribute<T>::template get<TClass>(static_cast<const T &>(*this));
         }
     };
 
     template <typename T>
-    static constexpr bool is_attribute_v = ::std::is_base_of_v<attribute<T>, T>;
+    concept is_attribute = ::std::is_base_of_v<attribute<T>, T>;
 
     template <typename T>
     struct any_a : attribute<any_a<T>> {
@@ -95,14 +128,40 @@ RFLITE_NS {
         };
     };
 
+    template <typename>
+    class func_a;
+
     template <typename TRet, typename... TArgs>
-    struct ctor_a<TRet(TArgs...)> : attribute<ctor_a<TRet(TArgs...)>> {
+    class func_a<TRet(TArgs...)> : public attribute<func_a<TRet(TArgs...)>> {
+        template <typename>
+        struct wrap_ctor {
+            template <typename T>
+            static constexpr auto get(T &&ptr) noexcept {
+                return ptr;
+            }
+        };
+
+        template <typename T>
+        requires ::std::is_default_constructible_v<T> struct wrap_ctor<T> {
+            template <typename _>
+            static constexpr auto get(_ &&) noexcept {
+                return &invoke_ctor;
+            }
+
+          private:
+            static constexpr TRet invoke_ctor(TArgs... args) {
+                return T()(static_cast<TArgs>(args)...);
+            }
+        };
+
+      public:
         using args_t = ::std::tuple<TArgs...>;
 
-        explicit constexpr ctor_a(TRet (*ctor)(TArgs...)) : _ctor(ctor) { }
+        template <typename T>
+        explicit constexpr func_a(T &&ctor) : _ctor(wrap_ctor<::std::remove_cvref_t<T>>::get(ctor)) { }
 
         template <typename... Args>
-        constexpr TRet construct(Args &&... args) const requires(::std::invocable<TRet(TArgs...), Args...>) {
+        constexpr TRet invoke(Args &&... args) const {
             return _ctor(::std::forward<Args>(args)...);
         }
 
@@ -110,34 +169,31 @@ RFLITE_NS {
         TRet (*const _ctor)(TArgs...);
     };
 
-    template <typename T>
-    struct ctor_a<T, decltype(&T::operator())> : attribute<ctor_a<T, decltype(&T::operator())>> {
-        using args_t = RFLITE_IMPL func_ptr_args_t<decltype(&T::operator())>;
-
-        template <typename U>
-        explicit constexpr ctor_a(U &&ctor) : _ctor(::std::forward<U>(ctor)) { }
-
-        template <typename... Args>
-        constexpr decltype(auto) construct(Args &&... args) const
-            requires ::std::convertible_to<::std::tuple<Args &&...>, args_t> {
-            return _ctor(::std::forward<Args>(args)...);
-        }
-
-      private:
-        const T _ctor;
-    };
-
     template <typename TRet, typename... TArgs>
-    ctor_a(TRet(*)(TArgs...)) -> ctor_a<TRet(TArgs...)>;
+    func_a(TRet(*)(TArgs...)) -> func_a<TRet(TArgs...)>;
 
     template <typename T>
     requires requires { typename ::std::void_t<decltype(T::operator())>; }
-    ctor_a(T && t)->ctor_a<T, decltype(&T::operator())>;
+    func_a(T &&)->func_a<RFLITE_IMPL member_ptr_deref_t<decltype(&T::operator())>>;
 }
 
 RFLITE_IMPL_NS {
     template <typename T>
-    using as_attr_t = ::std::conditional_t<is_attribute_v<T>, T, any_a<T>>;
+    using attr_wrap_t = ::std::conditional_t<is_attribute<T>, T, any_a<T>>;
+
+    template <typename T>
+    struct attr_unwrap {
+        static constexpr const T &unwrap(const attr_wrap_t<T> &attr) noexcept {
+            return attr;
+        }
+    };
+
+    template <is_attribute T>
+    struct attr_unwrap<T> {
+        static constexpr const T &unwrap(const T &attr) noexcept {
+            return attr;
+        }
+    };
 
     template <auto Val, auto... Vals>
     class index_of_first {
@@ -173,14 +229,17 @@ RFLITE_IMPL_NS {
     template <template <typename...> typename T, typename TSpec>
     concept is_specialization_of = is_specialization_of_impl<TSpec>::template value<T>;
 
-    template <typename TClass, typename... Ts>
-    class RFLITE_META_ATTRIBUTE {
+    template <typename...>
+    class RFLITE_META_ATTRIBUTE;
+
+    template <typename TClass, typename... Ts, typename... TTypeds>
+    class RFLITE_META_ATTRIBUTE<TClass, ::std::tuple<Ts...>, ::std::tuple<TTypeds...>> {
         template <typename U, typename... Us>
         friend constexpr auto make_attributes(const Us &...) noexcept;
 
-        using attribute_tuple_t = ::std::tuple<Ts...>;
+        using attribute_tuple_t = ::std::tuple<TTypeds...>;
 
-        explicit constexpr RFLITE_META_ATTRIBUTE(const Ts &... ts) : _attributes(::std::make_tuple(ts...)) { }
+        explicit constexpr RFLITE_META_ATTRIBUTE(const TTypeds &... ts) : _attributes(::std::make_tuple(ts...)) { }
 
         attribute_tuple_t _attributes;
 
@@ -209,29 +268,33 @@ RFLITE_IMPL_NS {
         }
 
         template <typename T>
-        constexpr const T &get() const noexcept {
+        constexpr const auto &get() const noexcept {
             if constexpr (typed_attribute<T>)
                 return ::std::get<T::template typed<TClass>>(all());
             else
-                return ::std::get<as_attr_t<T>>(all());
+                return attr_unwrap<T>::unwrap(::std::get<attr_wrap_t<T>>(all()));
         }
 
         template <template <typename...> typename T>
         constexpr const auto &get() const noexcept {
-            return ::std::get<index_of_first_v<true, (is_specialization_of<T, ::std::remove_reference_t<Ts>>)...>>(all());
+            return ::std::get<index_of_first_v<true, is_specialization_of<T, Ts>...>>(all());
         }
     };
 
     template <typename TClass, typename... Ts>
     static constexpr auto make_attributes(const Ts &... ts) noexcept {
         constexpr auto make_attr = []<typename T>(const T &t) constexpr {
-            if constexpr (is_attribute_v<::std::remove_reference_t<T>>)
-                return t;
+            if constexpr (is_attribute<T>)
+                if constexpr (typed_attribute<T>)
+                    return ::std::make_pair(t, t.template get<TClass>());
+                else
+                    return ::std::make_pair(t, t);
             else
-                return any_a(t);
+                return ::std::make_pair(any_a(t), any_a(t));
         };
 
-        return RFLITE_META_ATTRIBUTE<TClass, decltype(make_attr(ts))...>(make_attr(ts)...);
+        return RFLITE_META_ATTRIBUTE<TClass, ::std::tuple<decltype(make_attr(ts).first)...>,
+                                     ::std::tuple<decltype(make_attr(ts).second)...>>(make_attr(ts).second...);
     }
 }
 

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // Notes:
 //  0.  Some `requires` constraints duplicate concept codes, which is intended, because these
@@ -194,7 +194,7 @@
     META_E
 
 RFLITE_IMPL_NS {
-    static constexpr size_t meta_null_id = 0;
+    constexpr size_t meta_null_id = 0;
 
     template <template <size_t, typename> typename>
     class has_meta_impl { };
@@ -250,7 +250,7 @@ RFLITE_IMPL_NS {
 
 RFLITE_NS {
     template <typename T>
-    static constexpr bool is_null_meta_v = RFLITE_IMPL null_meta_traits<T>::value;
+    constexpr bool is_null_meta_v = RFLITE_IMPL null_meta_traits<T>::value;
 
     template <typename T>
     using remove_null_meta_t = typename RFLITE_IMPL null_meta_traits<T>::type;
@@ -265,7 +265,7 @@ RFLITE_NS {
     using base_of = typename meta_of<T>::base_t;
 
     template <typename T>
-    static constexpr bool is_base_v = ::std::is_same_v<T, base_of<T>>;
+    constexpr bool is_base_v = ::std::is_same_v<T, base_of<T>>;
 
     template <typename... Ts>
     struct RFLITE_IMPL meta_of_foreach {

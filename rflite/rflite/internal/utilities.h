@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef RFLITE_PREPROCESS_ONLY
 #include <tuple>
@@ -51,6 +51,7 @@ RFLITE_IMPL_NS {
     template <typename T>
     struct member_traits<T *> {
         using value_t = T;
+        using deref_t = T;
 
         static constexpr member_type type = member_type::field_static;
 
@@ -74,6 +75,7 @@ RFLITE_IMPL_NS {
     template <typename T, typename C>
     struct member_traits<T C::*> {
         using value_t = T;
+        using deref_t = T;
         using class_t = C;
 
         static constexpr member_type type = member_type::field;
@@ -93,6 +95,7 @@ RFLITE_IMPL_NS {
     template <typename T, typename C, typename... Ts>
     struct member_traits<T (C::*)(Ts...)> {
         using value_t = T;
+        using deref_t = T(Ts...);
         using class_t = C;
         using args_t  = ::std::tuple<Ts...>;
 
@@ -113,6 +116,7 @@ RFLITE_IMPL_NS {
     template <typename T, typename C, typename... Ts>
     struct member_traits<T (C::*)(Ts...) const> {
         using value_t = T;
+        using deref_t = T(Ts...);
         using class_t = C;
         using args_t  = ::std::tuple<Ts...>;
 
@@ -133,6 +137,7 @@ RFLITE_IMPL_NS {
     template <typename T, typename... Ts>
     struct member_traits<T (*)(Ts...)> {
         using value_t = T;
+        using deref_t = T(Ts...);
         using args_t  = ::std::tuple<Ts...>;
 
         static constexpr member_type type = member_type::function_static;
@@ -153,16 +158,19 @@ RFLITE_IMPL_NS {
     using member_ptr_value_t = typename member_traits<T>::value_t;
 
     template <typename T>
+    using member_ptr_deref_t = typename member_traits<T>::deref_t;
+
+    template <typename T>
     using member_ptr_class_t = typename member_traits<T>::class_t;
 
     template <typename T>
     using func_ptr_args_t = typename member_traits<T>::args_t;
 
     template <typename T>
-    static constexpr size_t func_ptr_args_count_v = ::std::tuple_size_v<func_ptr_args_t<T>>;
+    constexpr size_t func_ptr_args_count_v = ::std::tuple_size_v<func_ptr_args_t<T>>;
 
     template <typename T>
-    static constexpr member_type member_ptr_type_v = member_traits<::std::remove_reference_t<T>>::type;
+    constexpr member_type member_ptr_type_v = member_traits<::std::remove_reference_t<T>>::type;
 
     template <size_t ILo, size_t ILen, typename... Ts>
     class sub_type_pack {
@@ -195,5 +203,13 @@ RFLITE_NS {
         struct type {
             static constexpr auto value = impl<T, RFLITE_IMPL sub_type_pack_t<0, N, Ts...>, RFLITE_IMPL sub_type_pack_t<N, sizeof...(Ts) - N, Ts...>>::type::value;
         };
+    };
+
+    struct meta_helper {
+        template <typename T, typename... Ts>
+        static T *any_new(Ts &&... ts) noexcept {
+            T *ptr = reinterpret_cast<T *>(new ::std::aligned_storage_t<sizeof(T), alignof(T)>());
+            return new (ptr) T(::std::forward<Ts>(ts)...);
+        }
     };
 }
