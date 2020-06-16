@@ -34,14 +34,10 @@ RFLITE_IMPL_NS {
     concept typed_attribute = requires { typename RFLITE_IMPL typed_attribute_impl<T::template typed>; };
 
     template <typename>
-    struct is_tuple_impl {
-        static constexpr bool value = false;
-    };
+    struct is_tuple_impl : ::std::false_type { };
 
     template <typename... Ts>
-    struct is_tuple_impl<::std::tuple<Ts...>> {
-        static constexpr bool value = true;
-    };
+    struct is_tuple_impl<::std::tuple<Ts...>> : ::std::true_type { };
 
     template <typename T>
     concept is_tuple = is_tuple_impl<T>::value;

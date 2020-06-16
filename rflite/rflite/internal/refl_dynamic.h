@@ -715,8 +715,8 @@ RFLITE_NS {
     META_E        \
     META_RT_REGIST
 
-#define META_EMPTY_RT(type, ...)  \
-    META_EMPTY(type, __VA_ARGS__) \
+#define META_BE_RT(type, ...)  \
+    META_BE(type, __VA_ARGS__) \
     META_RT_REGIST
 
 RFLITE_NS {

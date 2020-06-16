@@ -324,15 +324,15 @@ TEST(rflite_test, DynamicInvoke) {
 }
 
 struct refl_sample5 {
-    META_EMPTY_RT(refl_sample5)
+    META_BE_RT(refl_sample5)
 };
 
 struct refl_sample6 : refl_sample5 {
-    META_EMPTY_RT(refl_sample6)
+    META_BE_RT(refl_sample6)
 };
 
 struct refl_sample7 : refl_sample5 {
-    META_EMPTY_RT(refl_sample7)
+    META_BE_RT(refl_sample7)
 };
 
 TEST(rflite_test, TypeHierarchy) {
@@ -383,7 +383,7 @@ struct refl_samp_a : attribute<refl_samp_a> {
 };
 
 struct refl_sample9 {
-    META_EMPTY_RT(refl_sample9)
+    META_BE_RT(refl_sample9)
 
     virtual ~refl_sample9() { }
 
@@ -425,7 +425,7 @@ struct refl_sample10 : refl_sample9 {
         return new refl_sample10(l + r);
     }
 
-    META_EMPTY_RT(refl_sample10, func_a(add), refl_samp_a('+'))
+    META_BE_RT(refl_sample10, func_a(add), refl_samp_a('+'))
 
     size_t value;
 
@@ -437,7 +437,7 @@ struct refl_sample10 : refl_sample9 {
 };
 
 struct refl_sample11 : refl_sample9 {
-    META_EMPTY_RT(refl_sample11,
+    META_BE_RT(refl_sample11,
                   func_a([](size_t l, size_t r) -> refl_sample9 * {
                       return meta_helper::template any_new<refl_sample11>(l - r);
                   }),

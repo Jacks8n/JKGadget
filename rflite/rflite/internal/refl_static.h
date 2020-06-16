@@ -189,7 +189,7 @@
         RFLITE_META_TYPE(end)                 \
     };
 
-#define META_EMPTY(type, ...) \
+#define META_BE(type, ...) \
     META_B(type, __VA_ARGS__) \
     META_E
 
@@ -222,16 +222,12 @@ RFLITE_IMPL_NS {
     struct null_meta { };
 
     template <typename T>
-    struct null_meta_traits {
-        static constexpr bool value = false;
-
+    struct null_meta_traits : ::std::false_type {
         using type = T;
     };
 
     template <typename T>
-    struct null_meta_traits<null_meta<T>> {
-        static constexpr bool value = true;
-
+    struct null_meta_traits<null_meta<T>> : ::std::true_type {
         using type = T;
     };
 
