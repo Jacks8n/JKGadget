@@ -6,6 +6,10 @@
 
 #include "rflite/internal/macro.h"
 
+RFLITE_IMPL_NS {
+    struct _ { };
+}
+
 RFLITE_NS {
     enum class member_type : size_t {
         null            = 0,
@@ -36,10 +40,6 @@ RFLITE_NS {
     constexpr bool is_static(member_type type) {
         return has_flag(type, member_type::any_static);
     }
-}
-
-RFLITE_IMPL_NS {
-    struct _ { };
 
     enum class meta_type : size_t { null,
                                     entry,
@@ -185,9 +185,41 @@ RFLITE_IMPL_NS {
 
     template <size_t Lo, size_t Len, typename... Ts>
     using sub_type_pack_t = typename sub_type_pack<Lo, Len, Ts...>::type;
-}
 
-RFLITE_NS {
+    template <auto Val, auto... Vals>
+    class index_of_first {
+        template <size_t I, auto V>
+        static constexpr size_t find() {
+            return I;
+        }
+
+        template <size_t I, auto V, auto V0, auto... Vs>
+        static constexpr size_t find() {
+            return V != V0 ? find<I + 1, V, Vs...>() : I;
+        }
+
+      public:
+        static constexpr size_t value = find<0, Val, Vals...>();
+    };
+
+    template <auto Val, auto... Vals>
+    static constexpr size_t index_of_first_v = index_of_first<Val, Vals...>::value;
+
+    template <typename T>
+    struct is_specialization_of_impl {
+        template <template <typename...> typename U>
+        static constexpr bool value = false;
+    };
+
+    template <template <typename...> typename T, typename... Ts>
+    struct is_specialization_of_impl<T<Ts...>> {
+        template <template <typename...> typename U>
+        static constexpr bool value = ::std::is_same_v<T<Ts...>, U<Ts...>>;
+    };
+
+    template <template <typename...> typename T, typename TSpec>
+    concept is_specialization_of = is_specialization_of_impl<TSpec>::template value<T>;
+
     template <size_t N, template <typename...> typename TT, typename... Ts>
     class bind_traits {
         template <typename... Us>
@@ -201,7 +233,7 @@ RFLITE_NS {
       public:
         template <typename T>
         struct type {
-            static constexpr auto value = impl<T, RFLITE_IMPL sub_type_pack_t<0, N, Ts...>, RFLITE_IMPL sub_type_pack_t<N, sizeof...(Ts) - N, Ts...>>::type::value;
+            static constexpr auto value = impl<T, sub_type_pack_t<0, N, Ts...>, sub_type_pack_t<N, sizeof...(Ts) - N, Ts...>>::type::value;
         };
     };
 

@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#ifndef RFLITE_DYNAMIC_DISABLE
+
 #ifndef RFLITE_PREPROCESS_ONLY
 #include <assert.h>
 #include <memory>
@@ -8,8 +10,6 @@
 #endif
 
 #include "rflite/internal/refl_static.h"
-
-#ifdef RFLITE_DYNAMIC
 
 RFLITE_IMPL_NS {
     template <typename T>
@@ -171,17 +171,17 @@ RFLITE_NS {
 
         template <typename T>
         static constexpr decltype(auto) cast_res_ref(void *ptr) {
-            return *reinterpret_cast<::std::remove_reference_t<RFLITE_IMPL member_ptr_value_t<T>> *>(ptr);
+            return *reinterpret_cast<::std::remove_reference_t<member_ptr_value_t<T>> *>(ptr);
         }
 
         template <typename T>
         static constexpr decltype(auto) cast_class_ref(void *ptr) {
-            return cast_arg_ref<RFLITE_IMPL member_ptr_class_t<T>>(ptr);
+            return cast_arg_ref<member_ptr_class_t<T>>(ptr);
         }
 
         template <typename T>
         static void access_field(void *res, void **args, const RFLITE_IMPL any_ptr &ptr) {
-            *reinterpret_cast<RFLITE_IMPL member_ptr_value_t<T> **>(res) = &(cast_class_ref<T>(*args).*(ptr.cast<T>()));
+            *reinterpret_cast<member_ptr_value_t<T> **>(res) = &(cast_class_ref<T>(*args).*(ptr.cast<T>()));
         }
 
         template <typename T>
@@ -217,17 +217,17 @@ RFLITE_NS {
 
         template <typename T>
         static auto access() -> void (*)(void *, void **, const RFLITE_IMPL any_ptr &) {
-            constexpr member_type type = RFLITE_IMPL member_ptr_type_v<T>;
+            constexpr member_type type = RFLITE member_ptr_type_v<T>;
             if constexpr (type == member_type::field)
                 return &access_field<T>;
             if constexpr (type == member_type::field_static)
                 return &access_field_static<T>;
             if constexpr (type == member_type::function_static)
-                return access<access_func_static, T, RFLITE_IMPL func_ptr_args_t<T>>(::std::make_index_sequence<RFLITE_IMPL func_ptr_args_count_v<T>>());
+                return access<access_func_static, T, RFLITE func_ptr_args_t<T>>(::std::make_index_sequence<RFLITE func_ptr_args_count_v<T>>());
             if constexpr (type == member_type::function)
-                return access<access_func_member, T, RFLITE_IMPL func_ptr_args_t<T>>(::std::make_index_sequence<RFLITE_IMPL func_ptr_args_count_v<T>>());
+                return access<access_func_member, T, RFLITE func_ptr_args_t<T>>(::std::make_index_sequence<RFLITE func_ptr_args_count_v<T>>());
             if constexpr (type == member_type::function_const)
-                return access<access_func_member_const, T, RFLITE_IMPL func_ptr_args_t<T>>(::std::make_index_sequence<RFLITE_IMPL func_ptr_args_count_v<T>>());
+                return access<access_func_member_const, T, RFLITE func_ptr_args_t<T>>(::std::make_index_sequence<RFLITE func_ptr_args_count_v<T>>());
             return nullptr;
         }
 
@@ -251,8 +251,8 @@ RFLITE_NS {
         refl_member(T &&meta)
             : _name(meta.member_name()),
               _attrs(meta.attributes.all()),
-              _memberType(RFLITE_IMPL member_ptr_type_v<decltype(meta.member_ptr())>),
-              _size(sizeof(RFLITE_IMPL member_ptr_value_t<decltype(meta.member_ptr())>)),
+              _memberType(RFLITE member_ptr_type_v<decltype(meta.member_ptr())>),
+              _size(sizeof(RFLITE member_ptr_value_t<decltype(meta.member_ptr())>)),
               _memberPtr(meta.member_ptr()),
               _handler(access<decltype(meta.member_ptr())>()) { }
 
@@ -633,11 +633,16 @@ RFLITE_NS {
 
       public:
         template <typename T>
-        static refl_iter_t regist() {
+        static constexpr std::string_view name_of() noexcept {
             if constexpr (meta_of<T>::attributes.template has<name_a>())
-                return regist<T>(meta_of<T>::attributes.template get<name_a>().name);
+                meta_of<T>::attributes.template get<name_a>().name;
             else
-                return regist<T>(meta_of<T>::name());
+                return meta_of<T>::name();
+        }
+
+        template <typename T>
+        static refl_iter_t regist() {
+            return regist<T>(name_of<T>());
         }
 
         template <typename T>
@@ -713,6 +718,13 @@ RFLITE_NS {
 #define META_EMPTY_RT(type, ...)  \
     META_EMPTY(type, __VA_ARGS__) \
     META_RT_REGIST
+
+RFLITE_NS {
+    template <typename T>
+    struct meta_traits_rt {
+        static const auto &iterator = T::meta_info_rt;
+    };
+}
 
 #else
 

@@ -1,6 +1,4 @@
-﻿#define RFLITE_DYNAMIC
-
-#include "gtest/gtest.h"
+﻿#include "gtest/gtest.h"
 #include <functional>
 #include <string>
 #include "rflite/rflite.h"
@@ -122,7 +120,7 @@ TEST(rflite_test, ForEach) {
 TEST(rflite_test, Serialize) {
     constexpr auto serialize = [](auto &&ins) {
         std::string res;
-        meta_d_of<decltype(ins)>::template foreach<member_type::field>([&](auto &&meta) {
+        meta_of<decltype(ins)>::template foreach<member_type::field>([&](auto &&meta) {
             res.append(meta.member_name());
             res.push_back(':');
             res.append(std::to_string(meta.map(ins)));
@@ -146,7 +144,7 @@ TEST(rflite_test, Serialize) {
 
 TEST(rflite_test, Deserialize) {
     constexpr auto deserialize = [](std::string_view src, auto &&res) {
-        meta_d_of<decltype(res)>::foreach([&](auto &&meta) {
+        meta_of<decltype(res)>::foreach([&](auto &&meta) {
             constexpr auto prop = meta.attributes.template get<std::string_view>();
             meta.map(res)       = std::atoi(src.substr(src.find(prop) + prop.size()).data());
         });

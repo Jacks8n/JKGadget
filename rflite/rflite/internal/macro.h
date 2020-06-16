@@ -4,7 +4,7 @@
 //  -   RFLITE_PROJECT_NAME: Modify the macro if the default name conflicts
 //  -   RFLITE_PREPROCESS_ONLY: Prevent including stl headers, may be helpful when inspecting
 //      expanded macros
-//  -   RFLITE_DYNAMIC: Define the macro to enable dynamic reflection
+//  -   RFLITE_DYNAMIC_DISABLE: Define the macro to disable dynamic reflection
 
 #define RFLITE_PROJECT_NAME rflite
 
@@ -15,4 +15,4 @@
 #define RFLITE_IMPL ::RFLITE_PROJECT_NAME::impl::
 
 //#define RFLITE_PREPROCESS_ONLY
-//#define RFLITE_DYNAMIC
+//#define RFLITE_DYNAMIC_DISABLE

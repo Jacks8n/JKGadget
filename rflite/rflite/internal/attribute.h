@@ -174,7 +174,7 @@ RFLITE_NS {
 
     template <typename T>
     requires requires { typename ::std::void_t<decltype(T::operator())>; }
-    func_a(T &&)->func_a<RFLITE_IMPL member_ptr_deref_t<decltype(&T::operator())>>;
+    func_a(T &&)->func_a<member_ptr_deref_t<decltype(&T::operator())>>;
 }
 
 RFLITE_IMPL_NS {
@@ -194,40 +194,6 @@ RFLITE_IMPL_NS {
             return attr;
         }
     };
-
-    template <auto Val, auto... Vals>
-    class index_of_first {
-        template <size_t I, auto V>
-        static constexpr size_t find() {
-            return I;
-        }
-
-        template <size_t I, auto V, auto V0, auto... Vs>
-        static constexpr size_t find() {
-            return V != V0 ? find<I + 1, V, Vs...>() : I;
-        }
-
-      public:
-        static constexpr size_t value = find<0, Val, Vals...>();
-    };
-
-    template <auto Val, auto... Vals>
-    static constexpr size_t index_of_first_v = index_of_first<Val, Vals...>::value;
-
-    template <typename T>
-    struct is_specialization_of_impl {
-        template <template <typename...> typename U>
-        static constexpr bool value = false;
-    };
-
-    template <template <typename...> typename T, typename... Ts>
-    struct is_specialization_of_impl<T<Ts...>> {
-        template <template <typename...> typename U>
-        static constexpr bool value = ::std::is_same_v<T<Ts...>, U<Ts...>>;
-    };
-
-    template <template <typename...> typename T, typename TSpec>
-    concept is_specialization_of = is_specialization_of_impl<TSpec>::template value<T>;
 
     template <typename...>
     class RFLITE_META_ATTRIBUTE;
