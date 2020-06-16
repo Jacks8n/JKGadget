@@ -7,8 +7,19 @@
 namespace igi {
     using serializer_t = rapidjson::Value;
 
+    struct serialize_name_a : rflite::attribute<serialize_name_a> {
+        std::string_view name;
+
+        explicit constexpr serialize_name_a(std::string_view name) : name(name) { }
+    };
+
     class serialization {
       public:
+        using allocator_type = std::pmr::polymorphic_allocator<char>;
+
+        template <typename T>
+        using pure_pm_deser_a = rflite::func_a<T *(const serializer_t &, const allocator_type &)>;
+
         template <typename T, typename TIStream, typename TAlloc>
         static T DeserializeStream(TIStream &&input, TAlloc &&alloc) {
             rapidjson::Document doc;
@@ -24,38 +35,90 @@ namespace igi {
             return Deserialize<T>(doc.ParseInsitu(buf).GetObject(), std::forward<TAlloc>(alloc));
         }
 
-        template <typename T, typename TAlloc, typename... TArgs>
+        template <rflite::has_meta T, typename TAlloc, typename... TArgs>
         static T Deserialize(const serializer_t &ser, TAlloc &&alloc, TArgs &&... args) {
-            using meta_t = rflite::meta_of<T>;
-            static_assert(meta_t::template has_attr<rflite::ctor_a>(), "constructor attribute is required to auto deserialize");
+            constexpr auto ctor = rflite::meta_of<T>::attributes.template get<rflite::func_a>();
 
-            constexpr auto ctor = meta_t::template get_attr<rflite::ctor_a>();
-            return std::apply(ctor.construct,
-                              rflite::meta_of_foreach<typename decltype(ctor)::args_t>([&](auto &&meta) {
-                                  using type = std::remove_reference_t<decltype(meta)>;
-                                  if constexpr (std::is_same_v<rapidjson::Document, type>)
-                                      return std::ref(ser);
-                                  else if constexpr (std::is_constructible_v<TAlloc &&, type>)
-                                      return type(alloc);
-                                  else {
-                                      constexpr size_t index = rflite::index_of_first_t_v<type, std::remove_reference_t<TArgs>...>;
-                                      if constexpr (index < sizeof...(TArgs))
-                                          return std::get<index>(std::forward_as_tuple(args...));
-                                      else
-                                          return Deserialize<rflite::meta_of<decltype(meta)>::owner_t>(ser, alloc);
-                                  }
-                              }));
+            return std::apply(ctor.invoke,
+                              rflite::foreach_meta_of<typename decltype(ctor)::args_t>(
+                                  [&]<typename TMeta>(const TMeta &meta) {
+                                      if constexpr (rflite::is_null_meta_v<TMeta>) {
+                                          using type = rflite::remove_null_meta_t<TMeta>;
+
+                                          if constexpr (std::is_same_v<type, const serializer_t &>)
+                                              return std::ref(ser);
+                                          else if constexpr (std::is_constructible_v<type, decltype(alloc)>)
+                                              return type(alloc);
+                                          else {
+                                              constexpr size_t index = rflite::index_of_first_v<true, std::is_convertible_v<type, TArgs &&>...>;
+
+                                              if constexpr (index < sizeof...(TArgs))
+                                                  return std::get<index>(std::forward_as_tuple(std::forward<TArgs>(args)...));
+                                          }
+                                      }
+                                      static_assert(sizeof(int) != sizeof(int), "Unable to match some arguments");
+                                  }));
         }
 
-        template <typename T, template <typename> typename TContainer = std::pmr::vector, typename TAlloc, typename... TArgs>
-        static TContainer<T> DeserializeArray(const serializer_t &ser, TAlloc &alloc, TArgs &&... args) {
-            assert(ser.IsArray());
+        template <typename T, typename TAlloc>
+        static T *DeserializePmr(const serializer_t &ser, TAlloc &&alloc, std::string_view name) {
+            std::pmr::vector<const rflite::refl_class *> children = ChildrenOf<T>(alloc);
+            return DeserializePmr_impl(children.begin(), children.end(), ser, std::forward<TAlloc>(alloc), name);
+        }
 
+        template <typename T, template <typename> typename TContainer, typename TAlloc, typename TNamePo>
+        static TContainer<T *> DeserializePmrArray(const serializer_t &ser, TAlloc &&alloc, TNamePo &&policy) requires std::is_convertible_v<std::invoke_result_t<TNamePo, T>, std::string_view> {
+            if (!ser.IsArray())
+                throw;
+
+            std::pmr::vector<const rflite::refl_class *> children = ChildrenOf<T>(alloc);
+            return DeserializeArray_impl<T *, TContainer>(ser, alloc, [&](const serializer_t &s) {
+                return DeserializePmr_impl(children.begin(), children.end(), ser, alloc, policy(s));
+            });
+        }
+
+        template <typename T, template <typename> typename TContainer, typename TAlloc, typename... TArgs>
+        static TContainer<T> DeserializeArray(const serializer_t &ser, TAlloc &&alloc, TArgs &&... args) {
+            if (!ser.IsArray())
+                throw;
+
+            return DeserializeArray_impl<T, TContainer>(ser, alloc, [&](const serializer_t &s) {
+                return Deserialize(s, alloc, std::forward<TArgs>(args)...);
+            });
+        }
+
+      private:
+        template <typename T, typename TAlloc>
+        static std::pmr::vector<const rflite::refl_class *> ChildrenOf(TAlloc &&alloc) {
+            const rflite::refl_class &base = rflite::meta_traits_rt<T>::iterator->second;
+
+            std::pmr::vector<const rflite::refl_class *> childs(base.child_count(), alloc);
+            base.childs(childs.begin());
+
+            return childs;
+        }
+
+        template <typename T, typename TIt, typename TAlloc>
+        static T *DeserializePmr_impl(TIt lo, TIt hi, const serializer_t &ser, TAlloc &&alloc, std::string_view name) {
+            TIt it = std::find_if(lo, hi, [&](const rflite::refl_class *i) {
+                return i->template get_attr<serialize_name_a>().name == name;
+            });
+            if (it == hi)
+                throw;
+
+            auto ctor = it->template get_attr<pure_pm_deser_a<T>>();
+            return ctor.invoke(ser, static_cast<allocator_type>(alloc));
+        }
+
+        template <typename T, template <typename> typename TContainer, typename TAlloc, typename TExPo>
+        static TContainer<T> DeserializeArray_impl(const serializer_t &ser, TAlloc &&alloc, TExPo &&policy) {
             TContainer<T> arr(ser.Size(), alloc);
             for (auto i = ser.Begin(); i != ser.End(); ++i)
-                arr.push_back(Deserialize<T>(*i, alloc, std::forward<TArgs>(args)...);
-
+                arr.push_back(policy(*i));
             return arr;
         }
     };
+
+    template <typename T>
+    using pure_pm_deser_a = typename serialization::template pure_pm_deser_a<T>;
 }  // namespace igi

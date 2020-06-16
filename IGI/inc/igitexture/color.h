@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <assert.h>
 #include "igimath/mathutil.h"
 #include "rflite/rflite.h"
 
