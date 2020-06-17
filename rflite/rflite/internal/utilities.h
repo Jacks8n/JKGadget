@@ -237,17 +237,58 @@ RFLITE_NS {
         };
     };
 
+    template <typename T, size_t S>
+    requires(sizeof(T) == S) class any_defer {
+        ::std::aligned_storage_t<S, alignof(T)> _mem;
+
+      public:
+        any_defer(const any_defer &o) noexcept {
+            new (&_mem) T(o._mem);
+        }
+        any_defer(any_defer &&o) noexcept {
+            new (&_mem) T(::std::move(o._mem));
+        }
+        template <typename... Ts>
+        any_defer(Ts &&... args) noexcept {
+            new (&_mem) T(::std::forward<Ts>(args)...);
+        }
+
+        any_defer &operator=(const any_defer &o) {
+            operator T &() = o.operator const T &();
+            return *this;
+        }
+        any_defer &operator=(any_defer &&o) noexcept {
+            operator T &&() = o.operator T &&();
+            return *this;
+        }
+
+        operator T &() &noexcept {
+            return *reinterpret_cast<T *>(&_mem);
+        }
+        operator const T &() const &noexcept {
+            return *reinterpret_cast<const T *>(&_mem);
+        }
+        operator T &&() &&noexcept {
+            return ::std::move(*reinterpret_cast<T *>(&_mem));
+        }
+
+        T *operator->() {
+            return reinterpret_cast<T *>(&_mem);
+        }
+        const T *operator->() const {
+            return reinterpret_cast<const T *>(&_mem);
+        }
+    };
+
     struct meta_helper {
         template <typename T, typename... Ts>
-        static T any_ins(Ts &&... ts) noexcept {
-            ::std::aligned_storage_t<sizeof(T), alignof(T)> tmp;
-            new (reinterpret_cast<T *>(&tmp)) T(::std::forward<Ts>(ts)...);
-            return tmp;
+        static any_defer<T, sizeof(T)> any_ins(Ts &&... ts) noexcept {
+            return any_defer<T, sizeof(T)>(::std::forward<Ts>(ts)...);
         }
 
         template <typename T, typename... Ts>
         static T *any_new(Ts &&... ts) noexcept {
-            T *ptr = reinterpret_cast<T *>(new ::std::aligned_storage_t<sizeof(T), alignof(T)>());
+            void *ptr = new ::std::aligned_storage_t<sizeof(T), alignof(T)>();
             return new (ptr) T(::std::forward<Ts>(ts)...);
         }
     };

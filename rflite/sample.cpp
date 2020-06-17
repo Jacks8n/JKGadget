@@ -5,33 +5,6 @@
 
 using namespace rflite;
 
-#pragma region utilities
-
-TEST(rflite_test, ForeachMeta) {
-    size_t i  = 0;
-    auto func = [&]<typename T>(const T &) {
-        i++;
-        static_assert(is_null_meta_v<T>);
-
-        using type = remove_null_meta_t<T>;
-        return static_cast<type>(sizeof(type));
-    };
-     
-    std::tuple<char, short, int> res0 = foreach_meta_of<char, short, int>(func);
-    EXPECT_EQ(i, 3);
-    EXPECT_EQ(std::get<0>(res0), '\1');
-    EXPECT_EQ(std::get<1>(res0), sizeof(short));
-    EXPECT_EQ(std::get<2>(res0), sizeof(int));
-
-    std::tuple<char, short, int> res1 = foreach_meta_of<std::tuple<char, short, int>>(func);
-    EXPECT_EQ(i, 6);
-    EXPECT_EQ(std::get<0>(res1), '\1');
-    EXPECT_EQ(std::get<1>(res1), sizeof(short));
-    EXPECT_EQ(std::get<2>(res1), sizeof(int));
-}
-
-#pragma endregion
-
 #pragma region static reflection
 
 struct refl_sample {
@@ -478,6 +451,52 @@ struct refl_sample11 : refl_sample9 {
         return value;
     }
 };
+
+#pragma endregion
+
+#pragma region utilities
+
+TEST(rflite_test, ForeachMeta) {
+    size_t i  = 0;
+    auto func = [&]<typename T>(const T &) {
+        i++;
+        static_assert(is_null_meta_v<T>);
+
+        using type = remove_null_meta_t<T>;
+        return static_cast<type>(sizeof(type));
+    };
+
+    std::tuple<char, short, int> res0 = foreach_meta_of<char, short, int>(func);
+    EXPECT_EQ(i, 3);
+    EXPECT_EQ(std::get<0>(res0), '\1');
+    EXPECT_EQ(std::get<1>(res0), sizeof(short));
+    EXPECT_EQ(std::get<2>(res0), sizeof(int));
+
+    std::tuple<char, short, int> res1 = foreach_meta_of<std::tuple<char, short, int>>(func);
+    EXPECT_EQ(i, 6);
+    EXPECT_EQ(std::get<0>(res1), '\1');
+    EXPECT_EQ(std::get<1>(res1), sizeof(short));
+    EXPECT_EQ(std::get<2>(res1), sizeof(int));
+}
+
+struct refl_sample12 {
+    META_BE(refl_sample12, func_a([](int l, int r) { return meta_helper::any_ins<refl_sample12>(l * r); }))
+
+    int i;
+
+    refl_sample12(int i) : i(i) { }
+};
+
+TEST(rflite_test, MetaHelper) {
+    constexpr meta_of<refl_sample12> meta;
+    constexpr auto ctor = meta.attributes.get<func_a>();
+
+    any_defer<refl_sample12, sizeof(refl_sample12)> res0 = ctor.invoke(6, 7);
+    refl_sample12 res1            = ctor.invoke(6, 7);
+
+    EXPECT_EQ(res0->i, 42);
+    EXPECT_EQ(res1.i, 42);
+}
 
 #pragma endregion
 
