@@ -4,7 +4,7 @@ add_library(${PROJECT_NAME} INTERFACE)
 
 target_include_directories(${PROJECT_NAME} INTERFACE ./)
 
-if(MSVC)
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     message("Thanks to the spectacular implementation of msvc, it's likely to fail compilation")
 endif()
 

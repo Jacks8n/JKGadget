@@ -635,7 +635,7 @@ RFLITE_NS {
         template <typename T>
         static constexpr std::string_view name_of() noexcept {
             if constexpr (meta_of<T>::attributes.template has<name_a>())
-                meta_of<T>::attributes.template get<name_a>().name;
+                return meta_of<T>::attributes.template get<name_a>().name;
             else
                 return meta_of<T>::name();
         }
@@ -722,7 +722,9 @@ RFLITE_NS {
 RFLITE_NS {
     template <typename T>
     struct meta_traits_rt {
-        static const auto &iterator = T::meta_info_rt;
+        static const auto &get_meta() {
+            return T::meta_info_rt->second;
+        }
     };
 }
 

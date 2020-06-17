@@ -252,6 +252,7 @@ RFLITE_NS {
     template <typename T>
     using remove_null_meta_t = typename RFLITE_IMPL null_meta_traits<T>::type;
 
+    // meta of literal
     template <typename T>
     using meta_of_l = typename RFLITE_IMPL meta_of_impl<T>::type;
 
@@ -268,7 +269,7 @@ RFLITE_NS {
     struct RFLITE_IMPL foreach_meta_of_impl {
         template <typename Fn>
         static constexpr auto invoke(Fn &&fn) {
-            return ::std::make_tuple((fn(meta_of_l<Ts>()), ...));
+            return ::std::make_tuple(fn(meta_of_l<Ts>())...);
         }
     };
 

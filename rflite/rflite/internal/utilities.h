@@ -239,6 +239,13 @@ RFLITE_NS {
 
     struct meta_helper {
         template <typename T, typename... Ts>
+        static T any_ins(Ts &&... ts) noexcept {
+            ::std::aligned_storage_t<sizeof(T), alignof(T)> tmp;
+            new (reinterpret_cast<T *>(&tmp)) T(::std::forward<Ts>(ts)...);
+            return tmp;
+        }
+
+        template <typename T, typename... Ts>
         static T *any_new(Ts &&... ts) noexcept {
             T *ptr = reinterpret_cast<T *>(new ::std::aligned_storage_t<sizeof(T), alignof(T)>());
             return new (ptr) T(::std::forward<Ts>(ts)...);

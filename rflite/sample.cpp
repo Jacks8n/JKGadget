@@ -5,6 +5,33 @@
 
 using namespace rflite;
 
+#pragma region utilities
+
+TEST(rflite_test, ForeachMeta) {
+    size_t i  = 0;
+    auto func = [&]<typename T>(const T &) {
+        i++;
+        static_assert(is_null_meta_v<T>);
+
+        using type = remove_null_meta_t<T>;
+        return static_cast<type>(sizeof(type));
+    };
+     
+    std::tuple<char, short, int> res0 = foreach_meta_of<char, short, int>(func);
+    EXPECT_EQ(i, 3);
+    EXPECT_EQ(std::get<0>(res0), '\1');
+    EXPECT_EQ(std::get<1>(res0), sizeof(short));
+    EXPECT_EQ(std::get<2>(res0), sizeof(int));
+
+    std::tuple<char, short, int> res1 = foreach_meta_of<std::tuple<char, short, int>>(func);
+    EXPECT_EQ(i, 6);
+    EXPECT_EQ(std::get<0>(res1), '\1');
+    EXPECT_EQ(std::get<1>(res1), sizeof(short));
+    EXPECT_EQ(std::get<2>(res1), sizeof(int));
+}
+
+#pragma endregion
+
 #pragma region static reflection
 
 struct refl_sample {
@@ -438,10 +465,10 @@ struct refl_sample10 : refl_sample9 {
 
 struct refl_sample11 : refl_sample9 {
     META_BE_RT(refl_sample11,
-                  func_a([](size_t l, size_t r) -> refl_sample9 * {
-                      return meta_helper::template any_new<refl_sample11>(l - r);
-                  }),
-                  refl_samp_a('-'))
+               func_a([](size_t l, size_t r) -> refl_sample9 * {
+                   return meta_helper::template any_new<refl_sample11>(l - r);
+               }),
+               refl_samp_a('-'))
 
     size_t value;
 
