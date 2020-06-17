@@ -2,7 +2,7 @@
 
 #include <assert.h>
 #include "igimath/mathutil.h"
-#include "rflite/rflite.h"
+#include "serialize.h"
 
 namespace igi {
     // type of color channel
@@ -18,7 +18,9 @@ namespace igi {
 
     class color3 {
       public:
-        META_B(color3)
+        META_B(color3, rflite::func_a([](const serializer_t &) {
+                   return rflite::meta_helper::any_new<color3>(1, 1, 1);
+               }))
 
         META(r)
         col_c_t r;

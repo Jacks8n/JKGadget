@@ -17,6 +17,8 @@ namespace igi {
     };
 
     struct IMaterial {
+        META_BE_RT(IMaterial)
+
         virtual color3 operator()(const vec3f &i, const vec3f &o, const vec3f &n) const = 0;
 
         virtual color3 getLuminance() const = 0;

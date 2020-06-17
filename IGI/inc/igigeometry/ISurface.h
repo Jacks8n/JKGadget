@@ -3,9 +3,12 @@
 #include "igigeometry/bound.h"
 #include "igigeometry/ray.h"
 #include "igigeometry/surface_interaction.h"
+#include "serialize.h"
 
 namespace igi {
     struct ISurface {
+        META_BE_RT(ISurface)
+
         virtual single getArea() const = 0;
 
         virtual bound_t getBound(const transform &trans) const = 0;

@@ -14,6 +14,8 @@ namespace igi {
         const IMaterial *_mat = nullptr;
 
       public:
+        META_BE(entity, rflite::func_a([](const serializer_t &) { return *(const entity *)nullptr; }))
+
         entity(const ISurface *surf = nullptr, const IMaterial *mat = nullptr)
             : _surf(surf), _mat(mat) { }
 
