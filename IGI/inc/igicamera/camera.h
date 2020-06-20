@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "igientity/ITransformable.h"
+#include "igientity/transform_base.h"
 #include "igigeometry/ray.h"
 #include "igimath/const.h"
 

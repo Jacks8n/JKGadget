@@ -491,7 +491,7 @@ TEST(rflite_test, MetaHelper) {
     constexpr meta_of<refl_sample12> meta;
     constexpr auto ctor = meta.attributes.get<func_a>();
 
-    any_defer<refl_sample12, sizeof(refl_sample12)> res0 = ctor.invoke(6, 7);
+    any_defer<refl_sample12> res0 = ctor.invoke(6, 7);
     refl_sample12 res1            = ctor.invoke(6, 7);
 
     EXPECT_EQ(res0->i, 42);

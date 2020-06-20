@@ -1,7 +1,6 @@
 ﻿#pragma once
 
-#include <memory>
-#include "igientity/ITransformable.h"
+#include "igientity/transform_base.h"
 #include "igigeometry/ISurface.h"
 #include "igigeometry/bound.h"
 #include "igigeometry/ray.h"
@@ -14,10 +13,17 @@ namespace igi {
         const IMaterial *_mat = nullptr;
 
       public:
-        META_BE(entity, rflite::func_a([](const serializer_t &) { return *(const entity *)nullptr; }))
+        META_BE(entity, rflite::func_a([](const serializer_t &ser, const std::pmr::vector<ISurface *> &surfs, const std::pmr::vector<IMaterial *> &mats) {
+                    transform trans      = serialization::Deserialize<transform>(ser);
+                    const ISurface *surf = surfs[serialization::Deserialize<int>(ser["surface"])];
+                    const IMaterial *mat = mats[serialization::Deserialize<int>(ser["material"])];
+                    return rflite::meta_helper::any_ins<entity>(trans, surf, mat);
+                }))
 
         entity(const ISurface *surf = nullptr, const IMaterial *mat = nullptr)
-            : _surf(surf), _mat(mat) { }
+            : transformable_base(), _surf(surf), _mat(mat) { }
+        entity(const transform &trans, const ISurface *surf = nullptr, const IMaterial *mat = nullptr)
+            : transformable_base(trans), _surf(surf), _mat(mat) { }
 
         const ISurface &getSurface() const {
             return *_surf;

@@ -1,13 +1,13 @@
 ﻿#pragma once
 
 #include "igiscene/aggregate.h"
-#include "serialize.h"
+#include "shared_vector.h"
 
 namespace igi {
     class scene {
-        std::pmr::vector<IMaterial *> _materials;
+        std::shared_ptr<IMaterial *[]> _materials;
 
-        std::pmr::vector<ISurface *> _surfaces;
+        std::shared_ptr<ISurface *[]> _surfaces;
 
         aggregate _aggregate;
 
@@ -21,22 +21,32 @@ namespace igi {
                     const serializer_t &sser = ser["surface"];
                     const serializer_t &eser = ser["entity"];
 
-                    color3 back = ser.HasMember("background")
-                                      ? *serialization::Deserialize<color3>(ser["background"], alloc)
-                                      : palette::black;
+                    IGI_SERIALIZE_OPTIONAL(color3, background, palette::black, ser);
 
-                    constexpr auto policy              = [](const serializer_t &ser) { return ser["type"].GetString(); };
-                    std::pmr::vector<IMaterial *> mats = serialization::DeserializePmrArray<IMaterial, std::pmr::vector>(mser, alloc, policy);
-                    std::pmr::vector<ISurface *> surfs = serialization::DeserializePmrArray<ISurface, std::pmr::vector>(sser, alloc, policy);
-                    std::pmr::vector<entity> ents      = serialization::DeserializeArray<entity, std::pmr::vector>(eser, alloc, mats, surfs);
-                    return rflite::meta_helper::any_new<scene>(std::move(mats), std::move(surfs), std::move(ents), back, alloc);
+                    constexpr auto policy           = [](const serializer_t &ser) { return ser["type"].GetString(); };
+                    shared_vector<IMaterial *> mats = serialization::DeserializePmrArray<IMaterial, shared_vector>(mser, alloc, policy);
+                    shared_vector<ISurface *> surfs = serialization::DeserializePmrArray<ISurface, shared_vector>(sser, alloc, policy);
+                    shared_vector<entity> ents      = serialization::DeserializeArray<entity, shared_vector>(eser, alloc, mats, surfs);
+
+                    return rflite::meta_helper::any_new<scene>(
+                        std::move(mats).as_shared_ptr([e = mats.end()](IMaterial **p) {
+                            while (p != e)
+                                delete p++;
+                            delete[] p;
+                        }),
+                        std::move(surfs).as_shared_ptr([e = surfs.end()](ISurface **p) {
+                            while (p != e)
+                                delete p++;
+                            delete[] p;
+                        }),
+                        std::move(ents), ents.size(), background, alloc);
                 }))
 
-        scene(std::pmr::vector<IMaterial *> mats, std::pmr::vector<ISurface *> surfs,
-              std::pmr::vector<entity> entities, const color3 &background,
+        scene(std::shared_ptr<IMaterial *[]> mats, std::shared_ptr<ISurface *[]> surfs,
+              std::shared_ptr<entity[]> entities, size_t nentities, const color3 &background,
               const allocator_type &alloc)
-            : _materials(std::move(mats), alloc), _surfaces(std::move(surfs), alloc),
-              _aggregate(std::move(entities), alloc), _background(background) { }
+            : _materials(std::move(mats)), _surfaces(std::move(surfs)),
+              _aggregate(entities.get(), nentities, alloc), _background(background) { }
 
         const aggregate &getAggregate() const {
             return _aggregate;

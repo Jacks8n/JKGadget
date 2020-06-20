@@ -41,9 +41,11 @@ RFLITE_NS {
         return has_flag(type, member_type::any_static);
     }
 
-    enum class meta_type : size_t { null,
-                                    entry,
-                                    end };
+    enum class meta_type : size_t {
+        null,
+        entry,
+        end
+    };
 
     template <typename T>
     struct member_traits;
@@ -236,54 +238,64 @@ RFLITE_NS {
             static constexpr auto value = impl<T, sub_type_pack_t<0, N, Ts...>, sub_type_pack_t<N, sizeof...(Ts) - N, Ts...>>::type::value;
         };
     };
+}
 
+RFLITE_IMPL_NS {
     template <typename T, size_t S>
-    requires(sizeof(T) == S) class any_defer {
-        ::std::aligned_storage_t<S, alignof(T)> _mem;
+    requires(sizeof(T) == S) class alignas(alignof(T)) any_defer_impl {
+        char _mem[S];
 
       public:
-        any_defer(const any_defer &o) noexcept {
-            new (&_mem) T(o._mem);
+        any_defer_impl(const any_defer_impl &o) noexcept {
+            new (&_mem) T(o.operator const T &());
         }
-        any_defer(any_defer &&o) noexcept {
-            new (&_mem) T(::std::move(o._mem));
+        any_defer_impl(any_defer_impl &&o) noexcept {
+            new (&_mem) T(::std::move(o).operator T &&());
         }
+
         template <typename... Ts>
-        any_defer(Ts &&... args) noexcept {
+        requires(((sizeof...(Ts) > 0) ^ (::std::is_same_v<::std::remove_cvref_t<Ts>, T> && ...)) != 0)
+            any_defer_impl(Ts &&... args) noexcept {
             new (&_mem) T(::std::forward<Ts>(args)...);
         }
 
-        any_defer &operator=(const any_defer &o) {
+        any_defer_impl &operator=(const any_defer_impl &o) {
             operator T &() = o.operator const T &();
             return *this;
         }
-        any_defer &operator=(any_defer &&o) noexcept {
+        any_defer_impl &operator=(any_defer_impl &&o) noexcept {
             operator T &&() = o.operator T &&();
             return *this;
         }
 
         operator T &() &noexcept {
-            return *reinterpret_cast<T *>(&_mem);
+            return *reinterpret_cast<T *>(this);
         }
         operator const T &() const &noexcept {
-            return *reinterpret_cast<const T *>(&_mem);
+            return *reinterpret_cast<const T *>(this);
         }
         operator T &&() &&noexcept {
-            return ::std::move(*reinterpret_cast<T *>(&_mem));
+            return ::std::move(*reinterpret_cast<T *>(this));
         }
 
-        T *operator->() {
-            return reinterpret_cast<T *>(&_mem);
+        T *
+        operator->() {
+            return reinterpret_cast<T *>(this);
         }
         const T *operator->() const {
-            return reinterpret_cast<const T *>(&_mem);
+            return reinterpret_cast<const T *>(this);
         }
     };
+}
+
+RFLITE_NS {
+    template <typename T>
+    using any_defer = RFLITE_IMPL any_defer_impl<T, sizeof(T)>;
 
     struct meta_helper {
         template <typename T, typename... Ts>
-        static any_defer<T, sizeof(T)> any_ins(Ts &&... ts) noexcept {
-            return any_defer<T, sizeof(T)>(::std::forward<Ts>(ts)...);
+        static any_defer<T> any_ins(Ts &&... ts) noexcept {
+            return any_defer<T>(::std::forward<Ts>(ts)...);
         }
 
         template <typename T, typename... Ts>

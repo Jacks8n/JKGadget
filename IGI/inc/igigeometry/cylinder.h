@@ -8,6 +8,19 @@ namespace igi {
         single _zMax;
 
       public:
+        META_BE_RT(cylinder, ser_pmr_name_a("cylinder"), deser_pmr_func_a<ISurface>([](const serializer_t &ser, const ser_allocator_t<char> &alloc) {
+                       IGI_SERIALIZE_OPTIONAL(single, r, 1_sg, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, zmin, .5_sg, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, zmax, .5_sg, ser);
+
+                       using allocator = std::allocator_traits<ser_allocator_t<cylinder>>;
+
+                       ser_allocator_t<cylinder> a(alloc);
+                       cylinder *p = allocator::allocate(a, 1);
+                       allocator::construct(a, p, r, zmin, zmax);
+                       return p;
+                   }))
+
         cylinder(single r, single zMin, single zMax)
             : _r(r), _zMin(zMin), _zMax(zMax) {
             if (Lesscf(_zMax, _zMin))

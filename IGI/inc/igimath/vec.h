@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include "igimath/matrix.h"
+#include "serialize.h"
 
 namespace igi {
     template <typename T, size_t N>
@@ -9,9 +10,20 @@ namespace igi {
         using matrix_base<T, N, 1>::matrix_base;
 
       public:
+        META_BE(matrix, rflite::func_a([](const serializer_t &ser) {
+                    if (!ser.IsArray() || ser.Size() != N)
+                        throw;
+
+                    rflite::any_defer<matrix> res = rflite::meta_helper::any_ins<matrix>();
+
+                    size_t n = 0;
+                    for (auto i = ser.Begin(); i != ser.End(); ++i)
+                        new (&res->operator[](n++)) T(serialization::Deserialize<T>(*i));
+                    return res;
+                }))
+
         constexpr matrix(const matrix<T, N - 1, 1> &v, const T &c)
             : matrix_base<T, N, 1>([&](size_t i, size_t j) constexpr { return i < N - 1 ? v[i] : c; }) { }
-
         explicit constexpr matrix(const matrix<T, N + 1, 1> &v)
             : matrix_base<T, N, 1>([&](size_t i, size_t j) constexpr { return v[i]; }) { }
 

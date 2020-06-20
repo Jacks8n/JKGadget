@@ -25,112 +25,112 @@
         return RFLITE meta_type::type;                           \
     }
 
-#define META_B(_type, ...)                                                                                            \
-    template <size_t, typename>                                                                                       \
-    friend class RFLITE_META_INFO;                                                                                    \
-    template <size_t Id, typename Base = RFLITE_IMPL try_get_base_t<_type>>                                           \
-    class RFLITE_META_INFO {                                                                                          \
-        RFLITE_META_TYPE(null)                                                                                        \
-                                                                                                                      \
-      public:                                                                                                         \
-        using class_t = _type;                                                                                        \
-        using base_t  = Base;                                                                                         \
-    };                                                                                                                \
-    template <typename Base>                                                                                          \
-    class RFLITE_META_INFO<__LINE__, Base> {                                                                          \
-        RFLITE_META_TYPE(null)                                                                                        \
-                                                                                                                      \
-      public:                                                                                                         \
-        using class_t = _type;                                                                                        \
-                                                                                                                      \
-      private:                                                                                                        \
-        template <size_t Nth, size_t Lo = __LINE__>                                                                   \
-        static constexpr auto get_nth_meta_impl() noexcept {                                                          \
-            constexpr RFLITE meta_type type = RFLITE_META_INFO<Lo>::get_meta_type();                                  \
-            if constexpr (type == RFLITE meta_type::entry)                                                            \
-                if constexpr (Nth > 0)                                                                                \
-                    return get_nth_meta_impl<Nth - 1, Lo + 1>();                                                      \
-                else                                                                                                  \
-                    return class_t::RFLITE_META_INFO<Lo>();                                                           \
-            else if constexpr (type == RFLITE meta_type::null)                                                        \
-                return get_nth_meta_impl<Nth, Lo + 1>();                                                              \
-            else                                                                                                      \
-                return RFLITE_META_INFO();                                                                            \
-        }                                                                                                             \
-                                                                                                                      \
-        template <size_t Lo = __LINE__, typename... Ts>                                                               \
-        static constexpr auto get_meta_all_impl(::std::tuple<Ts...> t) noexcept {                                     \
-            constexpr auto nthinfo = get_nth_meta_impl<0, Lo>();                                                      \
-            if constexpr (nthinfo.get_meta_type() == RFLITE meta_type::entry)                                         \
-                return get_meta_all_impl<nthinfo.get_id() + 1>(::std::tuple<Ts..., decltype(nthinfo)>());             \
-            else                                                                                                      \
-                return t;                                                                                             \
-        }                                                                                                             \
-                                                                                                                      \
-        static constexpr size_t get_meta_id_impl(::std::string_view member, ::std::tuple<>) noexcept {                \
-            return RFLITE_IMPL meta_null_id;                                                                          \
-        }                                                                                                             \
-                                                                                                                      \
-        template <typename T, typename... Ts>                                                                         \
-        static constexpr size_t get_meta_id_impl(::std::string_view member, ::std::tuple<T, Ts...>) noexcept {        \
-            return T::member_name() == member ? T::get_id() : get_meta_id_impl(member, ::std::tuple<Ts...>());        \
-        }                                                                                                             \
-                                                                                                                      \
-        template <RFLITE member_type Member, typename Fn>                                                             \
-        static constexpr ::std::tuple<> foreach_impl(Fn &&fn, ::std::tuple<>) noexcept {                              \
-            return ::std::tuple<>();                                                                                  \
-        }                                                                                                             \
-                                                                                                                      \
-        template <RFLITE member_type Member, typename Fn, typename TMeta, typename... TMetas>                         \
-        static constexpr auto foreach_impl(Fn &&fn, ::std::tuple<TMeta, TMetas...>) {                                 \
-            if constexpr (RFLITE has_flag(Member, RFLITE member_ptr_type_v<decltype(TMeta::member_ptr())>)) {         \
-                if constexpr (::std::is_same_v<void, decltype(fn(TMeta()))>)                                          \
-                    fn(TMeta());                                                                                      \
-                else                                                                                                  \
-                    return ::std::tuple_cat(fn(TMeta()),                                                              \
-                                            foreach_impl<Member>(::std::forward<Fn>(fn), ::std::tuple<TMetas...>())); \
-            }                                                                                                         \
-            return foreach_impl<Member>(::std::forward<Fn>(fn), ::std::tuple<TMetas...>());                           \
-        }                                                                                                             \
-                                                                                                                      \
-      public:                                                                                                         \
-        using base_t = Base;                                                                                          \
-                                                                                                                      \
-        static constexpr auto attributes = RFLITE_IMPL make_attributes<class_t>(__VA_ARGS__);                         \
-                                                                                                                      \
-        static constexpr ::std::string_view name() noexcept {                                                         \
-            return #_type;                                                                                            \
-        }                                                                                                             \
-                                                                                                                      \
-        template <size_t Nth>                                                                                         \
-        static constexpr auto get_nth_meta() noexcept {                                                               \
-            return get_nth_meta_impl<Nth>();                                                                          \
-        }                                                                                                             \
-                                                                                                                      \
-        static constexpr auto get_meta_all() noexcept {                                                               \
-            return get_meta_all_impl(::std::tuple<>());                                                               \
-        }                                                                                                             \
-                                                                                                                      \
-        static constexpr size_t get_meta_id(::std::string_view member) noexcept {                                     \
-            return get_meta_id_impl(member, get_meta_all());                                                          \
-        }                                                                                                             \
-                                                                                                                      \
-        static constexpr size_t get_meta_count() noexcept {                                                           \
-            return ::std::tuple_size_v<decltype(get_meta_all())>;                                                     \
-        }                                                                                                             \
-                                                                                                                      \
-        template <RFLITE member_type Member = RFLITE member_type::field, typename Fn>                                 \
-        static constexpr decltype(auto) foreach(Fn &&fn) {                                                            \
-            return foreach_impl<Member>(::std::forward<Fn>(fn), get_meta_all());                                      \
-        }                                                                                                             \
-                                                                                                                      \
-        template <RFLITE member_type Member = RFLITE member_type::field, typename TCallback>                          \
-        static constexpr decltype(auto) find_meta(::std::string_view member, TCallback &&callback) {                  \
-            return foreach<Member>([&](auto &&meta) {                                                                 \
-                if (meta.member_name() == member)                                                                     \
-                    callback(meta);                                                                                   \
-            });                                                                                                       \
-        }                                                                                                             \
+#define META_B(_type, ...)                                                                                               \
+    template <size_t, typename>                                                                                          \
+    friend class RFLITE_META_INFO;                                                                                       \
+    template <size_t, typename _Base = RFLITE_IMPL try_get_base_t<_type>>                                                \
+    class RFLITE_META_INFO {                                                                                             \
+        RFLITE_META_TYPE(null)                                                                                           \
+                                                                                                                         \
+      public:                                                                                                            \
+        using class_t = _type;                                                                                           \
+        using base_t  = _Base;                                                                                           \
+    };                                                                                                                   \
+    template <typename _Base>                                                                                            \
+    class RFLITE_META_INFO<__LINE__, _Base> {                                                                            \
+        RFLITE_META_TYPE(null)                                                                                           \
+                                                                                                                         \
+      public:                                                                                                            \
+        using class_t = _type;                                                                                           \
+                                                                                                                         \
+      private:                                                                                                           \
+        template <size_t _Nth, size_t _Lo = __LINE__>                                                                    \
+        static constexpr auto get_nth_meta_impl() noexcept {                                                             \
+            constexpr RFLITE meta_type type = RFLITE_META_INFO<_Lo>::get_meta_type();                                    \
+            if constexpr (type == RFLITE meta_type::entry)                                                               \
+                if constexpr (_Nth > 0)                                                                                  \
+                    return get_nth_meta_impl<_Nth - 1, _Lo + 1>();                                                       \
+                else                                                                                                     \
+                    return class_t::RFLITE_META_INFO<_Lo>();                                                             \
+            else if constexpr (type == RFLITE meta_type::null)                                                           \
+                return get_nth_meta_impl<_Nth, _Lo + 1>();                                                               \
+            else                                                                                                         \
+                return RFLITE_META_INFO();                                                                               \
+        }                                                                                                                \
+                                                                                                                         \
+        template <size_t _Lo = __LINE__, typename... _Ts>                                                                \
+        static constexpr auto get_meta_all_impl(::std::tuple<_Ts...> t) noexcept {                                       \
+            constexpr auto nthinfo = get_nth_meta_impl<0, _Lo>();                                                        \
+            if constexpr (nthinfo.get_meta_type() == RFLITE meta_type::entry)                                            \
+                return get_meta_all_impl<nthinfo.get_id() + 1>(::std::tuple<_Ts..., decltype(nthinfo)>());               \
+            else                                                                                                         \
+                return t;                                                                                                \
+        }                                                                                                                \
+                                                                                                                         \
+        static constexpr size_t get_meta_id_impl(::std::string_view member, ::std::tuple<>) noexcept {                   \
+            return RFLITE_IMPL meta_null_id;                                                                             \
+        }                                                                                                                \
+                                                                                                                         \
+        template <typename _T, typename... _Ts>                                                                          \
+        static constexpr size_t get_meta_id_impl(::std::string_view member, ::std::tuple<_T, _Ts...>) noexcept {         \
+            return _T::member_name() == member ? _T::get_id() : get_meta_id_impl(member, ::std::tuple<_Ts...>());        \
+        }                                                                                                                \
+                                                                                                                         \
+        template <RFLITE member_type _Member, typename _Fn>                                                              \
+        static constexpr ::std::tuple<> foreach_impl(_Fn &&fn, ::std::tuple<>) noexcept {                                \
+            return ::std::tuple<>();                                                                                     \
+        }                                                                                                                \
+                                                                                                                         \
+        template <RFLITE member_type _Member, typename _Fn, typename _TMeta, typename... _TMetas>                        \
+        static constexpr auto foreach_impl(_Fn &&fn, ::std::tuple<_TMeta, _TMetas...>) {                                 \
+            if constexpr (RFLITE has_flag(_Member, RFLITE member_ptr_type_v<decltype(_TMeta::member_ptr())>)) {          \
+                if constexpr (::std::is_same_v<void, decltype(fn(_TMeta()))>)                                            \
+                    fn(_TMeta());                                                                                        \
+                else                                                                                                     \
+                    return ::std::tuple_cat(fn(_TMeta()),                                                                \
+                                            foreach_impl<_Member>(::std::forward<_Fn>(fn), ::std::tuple<_TMetas...>())); \
+            }                                                                                                            \
+            return foreach_impl<_Member>(::std::forward<_Fn>(fn), ::std::tuple<_TMetas...>());                           \
+        }                                                                                                                \
+                                                                                                                         \
+      public:                                                                                                            \
+        using base_t = _Base;                                                                                            \
+                                                                                                                         \
+        static constexpr auto attributes = RFLITE_IMPL make_attributes<class_t>(__VA_ARGS__);                            \
+                                                                                                                         \
+        static constexpr ::std::string_view name() noexcept {                                                            \
+            return #_type;                                                                                               \
+        }                                                                                                                \
+                                                                                                                         \
+        template <size_t _Nth>                                                                                           \
+        static constexpr auto get_nth_meta() noexcept {                                                                  \
+            return get_nth_meta_impl<_Nth>();                                                                            \
+        }                                                                                                                \
+                                                                                                                         \
+        static constexpr auto get_meta_all() noexcept {                                                                  \
+            return get_meta_all_impl(::std::tuple<>());                                                                  \
+        }                                                                                                                \
+                                                                                                                         \
+        static constexpr size_t get_meta_id(::std::string_view member) noexcept {                                        \
+            return get_meta_id_impl(member, get_meta_all());                                                             \
+        }                                                                                                                \
+                                                                                                                         \
+        static constexpr size_t get_meta_count() noexcept {                                                              \
+            return ::std::tuple_size_v<decltype(get_meta_all())>;                                                        \
+        }                                                                                                                \
+                                                                                                                         \
+        template <RFLITE member_type _Member = RFLITE member_type::field, typename _Fn>                                  \
+        static constexpr decltype(auto) foreach(_Fn &&fn) {                                                              \
+            return foreach_impl<_Member>(::std::forward<_Fn>(fn), get_meta_all());                                       \
+        }                                                                                                                \
+                                                                                                                         \
+        template <RFLITE member_type _Member = RFLITE member_type::field, typename _TCallback>                           \
+        static constexpr decltype(auto) find_meta(::std::string_view member, _TCallback &&callback) {                    \
+            return foreach<_Member>([&](auto &&meta) {                                                                   \
+                if (meta.member_name() == member)                                                                        \
+                    callback(meta);                                                                                      \
+            });                                                                                                          \
+        }                                                                                                                \
     };
 
 #define META(member, ...)                                                                     \
@@ -151,19 +151,19 @@
             return &class_t::member;                                                          \
         }                                                                                     \
                                                                                               \
-        template <typename T>                                                                 \
+        template <typename _T>                                                                \
         static constexpr bool is_type() noexcept {                                            \
-            return ::std::is_same_v<T, RFLITE member_ptr_value_t<decltype(member_ptr())>>;    \
+            return ::std::is_same_v<_T, RFLITE member_ptr_value_t<decltype(member_ptr())>>;   \
         }                                                                                     \
                                                                                               \
         static constexpr bool is_function() noexcept {                                        \
             return ::std::is_member_function_pointer_v<decltype(member_ptr())>;               \
         }                                                                                     \
                                                                                               \
-        template <template <typename> typename T>                                             \
+        template <template <typename> typename _T>                                            \
         static constexpr bool satisfy_traits() noexcept {                                     \
             using member_t = RFLITE member_ptr_value_t<decltype(member_ptr())>;               \
-            return T<member_t>::value;                                                        \
+            return _T<member_t>::value;                                                       \
         }                                                                                     \
                                                                                               \
       private:                                                                                \
@@ -172,14 +172,14 @@
         }                                                                                     \
                                                                                               \
       public:                                                                                 \
-        template <typename... T>                                                              \
-        static constexpr decltype(auto) map(T &&... t) noexcept {                             \
-            return get_member_traits().map(::std::forward<T>(t)..., member_ptr());            \
+        template <typename... _T>                                                             \
+        static constexpr decltype(auto) map(_T &&... t) noexcept {                            \
+            return get_member_traits().map(::std::forward<_T>(t)..., member_ptr());           \
         }                                                                                     \
                                                                                               \
-        template <typename... Ts>                                                             \
-        static constexpr decltype(auto) invoke(Ts &&... ts) {                                 \
-            return get_member_traits().invoke(member_ptr(), ::std::forward<Ts>(ts)...);       \
+        template <typename... _Ts>                                                            \
+        static constexpr decltype(auto) invoke(_Ts &&... ts) {                                \
+            return get_member_traits().invoke(member_ptr(), ::std::forward<_Ts>(ts)...);      \
         }                                                                                     \
     };
 
@@ -189,7 +189,7 @@
         RFLITE_META_TYPE(end)                 \
     };
 
-#define META_BE(type, ...) \
+#define META_BE(type, ...)    \
     META_B(type, __VA_ARGS__) \
     META_E
 

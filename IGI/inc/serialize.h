@@ -7,18 +7,24 @@
 namespace igi {
     using serializer_t = rapidjson::Value;
 
-    struct serialize_name_a : rflite::attribute<serialize_name_a> {
+    template <typename T>
+    using ser_allocator_t = std::pmr::polymorphic_allocator<T>;
+
+    struct ser_pmr_name_a : rflite::attribute<ser_pmr_name_a> {
         std::string_view name;
 
-        explicit constexpr serialize_name_a(std::string_view name) : name(name) { }
+        explicit constexpr ser_pmr_name_a(std::string_view name) : name(name) { }
     };
+
+    template <typename TBase>
+    using deser_pmr_func_a = rflite::func_a<TBase *(const serializer_t &, const ser_allocator_t<char> &)>;
+
+    template <typename T>
+    concept is_std_allocator = requires { typename std::allocator_traits<std::remove_cvref_t<T>>; };
 
     class serialization {
       public:
-        using allocator_type = std::pmr::polymorphic_allocator<char>;
-
-        template <typename T>
-        using pure_pm_deser_a = rflite::func_a<T *(const serializer_t &, const allocator_type &)>;
+        static constexpr void *allocator_null = nullptr;
 
         template <typename T, typename TIStream, typename TAlloc>
         static T DeserializeStream(TIStream &&input, TAlloc &&alloc) {
@@ -35,7 +41,7 @@ namespace igi {
             return Deserialize<T>(doc.ParseInsitu(buf).GetObject(), std::forward<TAlloc>(alloc));
         }
 
-        template <rflite::has_meta T, typename TAlloc, typename... TArgs>
+        template <rflite::has_meta T, is_std_allocator TAlloc, typename... TArgs>
         static decltype(auto) Deserialize(const serializer_t &ser, TAlloc &&alloc, TArgs &&... args) {
             constexpr auto ctor = rflite::meta_of<T>::attributes.template get<rflite::func_a>();
 
@@ -44,13 +50,14 @@ namespace igi {
                 rflite::foreach_meta_of<typename decltype(ctor)::args_t>(
                     [&]<typename TMeta>(const TMeta &meta) {
                         using type = rflite::remove_null_meta_t<TMeta>;
+
                         if constexpr (rflite::is_null_meta_v<TMeta>) {
                             if constexpr (std::is_same_v<const serializer_t &, type>)
                                 return std::cref(ser);
-                            else if constexpr (std::is_convertible_v<decltype(alloc), type>)
+                            else if constexpr (is_std_allocator<type> && std::is_convertible_v<decltype(alloc), type>)
                                 return std::cref(alloc);
                             else {
-                                constexpr size_t index = rflite::index_of_first_v<true, std::is_convertible_v<type, TArgs &&>...>;
+                                constexpr size_t index = rflite::index_of_first_v<true, std::is_convertible_v<TArgs &&, type>...>;
                                 if constexpr (index < sizeof...(TArgs))
                                     return std::get<index>(std::forward_as_tuple(std::forward<TArgs>(args)...));
                                 else
@@ -60,6 +67,26 @@ namespace igi {
                         else
                             static_assert(sizeof(TMeta) < 0, "Unable to match some arguments");
                     }));
+        }
+
+        template <typename T, typename... TArgs>
+        static decltype(auto) Deserialize(const serializer_t &ser, TArgs &&... args) {
+            return Deserialize<T>(ser, allocator_null, std::forward<TArgs>(args)...);
+        }
+
+        template <>
+        static decltype(auto) Deserialize<int>(const serializer_t &ser) {
+            return ser.GetInt();
+        }
+
+        template <>
+        static decltype(auto) Deserialize<float>(const serializer_t &ser) {
+            return ser.GetFloat();
+        }
+
+        template <>
+        static decltype(auto) Deserialize<double>(const serializer_t &ser) {
+            return ser.GetDouble();
         }
 
         template <typename T, typename TAlloc>
@@ -85,7 +112,11 @@ namespace igi {
                 throw;
 
             return DeserializeArray_impl<T, TContainer>(ser, alloc, [&](const serializer_t &s) {
-                return Deserialize<T>(s, alloc, std::forward<TArgs>(args)...);
+                decltype(auto) deser = Deserialize<T>(s, alloc, std::forward<TArgs>(args)...);
+                if constexpr (std::is_reference_v<decltype(deser)>)
+                    return T(deser);
+                else
+                    return T(static_cast<T &&>(std::move(deser)));
             });
         }
 
@@ -102,25 +133,27 @@ namespace igi {
 
         template <typename T, typename TIt, typename TAlloc>
         static T *DeserializePmr_impl(TIt lo, TIt hi, const serializer_t &ser, TAlloc &&alloc, std::string_view name) {
-            TIt it = std::find_if(lo, hi, [&](const rflite::refl_class *i) {
-                return i->template get_attr<serialize_name_a>().name == name;
+            // TODO optimization
+            TIt it = std::find_if(lo, hi, [=](const rflite::refl_class *i) {
+                return i->template get_attr<ser_pmr_name_a>().name == name;
             });
             if (it == hi)
                 throw;
 
-            auto ctor = (*it)->template get_attr<pure_pm_deser_a<T>>();
-            return ctor.invoke(ser, static_cast<allocator_type>(alloc));
+            const deser_pmr_func_a &ctor = (*it)->template get_attr<deser_pmr_func_a<T>>();
+            return ctor.invoke(ser, alloc);
         }
 
         template <typename T, template <typename> typename TContainer, typename TAlloc, typename TExPo>
         static TContainer<T> DeserializeArray_impl(const serializer_t &ser, TAlloc &&alloc, TExPo &&policy) {
             TContainer<T> arr(ser.Size(), alloc);
             for (auto i = ser.Begin(); i != ser.End(); ++i)
-                arr.push_back(policy(*i));
+                arr.emplace_back(policy(*i));
             return arr;
         }
     };
-
-    template <typename T>
-    using pure_pm_deser_a = typename serialization::template pure_pm_deser_a<T>;
 }  // namespace igi
+
+#define IGI_SERIALIZE_OPTIONAL(type, name, _default, ser, ...) \
+    bool has_##name = ser.HasMember(#name);                    \
+    type name       = has_##name ? ::igi::serialization::Deserialize<type>(ser[#name], __VA_ARGS__) : (_default)

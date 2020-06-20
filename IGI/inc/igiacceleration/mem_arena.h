@@ -97,7 +97,7 @@ namespace igi {
             return alloc ? alloc : _chunks.allocChunk(_Bytes, _Align).alloc(_Bytes);
         }
 
-        void do_deallocate(void *_Ptr, size_t _Bytes, size_t _Align) override { }
+        void do_deallocate(void *_Ptr, size_t _Bytes, size_t _Align) override { throw; }
 
         bool do_is_equal(const memory_resource &_That) const noexcept override {
             return &_That == this;

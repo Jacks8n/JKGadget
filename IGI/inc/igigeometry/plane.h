@@ -2,7 +2,8 @@
 #include "igimath/quaternion.h"
 
 namespace igi {
-    class plane : public ISurface {
+    // TODO
+    class [[deprecated]] plane : public ISurface {
         vec3f _origin;
         vec3f _normal;
         vec3f _tangentU, _tangentV;

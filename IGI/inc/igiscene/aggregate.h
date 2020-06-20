@@ -63,17 +63,13 @@ namespace igi {
         aggregate(aggregate &&o, const allocator_type &alloc)
             : _nodes(std::move(o._nodes), alloc), _leaves(o._leaves, alloc) { }
 
-        template <typename T,
-                  std::enable_if_t<!std::is_same_v<aggregate, std::remove_reference_t<T>>, int> = 0>
-        aggregate(T &&entities, const allocator_type &alloc)
-            : aggregate(entities, alloc, alloc) { }
-
-        template <typename T>
-        aggregate(T &&entities, const allocator_type &alloc,
-                  const allocator_type &tempAlloc)
-            : _nodes(alloc), _leaves(entities.size(), alloc) {
-            initBuild(std::forward<T>(entities), tempAlloc);
+        template <typename TIt>
+        aggregate(TIt &&entities, size_t n, const allocator_type &alloc, const allocator_type &tempAlloc)
+            : _nodes(alloc), _leaves(n, alloc) {
+            initBuild(std::forward<TIt>(entities), n, tempAlloc);
         }
+        template <typename TIt>
+        aggregate(TIt &&entities, size_t n, const allocator_type &alloc) : aggregate(std::forward<TIt>(entities), n, alloc, alloc) { }
 
         aggregate &operator=(const aggregate &) = delete;
         aggregate &operator=(aggregate &&) = delete;
@@ -96,13 +92,13 @@ namespace igi {
 
         void initBuild(allocator_type tempAlloc);
 
-        template <typename T>
-        void initBuild(T entities, allocator_type alloc) {
-            if (!entities.size()) return;
-            std::move(leaf_getter(entities.begin()), leaf_getter(entities.end()), _leaves.begin());
+        template <typename TIt>
+        void initBuild(TIt &&entities, size_t n, allocator_type alloc) {
+            if (!n) return;
+            std::uninitialized_move_n(leaf_getter(entities), n, _leaves.begin());
 
-            if (entities.size() < 3) {
-                if (entities.size() == 1)
+            if (n < 3) {
+                if (n == 1)
                     _nodes.emplace_back(true, 0, false, 0, _leaves[0].bound);
                 else {
                     bound_t b = _leaves[0].bound;

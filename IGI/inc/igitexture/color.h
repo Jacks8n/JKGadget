@@ -18,8 +18,10 @@ namespace igi {
 
     class color3 {
       public:
-        META_B(color3, rflite::func_a([](const serializer_t &) {
-                   return rflite::meta_helper::any_new<color3>(1, 1, 1);
+        META_B(color3, rflite::func_a([](const serializer_t &ser) {
+                   return ser.IsArray()
+                              ? rflite::meta_helper::any_ins<color3>(ser[0].GetFloat(), ser[1].GetFloat(), ser[2].GetFloat())
+                              : rflite::meta_helper::any_ins<color3>(ser["r"].GetFloat(), ser["g"].GetFloat(), ser["b"].GetFloat());
                }))
 
         META(r)
