@@ -40,6 +40,12 @@ namespace igi {
       public:
         using allocator_type = std::pmr::polymorphic_allocator<T>;
 
+        META_BE(texture, rflite::func_a([](const serializer_t &ser, const allocator_type &alloc) {
+                    size_t w = serialization::Deserialize<size_t>(ser["width"]);
+                    size_t h = serialization::Deserialize<size_t>(ser["height"]);
+                    return rflite::meta_helper::any_ins<texture>(w, h, alloc);
+                }))
+
         texture(const texture &o, const allocator_type &alloc)
             : _alloc(alloc), _buf(AllocBuffer(w, h, _alloc)), _w(o._w), _h(o._h) {
             std::copy(&o.get(0, 0), &o.get(_w, _h), &get(0, 0));

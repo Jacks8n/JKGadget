@@ -1,6 +1,6 @@
 ﻿#include "igiintegrator/path_trace.h"
 
-igi::color3 igi::path_trace::integrate_impl(const vec3f &o, const interaction &interaction,
+igi::color3 igi::path_trace::integrate_impl(const scene &scene, const vec3f &o, const interaction &interaction,
                                             size_t depth, integrator_context &context) const {
     std::uniform_real_distribution<single> urd;
 
@@ -34,8 +34,8 @@ igi::color3 igi::path_trace::integrate_impl(const vec3f &o, const interaction &i
 
         pint += scat.pdf;
         r.reset(surf.position, scat.direction);
-        if (_scene.getAggregate().tryHit(r, &ia, context.itrtmp))
-            lint = lint + (integrate_impl(scat.direction, ia, depth - 1, context) * bxdf) * scat.pdf;
+        if (scene.getAggregate().tryHit(r, &ia, context.itrtmp))
+            lint = lint + (integrate_impl(scene, scat.direction, ia, depth - 1, context) * bxdf) * scat.pdf;
     }
 
     if (Equalcf(pint, 0_sg))

@@ -16,8 +16,10 @@ namespace igi {
         explicit constexpr ser_pmr_name_a(std::string_view name) : name(name) { }
     };
 
+    using deser_pmr_allocator_t = ser_allocator_t<char>;
+
     template <typename TBase>
-    using deser_pmr_func_a = rflite::func_a<TBase *(const serializer_t &, const ser_allocator_t<char> &)>;
+    using deser_pmr_func_a = rflite::func_a<TBase *(const serializer_t &, const deser_pmr_allocator_t &)>;
 
     template <typename T>
     concept is_std_allocator = requires { typename std::allocator_traits<std::remove_cvref_t<T>>; };
@@ -25,21 +27,6 @@ namespace igi {
     class serialization {
       public:
         static constexpr void *allocator_null = nullptr;
-
-        template <typename T, typename TIStream, typename TAlloc>
-        static T DeserializeStream(TIStream &&input, TAlloc &&alloc) {
-            rapidjson::Document doc;
-
-            return Deserialize<T>(doc.ParseStream(std::forward<TIStream>(input)).GetObject(),
-                                  std::forward<TAlloc>(alloc));
-        }
-
-        template <typename T, typename TAlloc>
-        static T DeserializeInsitu(char *buf, TAlloc &&alloc) {
-            rapidjson::Document doc;
-
-            return Deserialize<T>(doc.ParseInsitu(buf).GetObject(), std::forward<TAlloc>(alloc));
-        }
 
         template <rflite::has_meta T, is_std_allocator TAlloc, typename... TArgs>
         static decltype(auto) Deserialize(const serializer_t &ser, TAlloc &&alloc, TArgs &&... args) {
@@ -54,8 +41,11 @@ namespace igi {
                         if constexpr (rflite::is_null_meta_v<TMeta>) {
                             if constexpr (std::is_same_v<const serializer_t &, type>)
                                 return std::cref(ser);
-                            else if constexpr (is_std_allocator<type> && std::is_convertible_v<decltype(alloc), type>)
-                                return std::cref(alloc);
+                            else if constexpr (is_std_allocator<type>)
+                                if constexpr (std::is_convertible_v<TAlloc &&, type>)
+                                    return std::cref(alloc);
+                                else
+                                    return std::remove_cvref_t<type>(alloc);
                             else {
                                 constexpr size_t index = rflite::index_of_first_v<true, std::is_convertible_v<TArgs &&, type>...>;
                                 if constexpr (index < sizeof...(TArgs))
@@ -80,6 +70,16 @@ namespace igi {
         }
 
         template <>
+        static decltype(auto) Deserialize<unsigned>(const serializer_t &ser) {
+            return ser.GetUint();
+        }
+
+        template <>
+        static decltype(auto) Deserialize<unsigned long long>(const serializer_t &ser) {
+            return ser.GetUint64();
+        }
+
+        template <>
         static decltype(auto) Deserialize<float>(const serializer_t &ser) {
             return ser.GetFloat();
         }
@@ -92,7 +92,7 @@ namespace igi {
         template <typename T, typename TAlloc>
         static T *DeserializePmr(const serializer_t &ser, TAlloc &&alloc, std::string_view name) {
             std::pmr::vector<const rflite::refl_class *> children = ChildrenOf<T>(alloc);
-            return DeserializePmr_impl(children.begin(), children.end(), ser, std::forward<TAlloc>(alloc), name);
+            return DeserializePmr_impl<T>(children.begin(), children.end(), ser, std::forward<TAlloc>(alloc), name);
         }
 
         template <typename T, template <typename> typename TContainer, typename TAlloc, typename TNamePo>

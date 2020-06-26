@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "const.h"
 #include "igimath/mat4x4f.h"
 #include "igimath/vec.h"
 
@@ -14,6 +15,10 @@ namespace igi {
                     IGI_SERIALIZE_OPTIONAL(vec3f, position, vec3f::One(0_sg), ser);
                     IGI_SERIALIZE_OPTIONAL(vec3f, rotation, vec3f::One(0_sg), ser);
                     IGI_SERIALIZE_OPTIONAL(vec3f, scale, vec3f::One(1_sg), ser);
+
+                    if (has_rotation)
+                        rotation = rotation * Deg2Rad;
+
                     return has_scale ? rflite::meta_helper::any_ins<transform>(position, rotation, scale)
                                      : has_rotation ? rflite::meta_helper::any_ins<transform>(position, rotation)
                                                     : has_position ? rflite::meta_helper::any_ins<transform>(position)

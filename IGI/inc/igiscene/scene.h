@@ -23,7 +23,8 @@ namespace igi {
 
                     IGI_SERIALIZE_OPTIONAL(color3, background, palette::black, ser);
 
-                    constexpr auto policy           = [](const serializer_t &ser) { return ser["type"].GetString(); };
+                    constexpr auto policy = [](const serializer_t &ser) { return ser["type"].GetString(); };
+
                     shared_vector<IMaterial *> mats = serialization::DeserializePmrArray<IMaterial, shared_vector>(mser, alloc, policy);
                     shared_vector<ISurface *> surfs = serialization::DeserializePmrArray<ISurface, shared_vector>(sser, alloc, policy);
                     shared_vector<entity> ents      = serialization::DeserializeArray<entity, shared_vector>(eser, alloc, mats, surfs);

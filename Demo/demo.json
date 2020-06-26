@@ -1,0 +1,49 @@
+{
+  "background": [ 0, 0, 0 ],
+  "camera": {
+    "type": "perspective",
+    "fov": 70
+  },
+  "material": [
+    {
+      "type": "phong"
+    },
+    {
+      "type": "emissive",
+      "energy": "35"
+    }
+  ],
+  "surface": [
+    {
+      "type": "cylinder",
+      "radius": 0.35,
+      "min": -0.35,
+      "max": 0.35
+    },
+    {
+      "type": "sphere",
+      "radius": 1000
+    }
+  ],
+  "entity": [
+    {
+      "material": 0,
+      "surface": 0,
+      "position": [ 0, 0, 2 ],
+      "rotation": [ 45, 45, 45 ]
+    },
+    {
+      "material": 1,
+      "surface": 1,
+      "position": [ -600, 600, -600 ]
+    }
+  ],
+  "film": {
+    "resolution": [ 512, 512 ]
+  },
+  "integrator": {
+    "type": "pathtrace",
+    "reflect": 4,
+    "split": 4
+  }
+}

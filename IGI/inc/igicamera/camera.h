@@ -9,6 +9,8 @@ namespace igi {
         single _near, _far;
 
       public:
+        META_BE_RT(camera_base)
+
         virtual ray getRay(single x, single y) const = 0;
 
       protected:
@@ -27,6 +29,14 @@ namespace igi {
         mat4x4f _v2w;
 
       public:
+        META_BE_RT(camera_orthographic, deser_pmr_func_a<camera_base>([](const serializer_t &ser, const deser_pmr_allocator_t &) {
+                       single w = serialization::Deserialize<single>(ser["width"]);
+                       single h = serialization::Deserialize<single>(ser["height"]);
+                       IGI_SERIALIZE_OPTIONAL(single, near, .1_sg, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, far, 1000_sg, ser);
+                       return rflite::meta_helper::any_new<camera_orthographic>(w, h, near, far);
+                   }))
+
         camera_orthographic(single width, single height, single near = .1_sg, single far = 1000_sg)
             : camera_base(near, far), _width(width), _height(height) {
             calculateV2W();
@@ -54,6 +64,14 @@ namespace igi {
         mat4x4f _v2l;
 
       public:
+        META_BE_RT(camera_perspective, deser_pmr_func_a<camera_base>([](const serializer_t &ser, const deser_pmr_allocator_t &) {
+                       single fov = serialization::Deserialize<single>(ser["fov"]);
+                       IGI_SERIALIZE_OPTIONAL(single, ratio, 1_sg, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, near, .1_sg, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, far, 1000_sg, ser);
+                       return rflite::meta_helper::any_new<camera_perspective>(fov, ratio, near, far);
+                   }))
+
         camera_perspective(single left, single right, single bottom, single top,
                            single near = .1_sg, single far = 1000_sg)
             : camera_base(near, far), _left(left), _right(right), _bottom(bottom), _top(top) {
