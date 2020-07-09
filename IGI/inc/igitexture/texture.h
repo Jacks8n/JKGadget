@@ -46,12 +46,12 @@ namespace igi {
                     return rflite::meta_helper::any_ins<texture>(w, h, alloc);
                 }))
 
+        texture(texture &&o)
+            : _alloc(std::move(o._alloc)), _buf(std::move(o._buf)), _w(o._w), _h(o._h) { }
         texture(const texture &o, const allocator_type &alloc)
             : _alloc(alloc), _buf(AllocBuffer(w, h, _alloc)), _w(o._w), _h(o._h) {
             std::copy(&o.get(0, 0), &o.get(_w, _h), &get(0, 0));
         }
-        texture(texture &&o, const allocator_type &alloc)
-            : _alloc(alloc), _buf(std::move(o._buf)), _w(o._w), _h(o._h) { }
         texture(size_t w, size_t h, const allocator_type &alloc)
             : _alloc(alloc), _buf(AllocBuffer(w, h, _alloc)), _w(w), _h(h) { }
 

@@ -65,18 +65,12 @@ namespace igi {
 
       public:
         META_BE_RT(camera_perspective, deser_pmr_func_a<camera_base>([](const serializer_t &ser, const deser_pmr_allocator_t &) {
-                       single fov = serialization::Deserialize<single>(ser["fov"]);
+                       IGI_SERIALIZE_OPTIONAL(single, fov, 70_sg, ser);
                        IGI_SERIALIZE_OPTIONAL(single, ratio, 1_sg, ser);
                        IGI_SERIALIZE_OPTIONAL(single, near, .1_sg, ser);
                        IGI_SERIALIZE_OPTIONAL(single, far, 1000_sg, ser);
                        return rflite::meta_helper::any_new<camera_perspective>(fov, ratio, near, far);
                    }))
-
-        camera_perspective(single left, single right, single bottom, single top,
-                           single near = .1_sg, single far = 1000_sg)
-            : camera_base(near, far), _left(left), _right(right), _bottom(bottom), _top(top) {
-            calculateV2L();
-        }
 
         camera_perspective(single fov, single ratio, single near = .1_sg, single far = 1000_sg)
             : camera_base(near, far) {

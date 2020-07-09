@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <assert.h>
 #include <memory>
@@ -18,10 +18,10 @@ namespace igi {
 
         template <typename TAlloc>
         shared_vector(size_t n, TAlloc &&alloc)
-            : _buf(std::allocator_traits<TAlloc>::allocate(alloc, n)), _end(_buf.get() + n), _cap(n) { }
-        template <typename TAlloc, typename TD>
-        shared_vector(size_t n, TAlloc &&alloc, TD &&dtor)
-            : _buf(std::allocator_traits<TAlloc>::allocate(alloc, n), std::forward<TD>(dtor)), _end(_buf.get() + n), _cap(n) { }
+            : _buf(std::allocator_traits<std::remove_reference_t<TAlloc>>::allocate(alloc, n)), _end(_buf.get() + n), _cap(n) { }
+        template <typename TAlloc, typename TDtor>
+        shared_vector(size_t n, TAlloc &&alloc, TDtor &&dtor)
+            : _buf(std::allocator_traits<std::remove_reference_t<TAlloc>>::allocate(alloc, n), std::forward<TDtor>(dtor)), _end(_buf.get() + n), _cap(n) { }
 
         iterator begin() {
             return _buf.get();

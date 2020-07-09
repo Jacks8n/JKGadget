@@ -300,7 +300,11 @@ RFLITE_NS {
 
         template <typename T, typename... Ts>
         static T *any_new(Ts &&... ts) noexcept {
-            void *ptr = new ::std::aligned_storage_t<sizeof(T), alignof(T)>();
+            struct alignas(alignof(T)) storage {
+                char _[sizeof(T)];
+            };
+
+            void *ptr = new storage();
             return new (ptr) T(::std::forward<Ts>(ts)...);
         }
     };

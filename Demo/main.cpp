@@ -30,20 +30,28 @@ int main() {
     //    .rotation(igi::vec3f(igi::ToRad(45), igi::ToRad(45), igi::ToRad(45)))
     //    .translation(igi::vec3f(0, 0, 2));
 
-    std::fstream f("demo.json");
-
-    rapidjson::Document doc;
-    doc.ParseStream(f);
-
     igi::mem_arena arena;
     std::pmr::polymorphic_allocator<char> alloc(&arena);
+
+    std::ifstream fs("demo.json");
+
+    fs.seekg(0, std::ios_base::end);
+    size_t nbuf  = fs.tellg();
+    fs.seekg(0);
+
+    char *config = alloc.allocate(nbuf);
+    fs.read(config, nbuf);
+    fs.close();
+
+    rapidjson::Document doc;
+    doc.ParseInsitu(config);
 
     const auto &camProp   = doc["camera"];
     igi::camera_base *cam = igi::serialization::DeserializePmr<igi::camera_base>(camProp, alloc, camProp["type"].GetString());
 
     igi::scene *demo     = igi::serialization::Deserialize<igi::scene>(doc, alloc);
     igi::path_trace pt   = igi::serialization::Deserialize<igi::path_trace>(doc);
-    igi::texture_rgb res = igi::serialization::Deserialize<igi::texture_rgb>(doc);
+    igi::texture_rgb res = igi::serialization::Deserialize<igi::texture_rgb>(doc, alloc);
 
     //run<1024, igi::path_trace>(  // sample 1024 times per pixel, using path_tracing
     //    "demo.png",              // output to demo.png

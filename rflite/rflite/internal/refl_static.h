@@ -199,6 +199,27 @@ RFLITE_NS {
 
     template <typename T>
     concept has_meta = requires { typename has_meta_impl<T::template RFLITE_META_INFO>; };
+
+    template <typename T>
+    struct null_meta {
+        using class_t = T;
+    };
+
+    template <typename T>
+    struct null_meta_traits : ::std::false_type {
+        using type = T;
+    };
+
+    template <typename T>
+    struct null_meta_traits<null_meta<T>> : ::std::true_type {
+        using type = T;
+    };
+
+    template <typename T>
+    constexpr bool is_null_meta_v = null_meta_traits<T>::value;
+
+    template <typename T>
+    using remove_null_meta_t = typename null_meta_traits<T>::type;
 }
 
 RFLITE_IMPL_NS {
@@ -219,19 +240,6 @@ RFLITE_IMPL_NS {
     using try_get_base_t = typename try_get_base<T>::type;
 
     template <typename T>
-    struct null_meta { };
-
-    template <typename T>
-    struct null_meta_traits : ::std::false_type {
-        using type = T;
-    };
-
-    template <typename T>
-    struct null_meta_traits<null_meta<T>> : ::std::true_type {
-        using type = T;
-    };
-
-    template <typename T>
     struct meta_of_impl {
         using type = null_meta<T>;
     };
@@ -246,12 +254,6 @@ RFLITE_IMPL_NS {
 }
 
 RFLITE_NS {
-    template <typename T>
-    constexpr bool is_null_meta_v = RFLITE_IMPL null_meta_traits<T>::value;
-
-    template <typename T>
-    using remove_null_meta_t = typename RFLITE_IMPL null_meta_traits<T>::type;
-
     // meta of literal
     template <typename T>
     using meta_of_l = typename RFLITE_IMPL meta_of_impl<T>::type;

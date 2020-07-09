@@ -2,6 +2,7 @@
 
 #include <memory_resource>
 #include "rapidjson/document.h"
+#include "rapidjson/filereadstream.h"
 #include "rflite/rflite.h"
 
 namespace igi {
@@ -22,7 +23,7 @@ namespace igi {
     using deser_pmr_func_a = rflite::func_a<TBase *(const serializer_t &, const deser_pmr_allocator_t &)>;
 
     template <typename T>
-    concept is_std_allocator = requires { typename std::allocator_traits<std::remove_cvref_t<T>>; };
+    concept is_std_allocator = requires { typename std::allocator_traits<T>; };
 
     class serialization {
       public:
@@ -36,26 +37,26 @@ namespace igi {
                 [=]<typename... Ts>(Ts && ... ts) { return ctor.invoke(std::forward<Ts>(ts)...); },
                 rflite::foreach_meta_of<typename decltype(ctor)::args_t>(
                     [&]<typename TMeta>(const TMeta &meta) {
-                        using type = rflite::remove_null_meta_t<TMeta>;
+                        using type = typename TMeta::class_t;
 
-                        if constexpr (rflite::is_null_meta_v<TMeta>) {
-                            if constexpr (std::is_same_v<const serializer_t &, type>)
-                                return std::cref(ser);
-                            else if constexpr (is_std_allocator<type>)
-                                if constexpr (std::is_convertible_v<TAlloc &&, type>)
-                                    return std::cref(alloc);
-                                else
-                                    return std::remove_cvref_t<type>(alloc);
-                            else {
-                                constexpr size_t index = rflite::index_of_first_v<true, std::is_convertible_v<TArgs &&, type>...>;
-                                if constexpr (index < sizeof...(TArgs))
-                                    return std::get<index>(std::forward_as_tuple(std::forward<TArgs>(args)...));
-                                else
-                                    static_assert(sizeof(TMeta) < 0, "Unable to match some arguments");
-                            }
+                        // 1st priority: exact matching of `const serializer &`
+                        if constexpr (std::is_same_v<const serializer_t &, type>)
+                            return std::cref(ser);
+                        // 2nd priority: any allocator satisfying `is_std_allocator`
+                        else if constexpr (is_std_allocator<std::remove_cvref_t<type>>)
+                            if constexpr (std::is_const_v<type>)
+                                return std::cref(static_cast<type>(alloc));
+                            else
+                                return std::ref(static_cast<type>(alloc));
+                        else {
+                            constexpr size_t index = rflite::index_of_first_v<true, std::is_convertible_v<TArgs &&, type>...>;
+
+                            // 3rd priority: try converting from `args`
+                            if constexpr (index < sizeof...(TArgs))
+                                return std::get<index>(std::forward_as_tuple(std::forward<TArgs>(args)...));
+                            else
+                                static_assert(sizeof(TMeta) < 0, "Unable to match some arguments");
                         }
-                        else
-                            static_assert(sizeof(TMeta) < 0, "Unable to match some arguments");
                     }));
         }
 
@@ -140,7 +141,7 @@ namespace igi {
             if (it == hi)
                 throw;
 
-            const deser_pmr_func_a &ctor = (*it)->template get_attr<deser_pmr_func_a<T>>();
+            const deser_pmr_func_a<T> &ctor = (*it)->template get_attr<deser_pmr_func_a<T>>();
             return ctor.invoke(ser, alloc);
         }
 
