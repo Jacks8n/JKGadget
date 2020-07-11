@@ -254,7 +254,7 @@ RFLITE_IMPL_NS {
         }
 
         template <typename... Ts>
-        requires(((sizeof...(Ts) > 0) ^ (::std::is_same_v<::std::remove_cvref_t<Ts>, T> && ...)) != 0)
+        requires(sizeof...(Ts) != 1 || ((!::std::is_same_v<::std::remove_cvref_t<Ts>, T> && !::std::is_same_v<Ts, const any_defer_impl &> && !::std::is_same_v<Ts, any_defer_impl &&>)&&...))
             any_defer_impl(Ts &&... args) noexcept {
             new (&_mem) T(::std::forward<Ts>(args)...);
         }
@@ -264,22 +264,21 @@ RFLITE_IMPL_NS {
             return *this;
         }
         any_defer_impl &operator=(any_defer_impl &&o) noexcept {
-            operator T &&() = o.operator T &&();
+            operator T &() = o.operator T &&();
             return *this;
         }
 
         operator T &() &noexcept {
             return *reinterpret_cast<T *>(this);
         }
-        operator const T &() const &noexcept {
+        operator T() const noexcept {
             return *reinterpret_cast<const T *>(this);
         }
         operator T &&() &&noexcept {
             return ::std::move(*reinterpret_cast<T *>(this));
         }
 
-        T *
-        operator->() {
+        T *operator->() {
             return reinterpret_cast<T *>(this);
         }
         const T *operator->() const {
