@@ -172,8 +172,7 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
         vec3f diag      = bound_node.getDiagonal();
         size_t maxDim   = MaxIcf(diag[0], diag[1], diag[2]);
         single interval = diag[maxDim];
-        nbin            = getBinCount(curr, interval);
-        single min_node = bound_node.getMin(nbin);
+        single min_node = bound_node.getMin(nbin = getBinCount(curr, interval));
 
         auto [loLeaf, hiLeaf] = curr;
         single binSize        = interval / nbin;
