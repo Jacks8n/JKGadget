@@ -145,9 +145,11 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
 
     size_t nleaves = _leaves.size();
     size_t nbin    = nleaves - 1 > MaxBinCount ? MaxBinCount : nleaves - 1;
+
     std::pmr::vector<bin> bins(nbin, tempAlloc);
     std::pmr::vector<split> splits(nbin - 1, tempAlloc);
     std::pmr::vector<std::pair<sah, sah>> binBounds(nbin - 1, std::make_pair(sah(), sah()), tempAlloc);
+
     std::stack<itr_range_t, std::pmr::vector<itr_range_t>> iterations(tempAlloc);
 
     for (size_t i = 0; i < nbin - 1; i++) {
