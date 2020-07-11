@@ -1,11 +1,17 @@
 ﻿#pragma once
 
 #include <assert.h>
-#include <memory>
+#include <memory_resource>
 
 namespace igi {
     template <typename T>
     class shared_vector {
+      public:
+        using allocator_type = std::pmr::polymorphic_allocator<T>;
+
+      private:
+        allocator_type _alloc;
+
         std::shared_ptr<T[]> _buf;
 
         T *_end;
@@ -16,12 +22,12 @@ namespace igi {
         using iterator       = T *;
         using const_iterator = const T *;
 
-        template <typename TAlloc>
-        shared_vector(size_t n, TAlloc &&alloc)
-            : _buf(std::allocator_traits<std::remove_reference_t<TAlloc>>::allocate(alloc, n)), _end(_buf.get() + n), _cap(n) { }
-        template <typename TAlloc, typename TDtor>
-        shared_vector(size_t n, TAlloc &&alloc, TDtor &&dtor)
-            : _buf(std::allocator_traits<std::remove_reference_t<TAlloc>>::allocate(alloc, n), std::forward<TDtor>(dtor)), _end(_buf.get() + n), _cap(n) { }
+        shared_vector(size_t n, const allocator_type &alloc)
+            : _alloc(alloc),
+              _buf(_alloc.allocate(n), [&](T *p) {
+                  _alloc.deallocate(p, n);
+              }),
+              _end(_buf.get() + n), _cap(n) { }
 
         iterator begin() {
             return _buf.get();
@@ -71,26 +77,26 @@ namespace igi {
             return _buf[i];
         }
 
-        template <typename... Ts>
-        std::shared_ptr<T[]> as_shared_ptr(Ts &&... ts) & {
-            return std::shared_ptr<T[]>(_buf, std::forward<Ts>(ts)...);
+        template <typename TD>
+        void reset(TD &&deleter) {
+            _buf.reset(_buf.get(), deleter);
         }
 
-        template <typename... Ts>
-        std::shared_ptr<T[]> as_shared_ptr(Ts &&... ts) && {
-            _cap = 0;
-            _end = nullptr;
-            return std::shared_ptr<T[]>(std::move(_buf), std::forward<Ts>(ts)...);
-        }
-
-        operator std::shared_ptr<T[]>() & {
+        std::shared_ptr<T[]> as_shared_ptr() const & {
             return _buf;
         }
 
-        operator std::shared_ptr<T[]>() && {
-            _cap = 0;
+        std::shared_ptr<T[]> as_shared_ptr() && {
             _end = nullptr;
             return std::move(_buf);
+        }
+
+        operator std::shared_ptr<T[]>() const & {
+            return as_shared_ptr();
+        }
+
+        operator std::shared_ptr<T[]>() && {
+            return as_shared_ptr();
         }
 
       private:

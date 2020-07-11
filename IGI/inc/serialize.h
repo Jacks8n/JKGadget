@@ -23,13 +23,19 @@ namespace igi {
     using deser_pmr_func_a = rflite::func_a<TBase *(const serializer_t &, const deser_pmr_allocator_t &)>;
 
     template <typename T>
-    concept is_std_allocator = requires { typename std::allocator_traits<T>; };
+    concept is_pointer_c = std::is_pointer_v<T>;
+
+    template <typename T>
+    concept is_std_allocator_c = requires(T &_) {
+        { _.allocate(0) }
+        ->is_pointer_c;
+    };
 
     class serialization {
-      public:
         static constexpr void *allocator_null = nullptr;
 
-        template <rflite::has_meta T, is_std_allocator TAlloc, typename... TArgs>
+      public:
+        template <rflite::has_meta T, typename TAlloc, typename... TArgs>
         static decltype(auto) Deserialize(const serializer_t &ser, TAlloc &&alloc, TArgs &&... args) {
             constexpr auto ctor = rflite::meta_of<T>::attributes.template get<rflite::func_a>();
 
@@ -42,12 +48,9 @@ namespace igi {
                         // 1st priority: exact matching of `const serializer &`
                         if constexpr (std::is_same_v<const serializer_t &, type>)
                             return std::cref(ser);
-                        // 2nd priority: any allocator satisfying `is_std_allocator`
-                        else if constexpr (is_std_allocator<std::remove_cvref_t<type>>)
-                            if constexpr (std::is_const_v<type>)
-                                return std::cref(static_cast<type>(alloc));
-                            else
-                                return std::ref(static_cast<type>(alloc));
+                        // 2nd priority: any allocator satisfying `is_std_allocator_c`
+                        else if constexpr (is_std_allocator_c<std::remove_cvref_t<type>>)
+                            return static_cast<type>(alloc);
                         else {
                             constexpr size_t index = rflite::index_of_first_v<true, std::is_convertible_v<TArgs &&, type>...>;
 
@@ -60,9 +63,9 @@ namespace igi {
                     }));
         }
 
-        template <typename T, typename... TArgs>
-        static decltype(auto) Deserialize(const serializer_t &ser, TArgs &&... args) {
-            return Deserialize<T>(ser, allocator_null, std::forward<TArgs>(args)...);
+        template <typename T>
+        static decltype(auto) Deserialize(const serializer_t &ser) {
+            return Deserialize<T>(ser, allocator_null);
         }
 
         template <>
@@ -113,11 +116,7 @@ namespace igi {
                 throw;
 
             return DeserializeArray_impl<T, TContainer>(ser, alloc, [&](const serializer_t &s) {
-                decltype(auto) deser = Deserialize<T>(s, alloc, std::forward<TArgs>(args)...);
-                if constexpr (std::is_reference_v<decltype(deser)>)
-                    return T(deser);
-                else
-                    return T(static_cast<T &&>(std::move(deser)));
+                return Deserialize<T>(s, alloc, std::forward<TArgs>(args)...);
             });
         }
 

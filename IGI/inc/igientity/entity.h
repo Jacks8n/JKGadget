@@ -13,7 +13,7 @@ namespace igi {
         const IMaterial *_mat = nullptr;
 
       public:
-        META_BE(entity, rflite::func_a([](const serializer_t &ser, const std::pmr::vector<ISurface *> &surfs, const std::pmr::vector<IMaterial *> &mats) {
+        META_BE(entity, rflite::func_a([](const serializer_t &ser, const std::shared_ptr<ISurface *[]> &surfs, const std::shared_ptr<IMaterial *[]> &mats) {
                     transform trans      = serialization::Deserialize<transform>(ser);
                     const ISurface *surf = surfs[serialization::Deserialize<int>(ser["surface"])];
                     const IMaterial *mat = mats[serialization::Deserialize<int>(ser["material"])];

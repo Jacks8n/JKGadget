@@ -29,17 +29,20 @@ namespace igi {
                     shared_vector<ISurface *> surfs = serialization::DeserializePmrArray<ISurface, shared_vector>(sser, alloc, policy);
                     shared_vector<entity> ents      = serialization::DeserializeArray<entity, shared_vector>(eser, alloc, mats, surfs);
 
+                    mats.reset([e = mats.end()](IMaterial **p) {
+                        while (p != e)
+                            delete p++;
+                        delete[] p;
+                    });
+                    surfs.reset([e = surfs.end()](ISurface **p) {
+                        while (p != e)
+                            delete p++;
+                        delete[] p;
+                    });
+
                     return rflite::meta_helper::any_new<scene>(
-                        std::move(mats).as_shared_ptr([e = mats.end()](IMaterial **p) {
-                            while (p != e)
-                                delete p++;
-                            delete[] p;
-                        }),
-                        std::move(surfs).as_shared_ptr([e = surfs.end()](ISurface **p) {
-                            while (p != e)
-                                delete p++;
-                            delete[] p;
-                        }),
+                        std::move(mats).as_shared_ptr(),
+                        std::move(surfs).as_shared_ptr(),
                         std::move(ents), ents.size(), background, alloc);
                 }))
 
