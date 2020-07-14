@@ -27,7 +27,7 @@ namespace igi {
               _buf(_alloc.allocate(n), [&](T *p) {
                   _alloc.deallocate(p, n);
               }),
-              _end(_buf.get() + n), _cap(n) { }
+              _end(_buf.get()), _cap(n) { }
 
         iterator begin() {
             return _buf.get();
@@ -50,7 +50,8 @@ namespace igi {
         }
 
         size_t size() const {
-            return end() - begin();
+            size_t s = end() - begin();
+            return s;
         }
 
         template <typename... Ts>

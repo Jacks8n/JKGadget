@@ -106,7 +106,7 @@ namespace igi {
 
             std::pmr::vector<const rflite::refl_class *> children = ChildrenOf<T>(alloc);
             return DeserializeArray_impl<T *, TContainer>(ser, alloc, [&](const serializer_t &s) {
-                return DeserializePmr_impl<T>(children.begin(), children.end(), ser, alloc, policy(s));
+                return DeserializePmr_impl<T>(children.begin(), children.end(), s, alloc, policy(s));
             });
         }
 
@@ -155,5 +155,5 @@ namespace igi {
 }  // namespace igi
 
 #define IGI_SERIALIZE_OPTIONAL(type, name, _default, ser, ...) \
-    bool has_##name = ser.HasMember(#name);                    \
-    type name       = has_##name ? ::igi::serialization::Deserialize<type>(ser[#name], __VA_ARGS__) : (_default)
+    bool has_##name = (ser).HasMember(#name);                  \
+    type name       = has_##name ? ::igi::serialization::Deserialize<type>((ser)[#name], __VA_ARGS__) : (_default)
