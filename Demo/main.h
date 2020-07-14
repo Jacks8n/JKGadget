@@ -9,23 +9,29 @@
 #include "render.h"
 
 namespace demo {
-    template <size_t SPP, typename TAlg, typename... TArgs>
-    static void run(const char *path, size_t w, size_t h, typename igi::aggregate::initializer_list_t entities, TArgs &&... args) {
-        /*igi::mem_arena arena(1024 * 1024 * 10);
+    size_t ReadConfig(std::ifstream &is, char *buf) {
+        std::istream::sentry se(is, true);
+        std::streambuf *sb = is.rdbuf();
 
-        igi::aggregate a(entities, &arena);
-
-        igi::scene s(a);
-
-        TAlg alg(s, std::forward<TArgs>(args)...);
-
-        igi::camera_perspective cam(igi::AsSingle(70), igi::AsSingle(w) / igi::AsSingle(h));
-
-        igi::texture_rgb img(w, h, &arena);
-
-        igi::render(cam, img, alg, arena, SPP, &std::cout);
-
-        std::ofstream o(path, std::ios_base::binary);
-        pngparvus::png_writer().write(o, img);*/
+        const char *const base = buf;
+        while (true) {
+            int c = sb->sbumpc();
+            switch (c) {
+                case '\n':
+                    *buf++ = '\n';
+                    break;
+                case '\r':
+                    if (sb->sgetc() == '\n')
+                        sb->sbumpc();
+                    *buf++ = '\n';
+                    break;
+                case std::streambuf::traits_type::eof():
+                    is.setstate(std::ios::eofbit);
+                    return buf - base;
+                default:
+                    *buf++ = (char)c;
+                    break;
+            }
+        }
     }
 }  // namespace demo

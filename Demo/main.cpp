@@ -36,12 +36,14 @@ int main() {
     std::ifstream fs("demo.json");
 
     fs.seekg(0, std::ios_base::end);
-    size_t nbuf  = fs.tellg();
+    size_t nbuf = fs.tellg();
     fs.seekg(0);
 
-    char *config = alloc.allocate(nbuf);
-    fs.read(config, nbuf);
+    char *config                   = alloc.allocate(nbuf);
+    config[ReadConfig(fs, config)] = '\0';
     fs.close();
+
+    std::cout << config;
 
     rapidjson::Document doc;
     doc.ParseInsitu(config);
@@ -50,8 +52,8 @@ int main() {
     igi::camera_base *cam = igi::serialization::DeserializePmr<igi::camera_base>(camProp, alloc, camProp["type"].GetString());
 
     igi::scene *demo     = igi::serialization::Deserialize<igi::scene>(doc, alloc);
-    igi::path_trace pt   = igi::serialization::Deserialize<igi::path_trace>(doc);
-    igi::texture_rgb res = igi::serialization::Deserialize<igi::texture_rgb>(doc, alloc);
+    igi::path_trace pt   = igi::serialization::Deserialize<igi::path_trace>(doc["integrator"]);
+    igi::texture_rgb res = igi::serialization::Deserialize<igi::texture_rgb>(doc["film"], alloc);
 
     //run<1024, igi::path_trace>(  // sample 1024 times per pixel, using path_tracing
     //    "demo.png",              // output to demo.png

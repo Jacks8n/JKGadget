@@ -10,7 +10,7 @@
     },
     {
       "type": "emissive",
-      "energy": "35"
+      "energy": 35
     }
   ],
   "surface": [
@@ -38,12 +38,13 @@
       "position": [ -600, 600, -600 ]
     }
   ],
-  "film": {
-    "resolution": [ 512, 512 ]
-  },
   "integrator": {
     "type": "pathtrace",
-    "reflect": 4,
+    "depth": 4,
     "split": 4
+  },
+  "film": {
+    "width": 512,
+    "height": 512
   }
 }
