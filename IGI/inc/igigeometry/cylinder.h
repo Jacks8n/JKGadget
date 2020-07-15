@@ -9,15 +9,15 @@ namespace igi {
 
       public:
         META_BE_RT(cylinder, ser_pmr_name_a("cylinder"), deser_pmr_func_a<ISurface>([](const serializer_t &ser, const ser_allocator_t<char> &alloc) {
-                       IGI_SERIALIZE_OPTIONAL(single, r, 1_sg, ser);
-                       IGI_SERIALIZE_OPTIONAL(single, zmin, .5_sg, ser);
-                       IGI_SERIALIZE_OPTIONAL(single, zmax, .5_sg, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, radius, 1_sg, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, min, .5_sg, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, max, .5_sg, ser);
 
                        using allocator = std::allocator_traits<ser_allocator_t<cylinder>>;
 
                        ser_allocator_t<cylinder> a(alloc);
                        cylinder *p = allocator::allocate(a, 1);
-                       allocator::construct(a, p, r, zmin, zmax);
+                       allocator::construct(a, p, radius, min, max);
                        return p;
                    }))
 
