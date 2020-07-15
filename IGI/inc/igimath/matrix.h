@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include <array>
 #include "igiutil.h"
 #include "mathutil.h"
 #include "numconfig.h"
@@ -48,7 +47,7 @@ namespace igi {
         template <typename Tf, size_t Nrowf, size_t Ncolf>
         friend class matrix_base;
 
-        std::array<T, Nrow * Ncol> _elem;
+        T _elem[Nrow * Ncol];
 
         template <typename FromT, size_t... Is>
         constexpr explicit matrix_base(const matrix_base<FromT, Nrow, Ncol> &o, std::index_sequence<Is...>)
@@ -105,11 +104,11 @@ namespace igi {
             return matrix<T, Nrow, Ncol>([&](size_t, size_t) constexpr { return val; });
         }
 
-        std::array<T, Nrow * Ncol> &getAll() {
+        auto getAll() -> T (&)[Nrow * Ncol] {
             return (_elem);
         }
 
-        const std::array<T, Nrow * Ncol> &getAll() const {
+        auto getAll() const -> const T (&)[Nrow * Ncol] {
             return (_elem);
         }
 
