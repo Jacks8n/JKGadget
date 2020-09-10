@@ -1,12 +1,14 @@
 project(Demo)
 
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(Demo main.cpp)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE IGI)
+target_link_libraries(Demo PRIVATE IGI)
 
-add_custom_command(TARGET Demo
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E
-        copy_if_different
-        "${PROJECT_SOURCE_DIR}/demo.json"
-        "${PROJECT_BINARY_DIR}")
+set(DEMO_CONFIG_JSON ${PROJECT_SOURCE_DIR}/demo.json)
+
+add_custom_target(ConfigFiles ALL
+    ${CMAKE_COMMAND} -E copy_if_different ${DEMO_CONFIG_JSON} ${Demo_BINARY_DIR}/demo.json
+    DEPENDS ${DEMO_CONFIG_JSON}
+    VERBATIM USES_TERMINAL)
+
+add_dependencies(Demo ConfigFiles)

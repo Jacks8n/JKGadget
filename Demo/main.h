@@ -6,14 +6,22 @@
 #include "igiintegrator/path_trace.h"
 #include "igiscene/aggregate.h"
 #include "igiscene/scene.h"
+#include "igiutilities/serialize.h"
 #include "render.h"
 
 namespace demo {
-    size_t ReadConfig(std::ifstream &is, char *buf) {
-        std::istream::sentry se(is, true);
-        std::streambuf *sb = is.rdbuf();
+    char *ReadConfig(const char *path, std::pmr::polymorphic_allocator<char> &alloc) {
+        std::ifstream fs("demo.json");
 
-        const char *const base = buf;
+        fs.seekg(0, std::ios_base::end);
+        size_t nbuf = fs.tellg();
+        fs.seekg(0);
+
+        char *buf = alloc.allocate(nbuf);
+
+        std::streambuf *sb = fs.rdbuf();
+
+        char *const base = buf;
         while (true) {
             int c = sb->sbumpc();
             switch (c) {
@@ -26,12 +34,15 @@ namespace demo {
                     *buf++ = '\n';
                     break;
                 case std::streambuf::traits_type::eof():
-                    is.setstate(std::ios::eofbit);
-                    return buf - base;
+                    fs.setstate(std::ios::eofbit);
+                    *buf = '\0';
+                    return base;
                 default:
                     *buf++ = (char)c;
                     break;
             }
         }
+
+        fs.close();
     }
 }  // namespace demo
