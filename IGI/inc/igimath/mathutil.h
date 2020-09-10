@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include <type_traits>
+
 namespace igi {
     template <typename T>
     constexpr T Clamp(T lo, T hi, T val) {
@@ -46,5 +48,22 @@ namespace igi {
             s /= 2;
         } while (s);
         return l;
+    }
+    
+    template <typename T>
+    constexpr T SqrtConstexpr(const T &val) {
+        constexpr T InitialFactor = .86003999;
+
+        if constexpr (std::is_constant_evaluated()) {
+            struct impl {
+                static constexpr T iterate(const T &val, const T &cur, int n) {
+                    return n > 0 ? iterate(val, (cur * cur + val) / (cur * static_cast<T>(2)), n - 1)
+                                 : cur;
+                };
+            };
+            return impl::iterate(val, InitialFactor * val, 32);
+        }
+        else
+            return sqrt(val);
     }
 }  // namespace igi

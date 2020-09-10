@@ -2,7 +2,7 @@
 
 #include <cmath>
 #include "igimath/matrix.h"
-#include "serialize.h"
+#include "igiutilities/serialize.h"
 
 namespace igi {
     template <typename T, size_t N>
@@ -31,11 +31,11 @@ namespace igi {
             return Dot(*this, *this);
         }
 
-        T magnitude() const {
-            return static_cast<T>(sqrt(magnitudeSqr()));
+        constexpr T magnitude() const {
+            return static_cast<T>(SqrtConstexpr(magnitudeSqr()));
         }
 
-        matrix normalized() const {
+        constexpr matrix normalized() const {
             return *this * (static_cast<T>(1) / magnitude());
         }
 
@@ -99,5 +99,19 @@ namespace igi {
     template <typename T>
     constexpr vec3<T> MakeReversedOrient(const vec3<T> &expected, const vec3<T> &v) {
         return IsPoscf(Dot(expected, v)) ? -v : v;
+    }
+
+    /// @return returns [up, right]
+    template <typename T>
+    constexpr std::pair<vec3<T>, vec3<T>> LookAt(const vec3<T> &forward, const vec3<T> &up) {
+        vec3<T> right = Cross(forward, up).normalized();
+        return std::make_pair(Cross(right, forward).normalized(), right);
+    }
+
+    /// @param forward is expected to be normalized
+    template <typename T>
+    constexpr mat4<T> LookAtMat(const vec3<T> &forward, const vec3<T> &up) {
+        auto [eyeUp, eyeRight] = LookAt(forward, up);
+        return mat4<T>(vec4<T>(eyeRight, 0), vec4<T>(eyeUp, 0), vec4<T>(forward, 0), vec4<T>(0, 0, 0, 1));
     }
 }  // namespace igi

@@ -123,6 +123,4 @@ namespace igi {
             return res;
         }
     };
-
-    using mat4x4f = matrix<single, 4, 4>;
 }  // namespace igi

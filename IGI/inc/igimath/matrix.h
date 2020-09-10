@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "igiutil.h"
+#include "igiutilities/igiutil.h"
 #include "mathutil.h"
 #include "numconfig.h"
 
@@ -434,13 +434,20 @@ namespace igi {
     template <size_t Nrow, size_t Ncol>
     using matrixi = matrix<int, Nrow, Ncol>;
 
-    using mat2x2f = matrix<single, 2, 2>;
-    using mat2x2i = matrix<int, 2, 2>;
+    template <typename T>
+    using mat2    = matrix<T, 2, 2>;
+    using mat2x2f = mat2<single>;
+    using mat2x2i = mat2<int>;
 
-    using mat3x3f = matrix<single, 3, 3>;
-    using mat3x3i = matrix<int, 3, 3>;
+    template <typename T>
+    using mat3    = matrix<T, 3, 3>;
+    using mat3x3f = mat3<single>;
+    using mat3x3i = mat3<int>;
 
-    using mat4x4i = matrix<int, 4, 4>;
+    template <typename T>
+    using mat4    = matrix<T, 4, 4>;
+    using mat4x4f = mat4<single>;
+    using mat4x4i = mat4<int>;
 
     template <typename To, size_t Nrow, size_t Ncol, typename T>
     To &operator<<(To &out, const matrix_base<T, Nrow, Ncol> &m) {
