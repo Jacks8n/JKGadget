@@ -2,7 +2,7 @@
 
 #include <assert.h>
 #include "igimath/mathutil.h"
-#include "serialize.h"
+#include "igiutilities/serialize.h"
 
 namespace igi {
     // type of color channel

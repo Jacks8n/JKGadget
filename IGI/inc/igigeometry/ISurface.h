@@ -3,7 +3,7 @@
 #include "igigeometry/bound.h"
 #include "igigeometry/ray.h"
 #include "igigeometry/surface_interaction.h"
-#include "serialize.h"
+#include "igiutilities/serialize.h"
 
 namespace igi {
     struct ISurface {

@@ -9,9 +9,9 @@
 #include "igitexture/texture.h"
 
 namespace igi {
-    template <typename TCam, typename TInt>
-    inline void render(const TCam &camera, texture_rgb &res, const TInt &integrator,
-                       mem_arena &arena, size_t spp = 1, std::ostream *logos = nullptr) {
+    template <typename TCam>
+    inline void render(const scene &scene, const TCam &camera, const IIntegrator &integrator,
+                       mem_arena &arena, texture_rgb &res, size_t spp = 1, std::ostream *log = nullptr) {
         struct task {
             size_t u, v;
             color3 *res;
@@ -47,7 +47,7 @@ namespace igi {
                 xy[1] += static_cast<single>(in.v);
 
                 ray r    = camera.getRay(xy[0] / w, xy[1] / h);
-                color3 i = integrator.integrate(r, c.ic) * p;
+                color3 i = integrator.integrate(scene, r, c.ic) * p;
 
                 std::scoped_lock sl(m);
                 *in.res = *in.res + i;
@@ -58,11 +58,11 @@ namespace igi {
         single oneper = total / 100_sg, oneperInv = 100_sg / total;
         size_t issued = 0_sg, totalIssued = 0_sg;
         size_t prec;
-        if (logos) {
-            prec = logos->precision();
+        if (log) {
+            prec = log->precision();
 
-            logos->precision(3);
-            *logos << std::fixed;
+            log->precision(3);
+            *log << std::fixed;
         }
 
         auto start = std::chrono::high_resolution_clock::now();
@@ -71,25 +71,17 @@ namespace igi {
                 for (size_t k = 0; k < spp; k++) {
                     group->issue(i, j, &res.get(i, j));
 
-                    if (logos && ++issued >= oneper) {
+                    if (log && ++issued >= oneper) {
                         auto elapsed = std::chrono::high_resolution_clock::now() - start;
 
                         totalIssued += issued;
-                        *logos << oneperInv * totalIssued << "%\t"
-                               << elapsed.count() * 1e-9 << "s used" << std::endl;
+                        *log << oneperInv * totalIssued << "%\t"
+                             << elapsed.count() * 1e-9 << "s used" << std::endl;
                         issued = 0;
                     }
                 }
 
         group->waitFinish();
-
-        if (logos) {
-            auto elapsed = std::chrono::high_resolution_clock::now() - start;
-            *logos << "finished in " << elapsed.count() * 1e-9 << "s" << std::endl;
-
-            logos->precision(prec);
-            *logos << std::defaultfloat;
-        }
 
         single sppinv = 1_sg / spp;
         for (size_t j = 0; j < res.getHeight(); j++)
@@ -98,5 +90,13 @@ namespace igi {
 
                 c = c * sppinv;
             }
+
+        if (log) {
+            auto elapsed = std::chrono::high_resolution_clock::now() - start;
+            *log << "finished in " << elapsed.count() * 1e-9 << "s" << std::endl;
+
+            log->precision(prec);
+            *log << std::defaultfloat;
+        }
     }
 }  // namespace igi

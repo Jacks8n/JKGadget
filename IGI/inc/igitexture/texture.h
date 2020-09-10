@@ -35,9 +35,41 @@ namespace igi {
         }
     };
 
+    // TODO: support for optimal layout beyond the linear one
     template <typename T>
     class texture : public pngparvus::IPNG<texture_color255_iterator<T>> {
       public:
+        class iterator : std::iterator_traits<T *> {
+            friend class texture;
+
+            std::shared_ptr<T[]> _buf;
+
+            size_t _index;
+
+            iterator(const std::shared_ptr<T[]> &buf, size_t index)
+                : _buf(buf), _index(index) { }
+
+          public:
+            T &operator*() {
+                return _buf[_index];
+            }
+
+            const T &operator*() const {
+                return _buf[_index];
+            }
+
+            bool operator!=(const iterator &it) const {
+                return it._index != _index || it._buf != _buf;
+            }
+
+            iterator &operator++() {
+                _index++;
+                return *this;
+            }
+        };
+
+        using const_iterator = const iterator;
+
         using allocator_type = std::pmr::polymorphic_allocator<T>;
 
         META_BE(texture, rflite::func_a([](const serializer_t &ser, const allocator_type &alloc) {
@@ -46,6 +78,10 @@ namespace igi {
                     return rflite::meta_helper::any_ins<texture>(w, h, alloc);
                 }))
 
+        texture(const texture &o)
+            : _alloc(o._alloc), _buf(AllocBuffer(w, h, _alloc)), _w(o._w), _h(o._h) {
+            std::copy(&o.get(0, 0), &o.get(_w, _h), &get(0, 0));
+        }
         texture(texture &&o)
             : _alloc(std::move(o._alloc)), _buf(std::move(o._buf)), _w(o._w), _h(o._h) { }
         texture(const texture &o, const allocator_type &alloc)
@@ -72,12 +108,22 @@ namespace igi {
             return texture_color255_iterator<T>(_buf);
         }
 
+        iterator at(size_t u, size_t v) {
+            assertInRange(u, v);
+            return iterator(_buf, uvToIndex(u, v));
+        }
+
+        const_iterator at(size_t u, size_t v) const {
+            assertInRange(u, v);
+            return const_iterator(_buf, uvToIndex(u, v);
+        }
+
         T &get(size_t u, size_t v) {
-            return _buf[u + v * _w];
+            return *at(u, v);
         }
 
         const T &get(size_t u, size_t v) const {
-            return _buf[u + v * _w];
+            return *at(u, v);
         }
 
         void clear(const T &col) {
@@ -92,10 +138,16 @@ namespace igi {
         size_t _w, _h;
 
         static std::shared_ptr<T[]> AllocBuffer(size_t w, size_t h, allocator_type &alloc) {
-            return std::shared_ptr<T[]>(
-                alloc.allocate(w * h),
-                [&](T *p) { p->~T(); alloc.deallocate(p, w * h); },
-                alloc);
+            return std::allocate_shared<T[]>(alloc, w * h);
+        }
+
+        void assertInRange(size_t u, size_t v) const {
+            assert(u < _w);
+            assert(v < _h);
+        }
+
+        size_t uvToIndex(size_t u, size_t v) const {
+            return v * _w + u;
         }
     };
 

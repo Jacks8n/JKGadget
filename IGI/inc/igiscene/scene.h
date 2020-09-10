@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "igiscene/aggregate.h"
-#include "shared_vector.h"
+#include "igiutilities/shared_vector.h"
 
 namespace igi {
     class scene {
