@@ -92,7 +92,17 @@ namespace igi {
         static decltype(auto) Deserialize<double>(const serializer_t &ser) {
             return ser.GetDouble();
         }
-
+        
+        template <>
+        static decltype(auto) Deserialize<const char *>(const serializer_t &ser) {
+            return ser.GetString();
+        }
+        
+        template <>
+        static decltype(auto) Deserialize<std::string_view>(const serializer_t &ser) {
+            return ser.GetString();
+        }
+        
         template <typename T, typename TAlloc>
         static T *DeserializePmr(const serializer_t &ser, TAlloc &&alloc, std::string_view name) {
             std::pmr::vector<const rflite::refl_class *> children = ChildrenOf<T>(alloc);

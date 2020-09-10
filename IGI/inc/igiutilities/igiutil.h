@@ -21,14 +21,9 @@ namespace igi {
     template <typename TTo, typename... TFroms>
     constexpr bool all_convertible_v = all_convertible<TTo, TFroms...>::value;
 
-    template <size_t N, size_t... Is>
+    template <size_t I, size_t... Is>
     constexpr size_t GetFirstInt() {
-        return N;
-    }
-
-    template <size_t N, size_t... Is>
-    constexpr size_t GetFirstInt(std::index_sequence<N, Is...>) {
-        return N;
+        return I;
     }
 
     template <size_t N, size_t... Is>
@@ -36,27 +31,10 @@ namespace igi {
         return std::get<N>(std::make_tuple(Is...));
     }
 
-    template <size_t N, size_t... Is>
-    constexpr size_t GetNthInt(std::index_sequence<Is...>) {
-        return GetNthInt<N, Is...>();
-    }
-
-    template <size_t N, size_t... Is>
-    constexpr std::index_sequence<Is...> RemoveFirst(std::index_sequence<N, Is...>) {
-        return std::index_sequence<Is...>();
-    }
-
-    template <bool B, typename T>
-    struct cond_type {
-        static constexpr bool cond = B;
-        using type                 = T;
-    };
-
-    // Pair of bool and size_t
-    template <bool B, size_t I>
+    template <bool B, auto I>
     struct cond_val {
-        static constexpr bool cond = B;
-        static constexpr auto val  = I;
+        static constexpr bool cond  = B;
+        static constexpr auto value = I;
     };
 
     template <typename... Ts>
@@ -74,7 +52,7 @@ namespace igi {
 
     template <typename... Ts>
     constexpr auto ToIndexSeq(std::tuple<Ts...>) {
-        return std::index_sequence<Ts::val...>();
+        return std::index_sequence<Ts::value...>();
     }
 
     template <typename T, size_t... Is>
@@ -95,11 +73,6 @@ namespace igi {
     template <size_t I, size_t... Is>
     constexpr auto RemoveFromInts(std::index_sequence<Is...>) {
         return RemoveFromInts<I, Is...>();
-    }
-
-    template <size_t N, size_t... Is>
-    constexpr auto RemoveNthInt(std::index_sequence<Is...> is) {
-        return RemoveFromInts<GetNthInt<N>(is), Is...>();
     }
 
     template <typename TFn, size_t... Is, typename... Ts,
