@@ -65,44 +65,24 @@ namespace igi {
 
         template <typename T>
         static decltype(auto) Deserialize(const serializer_t &ser) {
-            return Deserialize<T>(ser, allocator_null);
+            if constexpr (std::is_same_v<T, int>)
+                return ser.GetInt();
+            else if constexpr (std::is_same_v<T, unsigned>)
+                return ser.GetUint();
+            else if constexpr (std::is_same_v<T, unsigned long long>)
+                return ser.GetUint64();
+            else if constexpr (std::is_same_v<T, float>)
+                return ser.GetFloat();
+            else if constexpr (std::is_same_v<T, double>)
+                return ser.GetDouble();
+            else if constexpr (std::is_same_v<T, const char *>)
+                return ser.GetString();
+            else if constexpr (std::is_same_v<T, std::string_view>)
+                return ser.GetString();
+            else
+                return Deserialize<T>(ser, allocator_null);
         }
 
-        template <>
-        static decltype(auto) Deserialize<int>(const serializer_t &ser) {
-            return ser.GetInt();
-        }
-
-        template <>
-        static decltype(auto) Deserialize<unsigned>(const serializer_t &ser) {
-            return ser.GetUint();
-        }
-
-        template <>
-        static decltype(auto) Deserialize<unsigned long long>(const serializer_t &ser) {
-            return ser.GetUint64();
-        }
-
-        template <>
-        static decltype(auto) Deserialize<float>(const serializer_t &ser) {
-            return ser.GetFloat();
-        }
-
-        template <>
-        static decltype(auto) Deserialize<double>(const serializer_t &ser) {
-            return ser.GetDouble();
-        }
-        
-        template <>
-        static decltype(auto) Deserialize<const char *>(const serializer_t &ser) {
-            return ser.GetString();
-        }
-        
-        template <>
-        static decltype(auto) Deserialize<std::string_view>(const serializer_t &ser) {
-            return ser.GetString();
-        }
-        
         template <typename T, typename TAlloc>
         static T *DeserializePmr(const serializer_t &ser, TAlloc &&alloc, std::string_view name) {
             std::pmr::vector<const rflite::refl_class *> children = ChildrenOf<T>(alloc);
