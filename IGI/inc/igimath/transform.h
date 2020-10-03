@@ -78,7 +78,7 @@ namespace igi {
             return *this;
         }
 
-        transform &rotationX(single x) {
+        transform &rotationX(const single &x) {
             single c = cos(x), s = sin(x);
             mat4x4f m(1, 0, 0, 0,
                       0, c, -s, 0,
@@ -91,7 +91,7 @@ namespace igi {
             return *this;
         }
 
-        transform &rotationY(single y) {
+        transform &rotationY(const single &y) {
             single c = cos(y), s = sin(y);
             mat4x4f m(c, 0, s, 0,
                       0, 1, 0, 0,
@@ -104,7 +104,7 @@ namespace igi {
             return *this;
         }
 
-        transform &rotationZ(single z) {
+        transform &rotationZ(const single &z) {
             single c = cos(z), s = sin(z);
             mat4x4f m(c, -s, 0, 0,
                       s, c, 0, 0,
@@ -127,7 +127,7 @@ namespace igi {
             return *this;
         }
 
-        transform &scale(single s) {
+        transform &scale(const single &s) {
             for (size_t i = 0; i < 3; i++)
                 _mat.get(i, i) *= s;
             return *this;

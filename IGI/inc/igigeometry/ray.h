@@ -5,6 +5,8 @@
 
 namespace igi {
     class ray {
+        static constexpr single DefaultT = SingleLarge;
+
         vec3f _o, _d;
 
         single _t;
@@ -22,7 +24,7 @@ namespace igi {
         ray()            = default;
         ray(const ray &) = default;
         ray(ray &&)      = default;
-        constexpr ray(const vec3f &o, const vec3f &d, single t = SingleLarge)
+        constexpr ray(const vec3f &o, const vec3f &d, single t = DefaultT)
             : _o(o), _d(d), _t(t), _perm0(MaxIcf(d[0], d[1], d[2])),
               _perm1((_perm0 + 1) % 3), _perm2((_perm0 + 2) % 3),
               _shearCol(-d[0] / d[2], -d[1] / d[2], 1_sg / d[2]) { }
@@ -64,7 +66,7 @@ namespace igi {
             return *this;
         }
 
-        ray &reset(const vec3f &o, const vec3f &d, single t = SingleLarge) {
+        ray &reset(const vec3f &o, const vec3f &d, single t = DefaultT) {
             return setOrigin(o).setDirection(d).setT(t);
         }
 

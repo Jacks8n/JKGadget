@@ -18,7 +18,7 @@ namespace igi {
         }
 
         vec3f mulVec(const vec3f &v) const {
-            vec<float, 4> vp(v, 0);
+            vec<float, 4> vp(v, 0_sg);
             return vec3f(operator*(vp));
         }
 

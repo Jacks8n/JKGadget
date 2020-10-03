@@ -41,5 +41,5 @@ igi::color3 igi::path_trace::integrate_impl(const scene &scene, const vec3f &o, 
     if (Equalcf(pint, 0_sg))
         return lu;
 
-    return lu + lint * (1_col / AsSingle(pint));
+    return lu + lint * (1_col / pint);
 }

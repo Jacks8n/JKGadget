@@ -1,8 +1,8 @@
 ﻿#pragma once
 
+#include "igimath/mathutil.h"
+#include "igimath/single.h"
 #include "igiutilities/igiutil.h"
-#include "mathutil.h"
-#include "numconfig.h"
 
 namespace igi {
     template <typename T, size_t Nrow, size_t Ncol>
@@ -55,7 +55,7 @@ namespace igi {
 
         template <typename Fn, size_t... Is, std::enable_if_t<std::is_invocable_v<Fn, size_t, size_t>, int> = 0>
         constexpr explicit matrix_base(Fn &&fn, std::index_sequence<Is...>)
-            : matrix_base(fn(Is / Ncol, Is % Ncol)...) { }
+            : matrix_base(static_cast<T>(fn(Is / Ncol, Is % Ncol))...) { }
 
         template <typename... Ts, typename TFn, size_t... Is>
         constexpr explicit matrix_base(std::tuple<Ts...> ts, TFn &&fn, std::index_sequence<Is...>)
@@ -340,7 +340,9 @@ namespace igi {
         matrix_base_sqr() = default;
 
         static constexpr matrix_t Identity() {
-            return matrix<T, N, N>([](size_t i, size_t j) constexpr { return i == j ? 1 : 0; });
+            constexpr matrix_t I([](size_t i, size_t j) constexpr { return i == j ? 1 : 0; });
+
+            return I;
         }
 
         template <size_t R, size_t C>
@@ -430,24 +432,24 @@ namespace igi {
     };
 
     template <size_t Nrow, size_t Ncol>
-    using matrixf = matrix<single, Nrow, Ncol>;
-    template <size_t Nrow, size_t Ncol>
     using matrixi = matrix<int, Nrow, Ncol>;
+    template <size_t Nrow, size_t Ncol>
+    using matrixf = matrix<single, Nrow, Ncol>;
 
     template <typename T>
     using mat2    = matrix<T, 2, 2>;
-    using mat2x2f = mat2<single>;
     using mat2x2i = mat2<int>;
+    using mat2x2f = matrixf<2, 2>;
 
     template <typename T>
     using mat3    = matrix<T, 3, 3>;
-    using mat3x3f = mat3<single>;
     using mat3x3i = mat3<int>;
+    using mat3x3f = matrixf<3, 3>;
 
     template <typename T>
     using mat4    = matrix<T, 4, 4>;
-    using mat4x4f = mat4<single>;
     using mat4x4i = mat4<int>;
+    using mat4x4f = matrixf<4, 4>;
 
     template <typename To, size_t Nrow, size_t Ncol, typename T>
     To &operator<<(To &out, const matrix_base<T, Nrow, Ncol> &m) {

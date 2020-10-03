@@ -75,9 +75,9 @@ namespace igi {
     using vec3i = vec3<int>;
     using vec4i = vec4<int>;
 
-    using vec2f = vec2<single>;
-    using vec3f = vec3<single>;
-    using vec4f = vec4<single>;
+    using vec2f = vecf<2>;
+    using vec3f = vecf<3>;
+    using vec4f = vecf<4>;
 
     template <typename T, size_t N>
     constexpr T Dot(const matrix_base<T, N, 1> &l, const matrix_base<T, N, 1> &r) {
