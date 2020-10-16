@@ -17,6 +17,7 @@ namespace igi {
                                       const vec3f &dpdu, const vec3f &dpdv, const vec2f uv)
             : position(pos), normal(norm), dpdu(dpdu), dpdv(dpdv), uv(uv) { }
 
+        // normalization might be needed
         constexpr mat3x3f getNormalSpace() const {
             return mat3x3f(dpdu, dpdv, normal);
         }

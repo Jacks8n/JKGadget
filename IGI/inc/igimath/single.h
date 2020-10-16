@@ -22,13 +22,8 @@ namespace igi {
     concept IsSingleFloatC = std::is_same_v<T, float> || std::is_same_v<T, double>;
 
     template <IsSingleFloatC T = single>
-    struct error_single {
-      private:
-        static constexpr T ErrorFactor = std::numeric_limits<T>::epsilon();
-
-        static constexpr T ErrorLowerBoundFactor = static_cast<T>(1) - ErrorFactor;
-
-        static constexpr T ErrorUpperBoundFactor = static_cast<T>(1) + ErrorFactor;
+    class error_single {
+        using bits_t = std::conditional_t<std::is_same_v<T, float>, uint32_t, uint64_t>;
 
         T _value, _lowerBound, _upperBound;
 
@@ -42,34 +37,35 @@ namespace igi {
         constexpr error_single(const error_single &) = default;
         constexpr error_single(error_single &&)      = default;
 
-        // specified with `explicit`, since error estimation is spacially costly
+        // specified with `explicit`, since error estimation is considered to be costly
         constexpr explicit error_single(const T &val) : _value(val), _lowerBound(val), _upperBound(val) { }
-
-        constexpr error_single &operator=(const error_single &) = default;
-        constexpr error_single &operator=(error_single &&) = default;
-
-        constexpr error_single &operator=(const T &val) {
-            new (this) error_single(val);
-        }
 
       private:
         constexpr error_single(const T &val, const T &lower, const T &upper) : _value(val), _lowerBound(lower), _upperBound(upper) { }
 
       public:
+        constexpr error_single &operator=(const error_single &) = default;
+        constexpr error_single &operator=(error_single &&) = default;
+
+        constexpr error_single &operator=(const T &val) {
+            new (this) error_single(val);
+            return *this;
+        }
+
         constexpr const T *getValuePtr() const {
             return &_value;
         }
 
-        constexpr T getValue() const {
+        constexpr const T &getValue() const {
             return _value;
         }
 
-        constexpr T getLowerBound() const {
-            return _lowerBound * _value;
+        constexpr const T &getLowerBound() const {
+            return _lowerBound;
         }
 
-        constexpr T getUpperBound() const {
-            return _upperBound * _value;
+        constexpr const T &getUpperBound() const {
+            return _upperBound;
         }
 
         constexpr std::pair<T, T> getBound() const {
@@ -77,7 +73,11 @@ namespace igi {
         }
 
         constexpr operator const T &() const {
-            return _value;
+            return getValue();
+        }
+
+        constexpr operator std::tuple<const T &, const T &, const T &>() const {
+            return std::forward_as_tuple(getValue(), getLowerBound(), getUpperBound());
         }
 
         constexpr error_single operator-() const {
@@ -85,80 +85,100 @@ namespace igi {
         }
 
         constexpr error_single operator+(const T &r) const {
-            return nextError(_value + r);
+            return nextError(_value + r, _lowerBound + r, _upperBound + r);
         }
 
         constexpr error_single operator+(const error_single &r) const {
-            return operator+(r._value);
+            return nextError(_value + r._value, _lowerBound + r._lowerBound, _upperBound + r._upperBound);
         }
 
         constexpr error_single operator-(const T &r) const {
-            return nextError(_value - r);
+            return nextError(_value - r, _lowerBound - r, _upperBound - r);
         }
 
         constexpr error_single operator-(const error_single &r) const {
-            return operator-(r._value);
+            return nextError(_value - r._value, _lowerBound - r._lowerBound, _upperBound - r._upperBound);
         }
 
         constexpr error_single operator*(const T &r) const {
-            return nextError(_value * r);
+            return nextError(_value * r, _lowerBound * r, _upperBound * r);
         }
 
         constexpr error_single operator*(const error_single &r) const {
-            return operator*(r._value);
+            return nextError(_value * r._value, _lowerBound * r._lowerBound, _upperBound * r._upperBound);
         }
 
         constexpr error_single operator/(const T &r) const {
-            return nextError(_value / r);
+            return nextError(_value / r, _lowerBound / r, _upperBound / r);
         }
 
         constexpr error_single operator/(const error_single &r) const {
-            return operator/(r._value);
+            return nextError(_value / r._value, _lowerBound / r._lowerBound, _upperBound / r._upperBound);
         }
 
         error_single &operator+=(const T &r) {
-            *this = nextError(_value + r);
-            return *this;
+            return *this = operator+(r);
         }
 
         error_single &operator+=(const error_single &r) {
-            return operator+=(r._value);
+            return *this = operator+(r);
         }
 
         error_single &operator-=(const T &r) {
-            *this = nextError(_value - r);
-            return *this;
+            return *this = operator-(r);
         }
 
         error_single &operator-=(const error_single &r) {
-            return operator-=(r._value);
+            return *this = operator-(r);
         }
 
         error_single &operator*=(const T &r) {
-            *this = nextError(_value * r);
-            return *this;
+            return *this = operator*(r);
         }
 
         error_single &operator*=(const error_single &r) {
-            return operator*=(r._value);
+            return *this = operator*(r);
         }
 
         error_single &operator/=(const T &r) {
-            *this = nextError(_value / r);
-            return *this;
+            return *this = operator/(r);
         }
 
         error_single &operator/=(const error_single &r) {
-            return operator/=(r._value);
+            return *this = operator/(r);
         }
 
       private:
-        constexpr error_single nextError(const T &val) const {
-            return error_single(val, _lowerBound * ErrorLowerBoundFactor, _upperBound * ErrorUpperBoundFactor);
+        static constexpr T incBit(T val) {
+            static_assert(std::numeric_limits<float>::is_iec559);
+            if (val == std::numeric_limits<float>::infinity())
+                return val;
+            if (val == -static_cast<T>(0))
+                val = static_cast<T>(0);
+
+            bits_t bits = std::bit_cast<bits_t>(val) + (val >= static_cast<T>(0) ? 1 : -1);
+            return std::bit_cast<T>(bits);
+        }
+
+        static constexpr T decBit(T val) {
+            static_assert(std::numeric_limits<float>::is_iec559);
+            if (val == -std::numeric_limits<float>::infinity())
+                return val;
+            if (val == static_cast<T>(0))
+                val = -static_cast<T>(0);
+
+            bits_t bits = std::bit_cast<bits_t>(val) + (val <= static_cast<T>(0) ? 1 : -1);
+            return std::bit_cast<T>(bits);
+        }
+
+        static constexpr error_single nextError(const T &val, const T &lower, const T &upper) {
+            return error_single(val, decBit(lower), incBit(upper));
         }
     };
 
     using esingle = error_single<>;
+
+    constexpr auto fsafasd = SqrtConstexpr(esingle(2));
 
     constexpr single operator""_sg(long double val) {
         return single(val);
@@ -180,16 +200,16 @@ namespace igi {
 
     constexpr bool IsPoscf(const single &v) { return SingleEpsilon < v; }
 
-    constexpr bool IsPoscf(const esingle &v) { return 0 < v.getValue(); }
+    constexpr bool IsPoscf(const esingle &v) { return 0 < v.getLowerBound(); }
 
     constexpr bool IsNegcf(const single &v) { return v < -SingleEpsilon; }
 
-    constexpr bool IsNegcf(const esingle &v) { return v.getValue() < 0; }
+    constexpr bool IsNegcf(const esingle &v) { return v.getUpperBound() < 0; }
 
     template <typename T>
     constexpr bool NotZerocf(T &&v) { return IsPoscf(v) || IsNegcf(v); }
 
-    constexpr bool Lesscf(const single &l, const single &r) { return l + SingleEpsilon < r; }
+    constexpr bool Lesscf(const single &l, const single &r) { return IsNegcf(l - r); }
 
     constexpr bool Lesscf(const esingle &l, const esingle &r) { return l.getUpperBound() < r.getLowerBound(); }
 
@@ -199,10 +219,9 @@ namespace igi {
     template <typename TL, typename TR>
     constexpr bool Equalcf(TL &&l, TR &&r) { return !(Lesscf(l, r) || Greatercf(l, r)); }
 
-    template <typename TL, typename TR>
-    constexpr std::pair<single, single> Ascendcf(TL &&l, TR &&r) {
-        return Lesscf(l, r) ? std::make_pair(l, r) : std::make_pair(r, l);
-    }
+    // todo igi::MaxIcf() igi::MinIcf()
+    // these two shouldn't assume (Lesscf(l, r) || Greatercf(l, r)) == true,
+    // might be removed or rewritten in future
 
     template <typename T0, typename T1, typename T2>
     constexpr size_t MaxIcf(T0 &&v0, T1 &&v1, T2 &&v2) {

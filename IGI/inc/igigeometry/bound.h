@@ -49,7 +49,7 @@ namespace igi {
         void setMax(const vec3f &max) {
             _max = max;
         }
-        
+
         void setMax(size_t dim, single coord) {
             _max[dim] = coord;
         }
@@ -90,8 +90,10 @@ namespace igi {
             vec3f e = r.getEndpoint();
             vec3f o = r.getOrigin();
 
+            single min, max;
             for (size_t i = 0; i < 3; i++) {
-                auto [min, max] = Ascendcf(e[i], o[i]);
+                min = e[i] < o[i] ? e[i] : o[i];
+                max = e[i] < o[i] ? o[i] : e[i];
                 if (!Overlapcf(min, max, _min[i], _max[i]))
                     return false;
             }

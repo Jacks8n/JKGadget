@@ -9,7 +9,7 @@ namespace igi {
 
         vec3f _o, _d;
 
-        single _t;
+        esingle _t;
 
         /// ===================================================
         /// Factors relating to the transformation to ray space
