@@ -5,8 +5,8 @@ namespace igi {
     bool sphere::isHit(const ray &wr, const transform &trans) const {
         ray r    = surface_helper::ToLocalRay(r, trans);
         single p = -Dot(r.getOrigin(), r.getDirection());
-        return Lesscf(r.cast(p).magnitudeSqr(), _r * _r)
-               && Lesscf(p, r.getT() * r.getDirection().magnitudeSqr());
+        return r.cast(p).magnitudeSqr() < _r * _r
+               && p < r.getT() * r.getDirection().magnitudeSqr();
     }
 
     bool sphere::tryHit(ray &wr, const transform &o2w, surface_interaction *res) const {
@@ -17,7 +17,7 @@ namespace igi {
         single c = r.getOrigin().magnitudeSqr() - _r * _r;
         single d = b * b - 4_sg * a * c;
 
-        if (!IsPoscf(d)) return false;
+        if (!(d > 0)) return false;
 
         a = .5_sg / a;
         b = -b * a;

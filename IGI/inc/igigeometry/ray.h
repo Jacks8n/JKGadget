@@ -57,16 +57,20 @@ namespace igi {
             return *this;
         }
 
-        constexpr single getTMin() const { return 0; }
+        constexpr single getTMin() const { return 0_sg; }
 
-        constexpr single getT() const { return _t; }
+        constexpr const esingle &getT() const { return _t; }
 
-        ray &setT(single t) {
+        constexpr bool isNearerT(esingle t) const {
+            return InRangecf(getTMin(), getT(), t);
+        }
+
+        ray &setT(esingle t) {
             _t = t;
             return *this;
         }
 
-        ray &reset(const vec3f &o, const vec3f &d, single t = DefaultT) {
+        ray &reset(const vec3f &o, const vec3f &d, esingle t = DefaultT) {
             return setOrigin(o).setDirection(d).setT(t);
         }
 

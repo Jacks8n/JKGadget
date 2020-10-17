@@ -4,7 +4,7 @@ bool igi::cylinder::isHit(const ray &wr, const transform &trans) const {
     ray r = surface_helper::ToLocalRay(wr, trans);
 
     single zmin = r.getOrigin()[2], zmax = r.getEndpoint()[2];
-    if (Lesscf(zmax, zmin))
+    if (zmax < zmin)
         std::swap(zmax, zmin);
     if (!Overlapcf(zmin, zmax, _zMin, _zMax))
         return false;
@@ -12,7 +12,7 @@ bool igi::cylinder::isHit(const ray &wr, const transform &trans) const {
     vec2f oxy = static_cast<vec2f>(r.getOrigin());
     vec2f dxy = static_cast<vec2f>(r.getDirection());
     single p  = -Dot(oxy, dxy);
-    return Lesscf((oxy + dxy * p).magnitudeSqr(), _r * _r);
+    return (oxy + dxy * p).magnitudeSqr() < _r * _r;
 }
 
 bool igi::cylinder::tryHit(ray &wr, const transform &trans, surface_interaction *res) const {
@@ -21,27 +21,21 @@ bool igi::cylinder::tryHit(ray &wr, const transform &trans, surface_interaction 
     vec2f oxy(r.getOrigin());
     vec2f dxy(r.getDirection());
 
-    single a = Dot(dxy, dxy);
-    single b = Dot(oxy, dxy) * 2_sg;
-    single c = Dot(oxy, oxy) - _r * _r;
-    single d = b * b - 4_sg * a * c;
-
-    if (!IsPoscf(d)) return false;
-
-    a = .5_sg / a;
-    b = -b * a;
-    d = sqrt(d) * a;
+    esingle a = Dot(dxy, dxy);
+    esingle b = Dot(oxy, dxy) * 2_sg;
+    esingle c = Dot(oxy, oxy) - _r * _r;
+    esingle t0, t1;
+    if (!Quadratic(a, b, c, &t0, &t1))
+        return false;
 
     single oz = r.getOrigin()[2];
     single dz = r.getDirection()[2];
-    single t;
+    esingle t;
 
-    if (InRangecf(r.getTMin(), r.getT(), b - d)
-        && InRangecf(_zMin, _zMax, oz + dz * (b - d)))
-        t = b - d;
-    else if (InRangecf(r.getTMin(), r.getT(), b + d)
-             && InRangecf(_zMin, _zMax, oz + dz * (b + d)))
-        t = b + d;
+    if (r.isNearerT(t0) && InRangecf(_zMin, _zMax, oz + dz * t0))
+        t = t0;
+    else if (r.isNearerT(t1) && InRangecf(_zMin, _zMax, oz + dz * t1))
+        t = t1;
     else
         return false;
 

@@ -148,13 +148,24 @@ namespace igi {
     constexpr bool Quadratic(T &&a, T &&b, T &&c, TRes *t0, TRes *t1) {
         using precise_t = precise_float_t<std::remove_cvref_t<T>>;
 
+        constexpr auto IsNonZero = [](auto &&v) { return v > 0 || v < 0; };
+
+        // degenerate to linear equation
+        if (!IsNonZero(a)) {
+            if (IsNonZero(b)) {
+                *t0 = *t1 = -c / b;
+                return true;
+            }
+            return false;
+        }
+
         precise_t pa = a, pb = b, pc = c;
-        precise_t d = pb * pb - pa * pc * static_cast<precise_t>(4);
-        if (d < 0)
+        precise_t d = pb * pb - pa * pc * 4;
+        if (!(d >= 0))
             return false;
 
         precise_t sqrtd = SqrtConstexpr(d);
-        precise_t q     = static_cast<precise_t>(-.5) * (b + (b < 0 ? sqrtd : -sqrtd));
+        precise_t q     = (b + (b < 0 ? -sqrtd : sqrtd)) * -.5;
 
         *t0 = q / a;
         *t1 = c / q;
@@ -162,5 +173,39 @@ namespace igi {
             std::swap(*t0, *t1);
 
         return true;
+    }
+
+    template <typename T>
+    using float_bits_t = std::conditional_t<std::is_same_v<T, float>, uint32_t, std::conditional_t<std::is_same_v<T, double>, uint64_t, void>>;
+
+    template <typename T>
+    concept IsSingleFloatC = std::is_same_v<T, float> || std::is_same_v<T, double>;
+
+    template <IsSingleFloatC T>
+    constexpr T IncreaseBit(T val) {
+        using bits_t = float_bits_t<T>;
+
+        static_assert(std::numeric_limits<float>::is_iec559);
+        if (val == std::numeric_limits<float>::infinity())
+            return val;
+        if (val == -static_cast<T>(0))
+            val = static_cast<T>(0);
+
+        bits_t bits = std::bit_cast<bits_t>(val) + (val >= static_cast<T>(0) ? 1 : -1);
+        return std::bit_cast<T>(bits);
+    }
+
+    template <IsSingleFloatC T>
+    constexpr T DecreaseBit(T val) {
+        using bits_t = float_bits_t<T>;
+
+        static_assert(std::numeric_limits<float>::is_iec559);
+        if (val == -std::numeric_limits<float>::infinity())
+            return val;
+        if (val == static_cast<T>(0))
+            val = -static_cast<T>(0);
+
+        bits_t bits = std::bit_cast<bits_t>(val) + (val <= static_cast<T>(0) ? 1 : -1);
+        return std::bit_cast<T>(bits);
     }
 }  // namespace igi

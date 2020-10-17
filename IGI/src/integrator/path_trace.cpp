@@ -23,13 +23,13 @@ igi::color3 igi::path_trace::integrate_impl(const scene &scene, const vec3f &o, 
     color3 lint = palette::black;
     for (size_t i = 0; i < _split; i++) {
         scat = mat.getScatter(o, ns, context.pcg);
-        if ((scat.pdf == 0_sg) || (Lesscf(scat.pdf, .001) && urd(context.pcg) < .5_sg))
+        if ((scat.pdf == 0_sg) || (scat.pdf < .001_sg && urd(context.pcg) < .5_sg))
             continue;
 
         bxdf = mat(o, scat.direction, surf.normal);
 
         single roulette = bxdf.brightness();
-        if (Equalcf(roulette, 0_sg) || (Lesscf(roulette, .005_col) && urd(context.pcg) < .5_sg))
+        if (roulette == 0_sg || (roulette < .005_sg && urd(context.pcg) < .5_sg))
             continue;
 
         pint += scat.pdf;
@@ -38,7 +38,7 @@ igi::color3 igi::path_trace::integrate_impl(const scene &scene, const vec3f &o, 
             lint = lint + (integrate_impl(scene, scat.direction, ia, depth - 1, context) * bxdf) * scat.pdf;
     }
 
-    if (Equalcf(pint, 0_sg))
+    if (pint == 0_sg)
         return lu;
 
     return lu + lint * (1_col / pint);

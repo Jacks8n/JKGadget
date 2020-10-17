@@ -23,7 +23,7 @@ namespace igi {
 
         cylinder(single r, single zMin, single zMax)
             : _r(r), _zMin(zMin), _zMax(zMax) {
-            if (Lesscf(_zMax, _zMin))
+            if (_zMax < _zMin)
                 std::swap(_zMax, _zMin);
         }
 

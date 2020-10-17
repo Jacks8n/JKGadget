@@ -135,7 +135,7 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
         return n < 1 ? 1 : n > MaxBinCount ? MaxBinCount : n;
     };
     constexpr auto getBinIndex = [](single coord, single binSizeInv, size_t binCount) -> size_t {
-        if (!IsPoscf(coord)) return 0;
+        if (!(coord > 0_sg)) return 0;
 
         size_t i = static_cast<size_t>(coord * binSizeInv);
         return i < binCount ? i : binCount - 1;
@@ -233,7 +233,7 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
             }
             split.clearQueue();
 
-            if (Lesscf(costs[MinIcf(cost_left, cost_right, cost_split)], cost_min))
+            if (costs[MinIcf(cost_left, cost_right, cost_split)] < cost_min)
                 minSplitI = i;
         }
 

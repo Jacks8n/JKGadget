@@ -1,4 +1,4 @@
-#include "igigeometry/triangle.h"
+﻿#include "igigeometry/triangle.h"
 
 using namespace igi;
 
@@ -12,18 +12,18 @@ bool triangle::tryHit(ray &r, const transform &, surface_interaction *res) const
     single tab = Cross(ra - rb, ra).magnitude();
     single tbc = Cross(rb - rc, rb).magnitude();
     single tca = Cross(rc - ra, rc).magnitude();
-    if ((IsNegcf(tab) || IsNegcf(tbc) || IsNegcf(tca))
-        && (IsPoscf(tab) || IsPoscf(tbc) || IsPoscf(tca)))
+    if ((tab < 0_sg || tbc < 0_sg || tca < 0_sg)
+        && (tab > 0_sg || tbc > 0_sg || tca > 0_sg))
         return false;
 
     single det = tab + tbc + tca;
-    if (Equalcf(det, 0))
+    if (det == 0_sg)
         return false;
 
     single zsum = ra[2] * tab + rb[2] * tbc + rc[2] * tca;
     single tmin = r.getTMin() * det, tmax = r.getT() * det;
-    if ((IsPoscf(det) && !InRangecf(tmin, tmax, zsum))
-        || (IsNegcf(det) && !InRangecf(tmin, tmax, zsum)))
+    if ((det > 0 && !InRangecf(tmin, tmax, zsum))
+        || (det < 0 && !InRangecf(tmin, tmax, zsum)))
         return false;
 
     single detInv = 1_sg / det;

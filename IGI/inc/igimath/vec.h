@@ -93,12 +93,12 @@ namespace igi {
 
     template <typename T>
     constexpr vec3<T> Reflect(const vec3<T> i, const vec3<T> n) {
-        return n * -2_sg * Dot(i, n) + i;
+        return n * Dot(i, n) * -2 + i;
     }
 
     template <typename T>
     constexpr vec3<T> MakeReversedOrient(const vec3<T> &expected, const vec3<T> &v) {
-        return IsPoscf(Dot(expected, v)) ? -v : v;
+        return Dot(expected, v) > 0 ? -v : v;
     }
 
     /// @return returns [up, right]

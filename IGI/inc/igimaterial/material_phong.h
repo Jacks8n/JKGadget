@@ -24,7 +24,7 @@ namespace igi {
 
         color3 operator()(const vec3f &i, const vec3f &o, const vec3f &n) const override {
             single d = Dot(Reflect(i, n), o);
-            if (IsPoscf(d))
+            if (d > 0_sg)
                 return _spec * pow(d, _shin);
             return 0_sg;
         }

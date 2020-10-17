@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "igigeometry/ray.h"
 #include "igimath/vec.h"
@@ -68,9 +68,9 @@ namespace igi {
 
         aabb &extend(const vec3f &p) {
             for (size_t i = 0; i < 3; i++)
-                if (Lesscf(p[i], _min[i]))
+                if (p[i] < _min[i])
                     _min[i] = p[i];
-                else if (Lesscf(_max[i], p[i]))
+                else if (_max[i] < p[i])
                     _max[i] = p[i];
             return *this;
         }
