@@ -6,20 +6,10 @@
 
 namespace igi {
     template <typename T0, typename... Ts>
-    struct all_same {
-        static constexpr bool value = (std::is_same_v<T0, Ts> && ... && true);
-    };
-
-    template <typename T0, typename... Ts>
-    constexpr bool all_same_v = all_same<T0, Ts...>::value;
+    constexpr bool all_same_v = (std::is_same_v<T0, Ts> &&...);
 
     template <typename TTo, typename... TFroms>
-    struct all_convertible {
-        static constexpr bool value = (std::is_convertible_v<TFroms, TTo> && ... && true);
-    };
-
-    template <typename TTo, typename... TFroms>
-    constexpr bool all_convertible_v = all_convertible<TTo, TFroms...>::value;
+    constexpr bool all_convertible_v = (std::is_convertible_v<TFroms, TTo> && ...);
 
     template <size_t I, size_t... Is>
     constexpr size_t GetFirstInt() {

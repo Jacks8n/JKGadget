@@ -37,24 +37,39 @@ namespace igi {
     };
 
     template <typename T>
-    constexpr bool is_matrix_v = matrix_trait<T>::value;
+    concept is_matrix_c = matrix_trait<std::remove_cvref_t<T>>::value;
 
     template <typename T>
-    using matrix_elem_t = typename matrix_trait<T>::elem_t;
+    using matrix_elem_t = typename matrix_trait<std::remove_cvref_t<T>>::elem_t;
+
+    template <typename T>
+    constexpr size_t matrix_row_v = matrix_trait<std::remove_cvref_t<T>>::row;
+
+    template <typename T>
+    constexpr size_t matrix_col_v = matrix_trait<std::remove_cvref_t<T>>::col;
+
+    template <typename T>
+    concept is_scalar_matrix_c = matrix_row_v<T> == 1 && matrix_col_v<T> == 1;
 
     template <typename T, size_t Nrow, size_t Ncol>
     class matrix_base {
         template <typename Tf, size_t Nrowf, size_t Ncolf>
         friend class matrix_base;
 
+        template <typename U>
+        static constexpr bool is_indexable_ctor_v = std::is_invocable_v<U, size_t, size_t>;
+
+        template <typename U>
+        using mul_res_t = std::remove_cvref_t<decltype(std::declval<T>() * std::declval<U>())>;
+
         T _elem[Nrow * Ncol];
 
-        template <typename FromT, size_t... Is>
-        constexpr explicit matrix_base(const matrix_base<FromT, Nrow, Ncol> &o, std::index_sequence<Is...>)
+        template <typename TFrom, size_t... Is>
+        constexpr explicit matrix_base(const matrix_base<TFrom, Nrow, Ncol> &o, std::index_sequence<Is...>)
             : matrix_base(o._elem[Is]...) { }
 
-        template <typename Fn, size_t... Is, std::enable_if_t<std::is_invocable_v<Fn, size_t, size_t>, int> = 0>
-        constexpr explicit matrix_base(Fn &&fn, std::index_sequence<Is...>)
+        template <typename Fn, size_t... Is>
+        requires(std::is_invocable_v<Fn, size_t, size_t>) constexpr explicit matrix_base(Fn &&fn, std::index_sequence<Is...>)
             : matrix_base(static_cast<T>(fn(Is / Ncol, Is % Ncol))...) { }
 
         template <typename... Ts, typename TFn, size_t... Is>
@@ -76,24 +91,24 @@ namespace igi {
             std::copy(list.begin(), list.end(), _elem);
         }
 
-        template <typename... Ts, std::enable_if_t<all_convertible_v<T, Ts...>, int> = 0>
-        constexpr explicit matrix_base(Ts &&... ts) : _elem { static_cast<T>(ts)... } { }
+        template <typename TFrom>
+        constexpr explicit matrix_base(const matrix_base<TFrom, Nrow, Ncol> &o)
+            : matrix_base(o, makeNIndexSeq()) { }
 
-        template <typename... Ts, std::enable_if_t<all_convertible_v<row_vec_t, Ts...>, int> = 0>
-        constexpr explicit matrix_base(Ts &&... ts)
-            : matrix_base(std::tuple_cat(ts.asTuple()...), makeNCompSeq()) { }
+        template <typename... Ts>
+        requires(all_convertible_v<T, Ts &&...>) constexpr explicit matrix_base(Ts &&... ts) : _elem { static_cast<T>(ts)... } { }
 
-        template <typename... Ts, std::enable_if_t<all_convertible_v<col_vec_t, Ts...>, int> = 0>
-        constexpr explicit matrix_base(Ts &&... ts)
-            : matrix_base(std::tuple_cat(ts.asTuple()...), makeNCompSeq(), 0) { }
+        template <typename Fn>
+        requires(is_indexable_ctor_v<Fn &&>) constexpr explicit matrix_base(Fn &&fn)
+            : matrix_base(fn, makeNIndexSeq()) { }
 
-        template <typename FromT>
-        constexpr explicit matrix_base(const matrix_base<FromT, Nrow, Ncol> &o)
-            : matrix_base(o, makeNCompSeq()) { }
+        template <typename... Ts>
+        requires(Nrow > 1 && sizeof...(Ts) == Nrow && all_convertible_v<row_vec_t, Ts &&...>) constexpr explicit matrix_base(Ts &&... ts)
+            : matrix_base(std::tuple_cat(static_cast<row_vec_t>(ts).asTuple()...), makeNIndexSeq()) { }
 
-        template <typename Fn, std::enable_if_t<std::is_invocable_v<Fn, size_t, size_t>, int> = 0>
-        constexpr explicit matrix_base(Fn &&fn)
-            : matrix_base(fn, makeNCompSeq()) { }
+        template <typename... Ts>
+        requires(Ncol > 1 && sizeof...(Ts) == Ncol && all_convertible_v<col_vec_t, Ts &&...> && true) constexpr explicit matrix_base(Ts &&... ts)
+            : matrix_base(std::tuple_cat(static_cast<col_vec_t>(ts).asTuple()...), makeNIndexSeq(), 0) { }
 
         matrix_base &operator=(const matrix_base &) = default;
         matrix_base &operator=(matrix_base &&) = default;
@@ -149,90 +164,9 @@ namespace igi {
         }
 
         constexpr matrix<T, Ncol, Nrow> transpose() const {
-            return matrix_base<T, Ncol, Nrow>([&](size_t i, size_t j) constexpr {
+            return matrix<T, Ncol, Nrow>([&](size_t i, size_t j) constexpr {
                 return this->get(j, i);
             });
-        }
-
-        template <typename Tr,
-                  std::enable_if_t<!is_matrix_v<std::remove_reference_t<Tr>>, int> = 0>
-        constexpr matrix<T, Nrow, Ncol> operator*(Tr &&r) const {
-            return matrix<T, Nrow, Ncol>([&](size_t i, size_t j) constexpr { return this->get(i, j) * r; });
-        }
-
-        template <typename Tr, std::enable_if_t<is_matrix_v<std::remove_reference_t<Tr>>, int> = 0>
-        constexpr auto operator*(Tr &&r) const {
-            using r_elem_t   = std::remove_reference_t<decltype(r.get(0, 0))>;
-            using mul_vec_t  = matrix_base<r_elem_t, Ncol, 1>;
-            using res_elem_t = std::remove_reference_t<decltype(get(0, 0) * r.get(0, 0))>;
-
-            constexpr size_t Nrcol = matrix_trait<std::remove_reference_t<Tr>>::col;
-
-            constexpr auto dot = [](size_t i, const mul_vec_t &cv, const matrix_base &m) constexpr {
-                return std::apply(
-                    [](auto &&... ms) constexpr {
-                        return (ms + ...);
-                    },
-                    ForCE<Ncol>([&](size_t j) constexpr {
-                        return m.get(i, j) * cv.get(j, 0);
-                    }));
-            };
-            constexpr auto mulCol = [&](const mul_vec_t &cv, const matrix_base &m, auto &&dt) constexpr {
-                return std::apply(
-                    [](auto &&... es) constexpr {
-                        return matrix_base<res_elem_t, Nrow, 1>(std::forward<decltype(es)>(es)...);
-                    },
-                    ForCE<Nrow>(
-                        [&](size_t i, const matrix_base &m, auto &&dt) constexpr {
-                            return dt(i, cv, m);
-                        },
-                        m, dt));
-            };
-            return std::apply(
-                [](auto &&... cols) constexpr {
-                    return matrix<res_elem_t, Nrow, Nrcol>(std::forward<decltype(cols)>(cols)...);
-                },
-                ForCE<Nrcol>(
-                    [&](size_t i, const matrix_base &m, auto &&dt) constexpr {
-                        return mulCol(r.col(i), m, dt);
-                    },
-                    *this, dot));
-        }
-
-        template <typename Tr, size_t Nrcol>
-        constexpr auto transMul(const matrix_base<Tr, Nrow, Nrcol> &r) const {
-            using mul_vec_t  = matrix_base<Tr, Nrow, 1>;
-            using res_elem_t = std::remove_reference_t<decltype(get(0, 0) * r.get(0, 0))>;
-
-            constexpr auto dot = [](size_t i, const mul_vec_t &cv, const matrix_base &m) constexpr {
-                return std::apply(
-                    [](auto &&... ms) constexpr {
-                        return (ms + ...);
-                    },
-                    ForCE<Nrow>([&](size_t j) constexpr {
-                        return m.get(j, i) * cv.get(j, 0);
-                    }));
-            };
-            constexpr auto mulCol = [&](const mul_vec_t &cv, const matrix_base &m, auto &&dt) constexpr {
-                return std::apply(
-                    [](auto &&... es) constexpr {
-                        return matrix_base<res_elem_t, Ncol, 1>(std::forward<decltype(es)>(es)...);
-                    },
-                    ForCE<Ncol>(
-                        [&](size_t i, const matrix_base &m, auto &&dt) constexpr {
-                            return dt(i, cv, m);
-                        },
-                        m, dt));
-            };
-            return std::apply(
-                [](auto &&... cols) constexpr {
-                    return matrix<res_elem_t, Ncol, Nrcol>(std::forward<decltype(cols)>(cols)...);
-                },
-                ForCE<Nrcol>(
-                    [&](size_t i, const matrix_base &m, auto &&dt) constexpr {
-                        return mulCol(r.col(i), m, dt);
-                    },
-                    *this, dot));
         }
 
         constexpr matrix<T, Nrow, Ncol> operator-() const {
@@ -247,26 +181,75 @@ namespace igi {
             return matrix<T, Nrow, Ncol>([&](size_t i, size_t j) constexpr { return this->get(i, j) - r.get(i, j); });
         }
 
+        template <typename Tr, size_t Nrcol>
+        constexpr auto operator*(const matrix<Tr, Ncol, Nrcol> &r) const {
+            using res_elem_t = mul_res_t<Tr>;
+
+            return matrix<res_elem_t, Nrow, Nrcol>([&](size_t i, size_t j) constexpr {
+                res_elem_t res = this->get(i, 0) * r.get(0, j);
+                for (size_t k = 1; k < Ncol; k++)
+                    res += this->get(i, k) * r.get(k, j);
+                return res;
+            });
+        }
+
+        template <typename Tr, size_t Nrcol>
+        constexpr auto transMul(const matrix_base<Tr, Nrow, Nrcol> &r) const {
+            using res_elem_t = mul_res_t<Tr>;
+
+            return matrix<res_elem_t, Ncol, Nrcol>([&](size_t i, size_t j) constexpr {
+                res_elem_t res = this->get(0, i) * r.get(0, j);
+                for (size_t k = 1; k < Nrow; k++)
+                    res += this->get(k, i) * r.get(k, j);
+                return res;
+            });
+        }
+
         template <typename Tr>
         constexpr matrix<T, Nrow, Ncol> operator/(Tr &&r) const {
             return matrix<T, Nrow, Ncol>([&](size_t i, size_t j) constexpr { return this->get(i, j) / r; });
         }
 
+        template <typename Tr>
+        constexpr matrix_base<T, Nrow, Ncol> &operator+=(const matrix_base<Tr, Nrow, Ncol> &r) {
+            MatrixBinaryOp(*this, r, [](T &el, const T &er) { el += er; });
+            return *this;
+        }
+
+        template <typename Tr>
+        constexpr matrix_base<T, Nrow, Ncol> &operator-=(const matrix_base<Tr, Nrow, Ncol> &r) {
+            MatrixBinaryOp(*this, r, [](T &el, const T &er) { el -= er; });
+            return *this;
+        }
+
+        template <typename Tr>
+        constexpr matrix_base<T, Nrow, Ncol> &operator*=(const matrix_base<Tr, Nrow, Ncol> &r) {
+            MatrixBinaryOp(*this, r, [](T &el, const T &er) { el *= er; });
+            return *this;
+        }
+
+        template <typename Tr>
+        constexpr matrix_base<T, Nrow, Ncol> &operator/=(const matrix_base<Tr, Nrow, Ncol> &r) {
+            MatrixBinaryOp(*this, r, [](T &el, const T &er) { el /= er; });
+            return *this;
+        }
+
+        template <typename U>
+        requires(is_scalar_matrix_c<matrix_base>) constexpr operator U() const {
+            return static_cast<U>(get(0, 0));
+        }
+
         constexpr bool operator==(const matrix_base &r) const {
-            return equal_impl(r, makeNCompSeq());
+            return equal_impl(r, makeNIndexSeq());
         }
 
         constexpr bool operator!=(const matrix_base &r) const {
-            return differ_impl(r, makeNCompSeq());
-        }
-
-        constexpr operator matrix<T, Nrow, Ncol>() const {
-            return convert_impl<matrix<T, Nrow, Ncol>>(makeNCompSeq());
+            return differ_impl(r, makeNIndexSeq());
         }
 
       private:
         constexpr auto asTuple() const {
-            constexpr auto seq = makeNCompSeq();
+            constexpr auto seq = makeNIndexSeq();
             return convert_impl<decltype(MakeTupleN<T>(seq))>(seq);
         }
 
@@ -278,7 +261,7 @@ namespace igi {
             return std::make_index_sequence<Ncol>();
         }
 
-        static constexpr auto makeNCompSeq() {
+        static constexpr auto makeNIndexSeq() {
             return std::make_index_sequence<Nrow * Ncol>();
         }
 
@@ -299,107 +282,126 @@ namespace igi {
 
         template <size_t... Is>
         constexpr bool equal_impl(const matrix_base &o, std::index_sequence<Is...>) const {
-            return ((_elem[Is] == o._elem[Is]) && ... && true);
+            return (static_cast<bool>(_elem[Is] == o._elem[Is]) && ... && true);
         }
 
         template <size_t... Is>
         constexpr bool differ_impl(const matrix_base &o, std::index_sequence<Is...>) const {
-            return ((_elem[Is] != o._elem[Is]) || ... || false);
+            return (static_cast<bool>(_elem[Is] != o._elem[Is]) || ... || false);
         }
     };
 
-    template <typename T>
-    class matrix_base<T, 1, 1> {
-        T _elem;
+    namespace impl {
+        template <typename T, size_t N>
+        class matrix_base_sqr : public matrix_base<T, N, N> {
+            using matrix_t = matrix<T, N, N>;
 
-      public:
-        matrix_base() = default;
-        constexpr explicit matrix_base(const T &e) : _elem(e) { }
+          public:
+            using matrix_base<T, N, N>::matrix_base;
+            using matrix_base<T, N, N>::get;
 
-        T &get(size_t, size_t) {
-            return _elem;
-        }
+            matrix_base_sqr() = default;
 
-        const T &get(size_t, size_t) const {
-            return _elem;
-        }
+            static constexpr matrix_t Identity() {
+                constexpr matrix_t I([](size_t i, size_t j) constexpr { return i == j ? 1 : 0; });
 
-        constexpr operator T() const {
-            return _elem;
-        }
-    };
-
-    template <typename T, size_t N>
-    class matrix_base_sqr : public matrix_base<T, N, N> {
-        using matrix_t = matrix<T, N, N>;
-
-      public:
-        using matrix_base<T, N, N>::matrix_base;
-        using matrix_base<T, N, N>::get;
-
-        matrix_base_sqr() = default;
-
-        static constexpr matrix_t Identity() {
-            constexpr matrix_t I([](size_t i, size_t j) constexpr { return i == j ? 1 : 0; });
-
-            return I;
-        }
-
-        template <size_t R, size_t C>
-        constexpr T adjoint() const {
-            return adjoint_impl<R, C>(makeNSeq(), makeNSeq());
-        }
-
-        constexpr matrix_t adjointT() const {
-            return adjointT_impl(std::make_index_sequence<N * N>());
-        }
-
-        constexpr T determinant() const {
-            return determinant_impl(makeNSeq(), makeNSeq());
-        }
-
-        constexpr matrix_t inverse() const {
-            return adjointT() * (static_cast<T>(1) / determinant());
-        }
-
-      private:
-        static constexpr auto makeNSeq() {
-            return std::make_index_sequence<N>();
-        }
-
-        template <size_t R, size_t C, size_t... Rs, size_t... Cs>
-        constexpr T adjoint_impl(std::index_sequence<Rs...>, std::index_sequence<Cs...>) const {
-            constexpr bool neg = ((R + C) & 1) == 1;
-            if constexpr (sizeof...(Rs) == 1)
-                return neg ? -get(R, C) : get(R, C);
-            else {
-                constexpr auto rs = RemoveFromInts<R, Rs...>();
-                constexpr auto cs = RemoveFromInts<C, Rs...>();
-                return neg ? -determinant_impl(rs, cs) : determinant_impl(rs, cs);
+                return I;
             }
-        }
 
-        template <size_t... Is>
-        constexpr matrix_t adjointT_impl(std::index_sequence<Is...>) const {
-            return matrix_t(adjoint<Is % N, Is / N>()...);
-        }
-
-        template <size_t... Rs, size_t... Cs>
-        constexpr T determinant_impl(std::index_sequence<Rs...> rs, std::index_sequence<Cs...> cs) const {
-            if constexpr (sizeof...(Rs) == 1)
-                return get(Rs..., Cs...);
-            else {
-                constexpr size_t r0 = GetNthInt<0, Rs...>();
-                return ((get(r0, Cs) * adjoint_impl<r0, Cs>(rs, cs)) + ...);
+            template <size_t R, size_t C>
+            constexpr T adjoint() const {
+                return adjoint_impl<R, C>(makeNSeq(), makeNSeq());
             }
-        }
-    };
 
-    template <typename Tl, typename T, size_t Nrow, size_t Ncol,
-              std::enable_if_t<std::is_convertible_v<std::remove_reference_t<Tl>, T>, int> = 0>
-    constexpr auto operator*(Tl &&l, const matrix_base<T, Nrow, Ncol> &r) {
+            constexpr matrix_t adjointT() const {
+                return adjointT_impl(std::make_index_sequence<N * N>());
+            }
+
+            constexpr T determinant() const {
+                return determinant_impl(makeNSeq(), makeNSeq());
+            }
+
+            constexpr matrix_t inverse() const {
+                return adjointT() * (static_cast<T>(1) / determinant());
+            }
+
+          private:
+            static constexpr auto makeNSeq() {
+                return std::make_index_sequence<N>();
+            }
+
+            template <size_t R, size_t C, size_t... Rs, size_t... Cs>
+            constexpr T adjoint_impl(std::index_sequence<Rs...>, std::index_sequence<Cs...>) const {
+                constexpr bool neg = ((R + C) & 1) == 1;
+                if constexpr (sizeof...(Rs) == 1)
+                    return neg ? -get(R, C) : get(R, C);
+                else {
+                    constexpr auto rs = RemoveFromInts<R, Rs...>();
+                    constexpr auto cs = RemoveFromInts<C, Rs...>();
+                    return neg ? -determinant_impl(rs, cs) : determinant_impl(rs, cs);
+                }
+            }
+
+            template <size_t... Is>
+            constexpr matrix_t adjointT_impl(std::index_sequence<Is...>) const {
+                return matrix_t(adjoint<Is % N, Is / N>()...);
+            }
+
+            template <size_t... Rs, size_t... Cs>
+            constexpr T determinant_impl(std::index_sequence<Rs...> rs, std::index_sequence<Cs...> cs) const {
+                if constexpr (sizeof...(Rs) == 1)
+                    return get(Rs..., Cs...);
+                else {
+                    constexpr size_t r0 = GetNthInt<0, Rs...>();
+                    return ((get(r0, Cs) * adjoint_impl<r0, Cs>(rs, cs)) + ...);
+                }
+            }
+        };
+    }  // namespace impl
+
+    template <is_matrix_c TL, is_matrix_c TR, typename TFn>
+    static constexpr void MatrixBinaryOp(TL &&l, TR &&r, TFn &&fn) {
+        constexpr size_t Nrow = matrix_row_v<TL>;
+        static_assert(Nrow == matrix_row_v<TR>);
+
+        constexpr size_t Ncol = matrix_col_v<TL>;
+        static_assert(Ncol == matrix_col_v<TR>);
+
+        for (size_t i = 0; i < Nrow; i++)
+            for (size_t j = 0; j < Ncol; j++)
+                fn(l.get(i, j), r.get(i, j));
+    }
+
+    // whether no custom mulplication is declared
+    template <typename TL, typename TR>
+    concept is_trivially_multipliable = requires(TL l, TR r) { { l * r }; }
+    &&!requires(TL l, TR r) { { operator*(l, r) }; }
+    &&!requires(TL l, TR r) { { l.operator*(r) }; };
+
+    template <typename T, size_t Nrow, size_t Ncol, is_trivially_multipliable<T> TR>
+    constexpr auto operator*(const matrix_base<T, Nrow, Ncol> &l, TR &&r) {
+        using res_t = std::remove_reference_t<decltype(l.get(0, 0) * r)>;
+        return matrix<res_t, Nrow, Ncol>([&](size_t i, size_t j) constexpr { return l.get(i, j) * r; });
+    }
+
+    template <typename TL, is_trivially_multipliable<TL> T, size_t Nrow, size_t Ncol>
+    constexpr auto operator*(TL &&l, const matrix_base<T, Nrow, Ncol> &r) {
         using res_t = std::remove_reference_t<decltype(l * r.get(0, 0))>;
         return matrix<res_t, Nrow, Ncol>([&](size_t i, size_t j) constexpr { return l * r.get(i, j); });
+    }
+
+    template <typename To, size_t Nrow, size_t Ncol, typename T>
+    To &operator<<(To &out, const matrix_base<T, Nrow, Ncol> &m) {
+        out << '{';
+        for (size_t i = 0; i < Nrow - 1; i++) {
+            out << '{';
+            for (size_t j = 0; j < Ncol - 1; j++) out << m.get(i, j) << ' ';
+            out << m.get(i, Ncol - 1) << "} ";
+        }
+        out << '{';
+        for (size_t j = 0; j < Ncol - 1; j++) out << m.get(Nrow - 1, j) << ' ';
+        out << m.get(Nrow - 1, Ncol - 1) << "}}";
+        return out;
     }
 
     template <typename T, size_t Nrow, size_t Ncol>
@@ -415,17 +417,9 @@ namespace igi {
         matrix() = default;
     };
 
-    template <typename T>
-    class matrix<T, 1, 1> : public matrix_base_sqr<T, 1> {
-        using matrix_base_sqr<T, 1>::matrix_base_sqr;
-
-      public:
-        matrix() = default;
-    };
-
     template <typename T, size_t N>
-    class matrix<T, N, N> : public matrix_base_sqr<T, N> {
-        using matrix_base_sqr<T, N>::matrix_base_sqr;
+    class matrix<T, N, N> : public impl::matrix_base_sqr<T, N> {
+        using impl::matrix_base_sqr<T, N>::matrix_base_sqr;
 
       public:
         matrix() = default;
@@ -450,18 +444,4 @@ namespace igi {
     using mat4    = matrix<T, 4, 4>;
     using mat4x4i = mat4<int>;
     using mat4x4f = matrixf<4, 4>;
-
-    template <typename To, size_t Nrow, size_t Ncol, typename T>
-    To &operator<<(To &out, const matrix_base<T, Nrow, Ncol> &m) {
-        out << '{';
-        for (size_t i = 0; i < Nrow - 1; i++) {
-            out << '{';
-            for (size_t j = 0; j < Ncol - 1; j++) out << m.get(i, j) << ' ';
-            out << m.get(i, Ncol - 1) << "} ";
-        }
-        out << '{';
-        for (size_t j = 0; j < Ncol - 1; j++) out << m.get(Nrow - 1, j) << ' ';
-        out << m.get(Nrow - 1, Ncol - 1) << "}}";
-        return out;
-    }
 }  // namespace igi

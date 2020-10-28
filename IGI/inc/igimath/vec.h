@@ -6,7 +6,7 @@
 
 namespace igi {
     template <typename T, size_t N>
-    class matrix<T, N, 1> : public matrix_base<T, N, 1> {
+    requires(N > 1) class matrix<T, N, 1> : public matrix_base<T, N, 1> {
         using matrix_base<T, N, 1>::matrix_base;
 
       public:

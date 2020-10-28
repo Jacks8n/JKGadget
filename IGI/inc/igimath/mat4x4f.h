@@ -5,7 +5,7 @@
 
 namespace igi {
     template <>
-    class alignas(32) matrix<float, 4, 4> : public matrix_base_sqr<float, 4> {
+    class alignas(32) matrix<float, 4, 4> : public impl::matrix_base_sqr<float, 4> {
       public:
         using matrix_base_sqr<float, 4>::matrix_base_sqr;
 
