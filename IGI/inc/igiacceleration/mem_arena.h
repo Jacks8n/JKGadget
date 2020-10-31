@@ -7,7 +7,7 @@
 
 namespace igi {
     class mem_arena : public std::pmr::memory_resource {
-        static constexpr size_t MinChunkSize = 1024;
+        static constexpr size_t MinChunkSize = 4096;
 
         class chunk {
             chunk *_prev;

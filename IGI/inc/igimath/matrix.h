@@ -1,5 +1,8 @@
 ﻿#pragma once
 
+/// operands of templated matrix operators are desgined to be const ref,
+/// in order to simplify further specialization
+
 #include "igimath/mathutil.h"
 #include "igimath/single.h"
 #include "igiutilities/igiutil.h"
@@ -182,7 +185,7 @@ namespace igi {
         }
 
         template <typename Tr, size_t Nrcol>
-        constexpr auto operator*(const matrix<Tr, Ncol, Nrcol> &r) const {
+        constexpr auto operator*(const matrix_base<Tr, Ncol, Nrcol> &r) const {
             using res_elem_t = mul_res_t<Tr>;
 
             return matrix<res_elem_t, Nrow, Nrcol>([&](size_t i, size_t j) constexpr {
@@ -372,21 +375,17 @@ namespace igi {
                 fn(l.get(i, j), r.get(i, j));
     }
 
-    // whether no custom mulplication is declared
-    template <typename TL, typename TR>
-    concept is_trivially_multipliable = requires(TL l, TR r) { { l * r }; }
-    &&!requires(TL l, TR r) { { operator*(l, r) }; }
-    &&!requires(TL l, TR r) { { l.operator*(r) }; };
-
-    template <typename T, size_t Nrow, size_t Ncol, is_trivially_multipliable<T> TR>
-    constexpr auto operator*(const matrix_base<T, Nrow, Ncol> &l, TR &&r) {
+    template <typename T, size_t Nrow, size_t Ncol, typename TR>
+    requires(!is_matrix_c<TR>) constexpr auto operator*(const matrix_base<T, Nrow, Ncol> &l, const TR &r) {
         using res_t = std::remove_reference_t<decltype(l.get(0, 0) * r)>;
+
         return matrix<res_t, Nrow, Ncol>([&](size_t i, size_t j) constexpr { return l.get(i, j) * r; });
     }
 
-    template <typename TL, is_trivially_multipliable<TL> T, size_t Nrow, size_t Ncol>
-    constexpr auto operator*(TL &&l, const matrix_base<T, Nrow, Ncol> &r) {
+    template <typename TL, typename T, size_t Nrow, size_t Ncol>
+    requires(!is_matrix_c<TL>) constexpr auto operator*(const TL &l, const matrix_base<T, Nrow, Ncol> &r) {
         using res_t = std::remove_reference_t<decltype(l * r.get(0, 0))>;
+
         return matrix<res_t, Nrow, Ncol>([&](size_t i, size_t j) constexpr { return l * r.get(i, j); });
     }
 

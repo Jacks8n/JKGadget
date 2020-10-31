@@ -49,6 +49,7 @@ namespace igi {
             if (!_surf->tryHit(r, getTransform(), &res->surface))
                 return false;
 
+            res->entityId = interaction::EntityToID(this);
             res->material = _mat;
             return true;
         }

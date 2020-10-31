@@ -32,7 +32,7 @@ namespace igi {
         }
 
         constexpr T magnitude() const {
-            return static_cast<T>(SqrtConstexpr(magnitudeSqr()));
+            return static_cast<T>(Sqrt(magnitudeSqr()));
         }
 
         constexpr matrix normalized() const {
@@ -63,6 +63,8 @@ namespace igi {
     using vec = matrix<T, N, 1>;
     template <size_t N>
     using vecf = matrix<single, N, 1>;
+    template <size_t N>
+    using vecef = matrix<esingle, N, 1>;
 
     template <typename T>
     using vec2 = vec<T, 2>;
@@ -79,9 +81,18 @@ namespace igi {
     using vec3f = vecf<3>;
     using vec4f = vecf<4>;
 
+    using vec2ef = vecef<2>;
+    using vec3ef = vecef<3>;
+    using vec4ef = vecef<4>;
+
     template <typename T, size_t N>
     constexpr T Dot(const matrix_base<T, N, 1> &l, const matrix_base<T, N, 1> &r) {
         return l.transMul(r);
+    }
+
+    template <typename T>
+    constexpr T Cross(const vec2<T> &l, const vec2<T> &r) {
+        return l[0] * r[1] - l[1] * r[0];
     }
 
     template <typename T>

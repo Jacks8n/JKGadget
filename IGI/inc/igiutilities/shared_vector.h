@@ -29,6 +29,19 @@ namespace igi {
               }),
               _end(_buf.get()), _cap(n) { }
 
+        template <typename U>
+        shared_vector(std::initializer_list<U> il, const allocator_type &alloc)
+            : shared_vector(il.size(), alloc) {
+            for (size_t i = 0; i < il.size(); i++)
+                emplace_back(il[i]);
+        }
+
+        template <typename... Ts>
+        shared_vector(const allocator_type &alloc, Ts &&... ts)
+            : shared_vector(sizeof...(Ts), alloc) {
+            (emplace_back(ts), ...);
+        }
+
         iterator begin() {
             return _buf.get();
         }

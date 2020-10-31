@@ -25,32 +25,6 @@ namespace igi {
             constexpr leaf(const igi::entity *ep, bound_t b) : entity(ep), bound(b) { }
         };
 
-        template <typename TIt>
-        class leaf_getter : public std::iterator_traits<TIt> {
-            TIt _it;
-
-          public:
-            explicit constexpr leaf_getter(const TIt &it) : _it(it) { }
-
-            constexpr leaf operator*() const {
-                const entity &e = *_it;
-                return leaf(&e, e.getBound());
-            }
-
-            leaf_getter &operator++() {
-                ++_it;
-                return *this;
-            }
-
-            constexpr auto operator-(const leaf_getter &r) const {
-                return _it - r._it;
-            }
-
-            constexpr bool operator!=(const leaf_getter &r) const {
-                return _it != r._it;
-            }
-        };
-
       public:
         using initializer_list_t = std::initializer_list<const std::reference_wrapper<entity>>;
         using allocator_type     = std::pmr::polymorphic_allocator<leaf>;
@@ -64,12 +38,13 @@ namespace igi {
             : _nodes(std::move(o._nodes), alloc), _leaves(o._leaves, alloc) { }
 
         template <typename TIt>
-        aggregate(TIt &&entities, size_t n, const allocator_type &alloc, const allocator_type &tempAlloc)
+        aggregate(TIt &&entityIt, size_t n, const allocator_type &alloc, const allocator_type &tempAlloc)
             : _nodes(alloc), _leaves(n, alloc) {
-            initBuild(std::forward<TIt>(entities), n, tempAlloc);
+            initBuild(std::forward<TIt>(entityIt), n, tempAlloc);
         }
         template <typename TIt>
-        aggregate(TIt &&entities, size_t n, const allocator_type &alloc) : aggregate(std::forward<TIt>(entities), n, alloc, alloc) { }
+        aggregate(TIt &&entityIt, size_t n, const allocator_type &alloc)
+            : aggregate(std::forward<TIt>(entityIt), n, alloc, alloc) { }
 
         aggregate &operator=(const aggregate &) = delete;
         aggregate &operator=(aggregate &&) = delete;
@@ -82,8 +57,16 @@ namespace igi {
         }
 
         bool tryHit(ray &r, interaction *res, itr_stack_t &itrtmp) const {
-            return hit_impl<false>(r, itrtmp,
-                                   [=](const entity &e, ray &r) { return e.tryHit(r, res); });
+            interaction tmp;
+            tmp.entityId = interaction::EntityIDNull;
+
+            bool hit = hit_impl<false>(r, itrtmp,
+                                       [&](const entity &e, ray &r) {
+                                           return interaction::EntityToID(&e) != tmp.entityId && e.tryHit(r, &tmp);
+                                       });
+
+            *res = tmp;
+            return hit;
         }
 
       private:
@@ -93,9 +76,12 @@ namespace igi {
         void initBuild(allocator_type tempAlloc);
 
         template <typename TIt>
-        void initBuild(TIt &&entities, size_t n, allocator_type alloc) {
-            if (!n) return;
-            std::uninitialized_move_n(leaf_getter(entities), n, _leaves.begin());
+        void initBuild(TIt &&entityIt, size_t n, allocator_type alloc) {
+            if (!n)
+                return;
+
+            for (size_t i = 0; i < n; i++)
+                _leaves.emplace_back(&*entityIt, (*entityIt).getBound());
 
             if (n < 3) {
                 if (n == 1)

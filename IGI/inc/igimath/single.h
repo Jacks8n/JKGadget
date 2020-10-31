@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <compare>
 #include <utility>
 #include "igimath/mathutil.h"
@@ -57,6 +58,9 @@ namespace igi {
         friend constexpr std::weak_ordering operator<=>(const U &l, const error_single<U> &r);
         template <IsSingleFloatC U>
         friend constexpr std::weak_ordering operator<=>(const error_single<U> &l, const error_single<U> &r);
+
+        template <typename U>
+        friend inline error_single<U> Sqrt(const error_single<U> &val);
 
         T _value, _lowerBound, _upperBound;
 
@@ -276,6 +280,11 @@ namespace igi {
         return esingle(val);
     }
 
+    template <typename T>
+    inline error_single<T> Sqrt(const error_single<T> &val) {
+        return error_single<T>::nextError(std::sqrt(val._value), std::sqrt(val._lowerBound), std::sqrt(val._upperBound));
+    }
+
     // The suffix of function name, i.e., .*(cf), indicates 'Conservative Floating Point'
 
     template <typename T0, typename T1, typename T2>
@@ -288,6 +297,18 @@ namespace igi {
     constexpr size_t MinIcf(T0 &&v0, T1 &&v1, T2 &&v2) {
         return v0 < v1 ? v0 < v2 ? 0 : 2
                        : v1 < v2 ? 1 : 2;
+    }
+
+    template <typename T0, typename T1, typename T2>
+    constexpr decltype(auto) Maxcf(T0 &&v0, T1 &&v1, T2 &&v2) {
+        return v0 < v1 ? v1 < v2 ? v2 : v1
+                       : v0 < v2 ? v2 : v0;
+    }
+
+    template <typename T0, typename T1, typename T2>
+    constexpr decltype(auto) Mincf(T0 &&v0, T1 &&v1, T2 &&v2) {
+        return v0 < v1 ? v0 < v2 ? v0 : v2
+                       : v1 < v2 ? v1 : v2;
     }
 
     template <typename TLo, typename THi, typename TV>

@@ -1,16 +1,42 @@
 ﻿#include "main.h"
 #include "igigeometry/cylinder.h"
 #include "igigeometry/sphere.h"
+#include "igigeometry/triangle.h"
 #include "igiintegrator/path_trace.h"
 #include "igimaterial/material_emissive.h"
 #include "igimaterial/material_phong.h"
 
 using namespace demo;
 
+using path_with_texture = std::pair<std::string_view, igi::texture_rgb>;
+
+path_with_texture demo_json(igi::mem_arena &arena, std::pmr::polymorphic_allocator<char> &alloc);
+path_with_texture demo_primitives(igi::mem_arena &arena, std::pmr::polymorphic_allocator<char> &alloc);
+
 int main() {
     igi::mem_arena arena;
     std::pmr::polymorphic_allocator<char> alloc(&arena);
 
+    //path_with_texture res = demo_json(arena, alloc);
+    path_with_texture res = demo_primitives(arena, alloc);
+
+    std::ofstream os;
+    os.open(res.first.data(), std::ios_base::binary);
+
+    if (os.fail()) {
+        std::cerr << "failed to start writing output" << std::endl;
+        return -1;
+    }
+
+    pngparvus::png_writer writer;
+    writer.write(os, res.second);
+
+    os.close();
+
+    return 0;
+}
+
+path_with_texture demo_json(igi::mem_arena &arena, std::pmr::polymorphic_allocator<char> &alloc) {
     char *config = ReadConfig("demo.json", alloc);
 
     rapidjson::Document doc;
@@ -34,18 +60,45 @@ int main() {
 
     igi::render(*demo, *cam, pt, arena, res, spp, &std::cout);
 
-    std::ofstream os;
-    os.open(path.data(), std::ios_base::binary);
+    return std::make_pair(path, res);
+}
 
-    if (os.fail()) {
-        std::cerr << "failed to start writing output" << std::endl;
-        return -1;
-    }
+path_with_texture demo_primitives(igi::mem_arena &arena, std::pmr::polymorphic_allocator<char> &alloc) {
+    static constexpr size_t nentity = 12;
 
-    pngparvus::png_writer writer;
-    writer.write(os, res);
+    static igi::vec3f vertices[3 * nentity];
 
-    os.close();
+    std::default_random_engine e;
+    std::uniform_real_distribution<igi::single> rd(-2, 2);
 
-    return 0;
+    for (auto &i : vertices)
+        i = igi::vec3f(rd(e), rd(e), rd(e) + 4);
+
+    igi::triangle_mesh mesh;
+    mesh.setPos(std::begin(vertices), std::end(vertices), alloc);
+    mesh.setTriangle(igi::triangle_topology::list, alloc);
+
+    igi::material_phong mat0;
+    igi::material_emissive mat1;
+    igi::shared_vector<igi::IMaterial *> mats(alloc, &mat0, &mat1);
+
+    igi::shared_vector<igi::ISurface *> surfs(nentity, alloc);
+    for (auto i : mesh)
+        surfs.push_back(&i);
+
+    igi::shared_vector<igi::entity> entities(nentity, alloc);
+    for (size_t i = 0; i < nentity; i++)
+        entities.emplace_back(surfs[i], mats[i & 1]);
+
+    igi::scene demo(mats.as_shared_ptr(), surfs.as_shared_ptr(), entities.as_shared_ptr(), nentity, igi::palette::black, alloc);
+
+    igi::camera_perspective cam;
+
+    igi::path_trace pt;
+
+    igi::texture_rgb res(512, 512, alloc);
+
+    igi::render(demo, cam, pt, arena, res, 32, &std::cout);
+
+    return std::make_pair("demo_primitives.png", res);
 }

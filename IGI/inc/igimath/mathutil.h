@@ -9,7 +9,7 @@
 namespace igi {
     template <typename T0, typename T1, typename T2>
     constexpr decltype(auto) Clamp(T0 &&lo, T1 &&hi, T2 &&val) {
-        return val < lo ? lo : hi < val ? hi : val;
+        return val < hi ? lo < val ? val : lo : hi;
     }
 
     template <typename T>
@@ -129,19 +129,18 @@ namespace igi {
     using precise_float_t = std::conditional_t<std::is_same_v<T, float>, double, std::conditional_t<std::is_same_v<T, double> && std::is_same_v<T, long double>, long double, T>>;
 
     template <typename T, typename TRes = std::remove_cvref_t<T>>
-    constexpr TRes SqrtConstexpr(T &&val) {
+    constexpr TRes Sqrt(const T &val) {
         using precise_t = precise_float_t<std::remove_cvref_t<T>>;
 
         constexpr precise_t InitialFactor { .86003999f };
 
         struct impl {
             static constexpr precise_t iterate(const precise_t &val, const precise_t &cur, int n) {
-                return n ? iterate(val, (cur * cur + val) / (cur * static_cast<precise_t>(2)), n - 1)
-                         : cur;
+                return n ? iterate(val, (cur * cur + val) / (cur * static_cast<precise_t>(2)), n - 1) : cur;
             };
         };
 
-        return std::is_constant_evaluated() ? static_cast<TRes>(impl::iterate(val, InitialFactor * val, 32)) : static_cast<TRes>(sqrt(val));
+        return std::is_constant_evaluated() ? static_cast<TRes>(impl::iterate(val, InitialFactor * val, 32)) : std::sqrt(val);
     }
 
     template <typename T, typename TRes = std::remove_cvref_t<T>>
@@ -164,7 +163,7 @@ namespace igi {
         if (!(d >= 0))
             return false;
 
-        precise_t sqrtd = SqrtConstexpr(d);
+        precise_t sqrtd = Sqrt(d);
         precise_t q     = (b + (b < 0 ? -sqrtd : sqrtd)) * -.5;
 
         *t0 = q / a;

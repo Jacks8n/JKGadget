@@ -66,6 +66,8 @@ namespace igi {
         }
 
         ray &setT(esingle t) {
+            assert(t > getTMin());
+
             _t = t;
             return *this;
         }

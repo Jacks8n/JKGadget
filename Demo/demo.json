@@ -49,6 +49,6 @@
     "height": 512
   },
   "output": {
-    "path": "demo.png"
+    "path": "demo_json.png"
   }
 }

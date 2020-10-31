@@ -24,6 +24,9 @@ namespace igi {
     };
 
     class camera_orthographic : public camera_base {
+        static constexpr single DefaultNear = .1_sg;
+        static constexpr single DefaultFar  = 1000_sg;
+
         single _width, _height;
 
         mat4x4f _v2w;
@@ -32,12 +35,13 @@ namespace igi {
         META_BE_RT(camera_orthographic, deser_pmr_func_a<camera_base>([](const serializer_t &ser, const deser_pmr_allocator_t &) {
                        single w = serialization::Deserialize<single>(ser["width"]);
                        single h = serialization::Deserialize<single>(ser["height"]);
-                       IGI_SERIALIZE_OPTIONAL(single, near, .1_sg, ser);
-                       IGI_SERIALIZE_OPTIONAL(single, far, 1000_sg, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, near, DefaultNear, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, far, DefaultFar, ser);
                        return rflite::meta_helper::any_new<camera_orthographic>(w, h, near, far);
-                   }), ser_pmr_name_a("orthographic"))
+                   }),
+                   ser_pmr_name_a("orthographic"))
 
-        camera_orthographic(single width, single height, single near = .1_sg, single far = 1000_sg)
+        camera_orthographic(single width, single height, single near = DefaultNear, single far = DefaultFar)
             : camera_base(near, far), _width(width), _height(height) {
             calculateV2W();
         }
@@ -59,20 +63,26 @@ namespace igi {
     };
 
     class camera_perspective : public camera_base {
+        static constexpr single DefaultFOV   = 70_sg;
+        static constexpr single DefaultRatio = 1_sg;
+        static constexpr single DefaultNear  = .1_sg;
+        static constexpr single DefaultFar   = 1000_sg;
+
         single _left, _right, _bottom, _top;
 
         mat4x4f _v2l;
 
       public:
         META_BE_RT(camera_perspective, deser_pmr_func_a<camera_base>([](const serializer_t &ser, const deser_pmr_allocator_t &) {
-                       IGI_SERIALIZE_OPTIONAL(single, fov, 70_sg, ser);
-                       IGI_SERIALIZE_OPTIONAL(single, ratio, 1_sg, ser);
-                       IGI_SERIALIZE_OPTIONAL(single, near, .1_sg, ser);
-                       IGI_SERIALIZE_OPTIONAL(single, far, 1000_sg, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, fov, DefaultFOV, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, ratio, DefaultRatio, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, near, DefaultNear, ser);
+                       IGI_SERIALIZE_OPTIONAL(single, far, DefaultFar, ser);
                        return rflite::meta_helper::any_new<camera_perspective>(fov, ratio, near, far);
-                   }), ser_pmr_name_a("perspective"))
+                   }),
+                   ser_pmr_name_a("perspective"))
 
-        camera_perspective(single fov, single ratio, single near = .1_sg, single far = 1000_sg)
+        camera_perspective(single fov = DefaultFOV, single ratio = DefaultFOV, single near = DefaultNear, single far = DefaultFar)
             : camera_base(near, far) {
             _left   = -(_right = tan(fov * Deg2Rad * .5_sg));
             _bottom = -(_top = _right * ratio);

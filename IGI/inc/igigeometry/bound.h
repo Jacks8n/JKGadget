@@ -54,6 +54,11 @@ namespace igi {
             _max[dim] = coord;
         }
 
+        constexpr aabb conservative() const {
+            return aabb(vec3f([&](size_t i, size_t) { return DecreaseBit(_min[i]); }),
+                        vec3f([&](size_t i, size_t) { return IncreaseBit(_max[i]); }));
+        }
+
         constexpr vec3f getDiagonal() const {
             return _max - _min;
         }

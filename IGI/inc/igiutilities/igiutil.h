@@ -6,7 +6,7 @@
 
 namespace igi {
     template <typename T0, typename... Ts>
-    constexpr bool all_same_v = (std::is_same_v<T0, Ts> &&...);
+    constexpr bool all_same_v = (std::is_same_v<T0, Ts> && ...);
 
     template <typename TTo, typename... TFroms>
     constexpr bool all_convertible_v = (std::is_convertible_v<TFroms, TTo> && ...);
