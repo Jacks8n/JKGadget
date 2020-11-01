@@ -39,23 +39,32 @@ namespace igi {
             return *this * (static_cast<T>(1) / magnitude());
         }
 
+        constexpr bool isNormalized() const {
+            using precise_t = error_single<T>;
+
+            matrix<precise_t, 3, 1> e(*this);
+            return e.magnitude() == static_cast<precise_t>(1);
+        }
+
         template <typename... Is>
         constexpr matrix permute(Is &&... is) const {
             return matrix(operator[](std::forward<Is>(is))...);
         }
 
-        T &operator[](size_t i) {
+        decltype(auto) operator[](size_t i) {
+            assert(i < N);
             return matrix_base<T, N, 1>::get(i, 0);
         }
 
-        constexpr const T &operator[](size_t i) const {
+        constexpr decltype(auto) operator[](size_t i) const {
+            assert(i < N);
             return matrix_base<T, N, 1>::get(i, 0);
         }
     };
 
     template <typename T0, typename... Ts>
     constexpr auto igivec(T0 &&t0, Ts &&... ts) {
-        return matrix<std::remove_reference_t<T0>, sizeof...(Ts) + 1, 1>(
+        return matrix<std::remove_cvref_t<T0>, sizeof...(Ts) + 1, 1>(
             std::forward<T0>(t0), std::forward<Ts>(ts)...);
     }
 

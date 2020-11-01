@@ -22,41 +22,41 @@ namespace igi {
 
     constexpr single SingleLarge = static_cast<single>(1) / SingleEpsilon;
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     class error_single {
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator+(const error_single<U> &l, const U &r);
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator+(const U &l, const error_single<U> &r);
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator+(const error_single<U> &l, const error_single<U> &r);
 
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator-(const error_single<U> &l, const U &r);
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator-(const U &l, const error_single<U> &r);
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator-(const error_single<U> &l, const error_single<U> &r);
 
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator*(const error_single<U> &l, const U &r);
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator*(const U &l, const error_single<U> &r);
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator*(const error_single<U> &l, const error_single<U> &r);
 
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator/(const error_single<U> &l, const U &r);
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator/(const U &l, const error_single<U> &r);
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr error_single<U> operator/(const error_single<U> &l, const error_single<U> &r);
 
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr std::weak_ordering operator<=>(const error_single<U> &l, const U &r);
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr std::weak_ordering operator<=>(const U &l, const error_single<U> &r);
-        template <IsSingleFloatC U>
+        template <is_single_float_c U>
         friend constexpr std::weak_ordering operator<=>(const error_single<U> &l, const error_single<U> &r);
 
         template <typename U>
@@ -164,48 +164,48 @@ namespace igi {
         }
     };
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator+(const error_single<T> &l, const T &r) {
         return error_single<T>::nextError(l._value + r, l._lowerBound + r, l._upperBound + r);
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator+(const T &l, const error_single<T> &r) {
         return operator+(r, l);
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator+(const error_single<T> &l, const error_single<T> &r) {
         return error_single<T>::nextError(l._value + r._value, l._lowerBound + r._lowerBound, l._upperBound + r._upperBound);
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator-(const error_single<T> &l, const T &r) {
         return error_single<T>::nextError(l._value - r, l._lowerBound - r, l._upperBound - r);
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator-(const T &l, const error_single<T> &r) {
         return operator-(r, l);
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator-(const error_single<T> &l, const error_single<T> &r) {
         return error_single<T>::nextError(l._value - r._value, l._lowerBound - r._upperBound, l._upperBound - r._lowerBound);
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator*(const error_single<T> &l, const T &r) {
         return r > 0 ? error_single<T>::nextError(l._value * r, l._lowerBound * r, l._upperBound * r)
                      : error_single<T>::nextError(l._value * r, l._upperBound * r, l._lowerBound * r);
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator*(const T &l, const error_single<T> &r) {
         return operator*(r, l);
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator*(const error_single<T> &l, const error_single<T> &r) {
         T ll = l._lowerBound * r._lowerBound;
         T lu = l._lowerBound * r._upperBound;
@@ -217,19 +217,19 @@ namespace igi {
                                           std::max(std::max(ll, lu), std::max(ul, uu)));
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator/(const error_single<T> &l, const T &r) {
         return error_single<T>::nextError(l._value / r, l._lowerBound / r, l._upperBound / r);
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator/(const T &l, const error_single<T> &r) {
         T ub = l / r._upperBound;
         T lb = l / r._lowerBound;
         return error_single<T>::nextError(l / r._value, std::min(lb, ub), std::max(lb, ub));
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr error_single<T> operator/(const error_single<T> &l, const error_single<T> &r) {
         T ll = l._lowerBound / r._lowerBound;
         T lu = l._lowerBound / r._upperBound;
@@ -241,21 +241,21 @@ namespace igi {
                                           std::max(std::max(ll, lu), std::max(ul, uu)));
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr std::weak_ordering operator<=>(const error_single<T> &l, const T &r) {
         return l._upperBound < r ? std::weak_ordering::less
                                  : r < l._lowerBound ? std::weak_ordering::greater
                                                      : std::weak_ordering::equivalent;
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr std::weak_ordering operator<=>(const T &l, const error_single<T> &r) {
         return l < r._lowerBound ? std::weak_ordering::less
                                  : r._upperBound < l ? std::weak_ordering::greater
                                                      : std::weak_ordering::equivalent;
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr std::weak_ordering operator<=>(const error_single<T> &l, const error_single<T> &r) {
         return l._upperBound < r._lowerBound ? std::weak_ordering::less
                                              : r._upperBound < l._lowerBound ? std::weak_ordering::greater

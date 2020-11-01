@@ -178,9 +178,9 @@ namespace igi {
     using float_bits_t = std::conditional_t<std::is_same_v<T, float>, uint32_t, std::conditional_t<std::is_same_v<T, double>, uint64_t, void>>;
 
     template <typename T>
-    concept IsSingleFloatC = std::is_same_v<T, float> || std::is_same_v<T, double>;
+    concept is_single_float_c = std::is_same_v<T, float> || std::is_same_v<T, double>;
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr T IncreaseBit(T val) {
         using bits_t = float_bits_t<T>;
 
@@ -194,7 +194,7 @@ namespace igi {
         return std::bit_cast<T>(bits);
     }
 
-    template <IsSingleFloatC T>
+    template <is_single_float_c T>
     constexpr T DecreaseBit(T val) {
         using bits_t = float_bits_t<T>;
 
