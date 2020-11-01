@@ -54,6 +54,10 @@ namespace igi {
             _max[dim] = coord;
         }
 
+        constexpr bool isSingular() const {
+            return getMin(0) > getMax(0) || getMin(1) > getMax(1) || getMin(2) > getMax(2);
+        }
+
         constexpr aabb conservative() const {
             return aabb(vec3f([&](size_t i, size_t) { return DecreaseBit(_min[i]); }),
                         vec3f([&](size_t i, size_t) { return IncreaseBit(_max[i]); }));
@@ -72,15 +76,21 @@ namespace igi {
         }
 
         aabb &extend(const vec3f &p) {
-            for (size_t i = 0; i < 3; i++)
+            for (size_t i = 0; i < 3; i++) {
                 if (p[i] < _min[i])
                     _min[i] = p[i];
-                else if (_max[i] < p[i])
+                if (_max[i] < p[i])
                     _max[i] = p[i];
+            }
+
+            assert(!isSingular());
             return *this;
         }
 
         aabb &extend(const aabb &b) {
+            if (b.isSingular())
+                return *this;
+
             return extend(b._min).extend(b._max);
         }
 

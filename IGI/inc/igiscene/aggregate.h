@@ -30,18 +30,18 @@ namespace igi {
         using allocator_type     = std::pmr::polymorphic_allocator<leaf>;
         using itr_stack_t        = std::stack<const void *, std::pmr::vector<const void *>>;
 
-        aggregate(const allocator_type &alloc)
-            : _nodes(alloc), _leaves(alloc) { }
-        aggregate(const aggregate &o, const allocator_type &alloc)
-            : _nodes(o._nodes, alloc), _leaves(o._leaves, alloc) { }
         aggregate(aggregate &&o, const allocator_type &alloc)
             : _nodes(std::move(o._nodes), alloc), _leaves(o._leaves, alloc) { }
 
         template <typename TIt>
         aggregate(TIt &&entityIt, size_t n, const allocator_type &alloc, const allocator_type &tempAlloc)
-            : _nodes(alloc), _leaves(n, alloc) {
+            : _nodes(n * 2, alloc), _leaves(n, alloc) {
+            _nodes.clear();
+            _leaves.clear();
+
             initBuild(std::forward<TIt>(entityIt), n, tempAlloc);
         }
+
         template <typename TIt>
         aggregate(TIt &&entityIt, size_t n, const allocator_type &alloc)
             : aggregate(std::forward<TIt>(entityIt), n, alloc, alloc) { }
@@ -104,6 +104,8 @@ namespace igi {
             itrtmp.push(_nodes.data());
             do {
                 const node *curr = static_cast<const node *>(itrtmp.top());
+                itrtmp.pop();
+
                 if (curr->bound.isHit(r)) {
                     for (size_t i = 0; i < 2; i++)
                         if (curr->childIsLeaf[i]) {
@@ -122,8 +124,6 @@ namespace igi {
                         else if (curr->children[i])
                             itrtmp.push(&_nodes[curr->children[i]]);
                 }
-
-                itrtmp.pop();
             } while (itrtmp.size() > emptySize);
 
 end:

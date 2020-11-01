@@ -157,25 +157,17 @@ namespace igi {
         }
 
         const vec3f &getPos(size_t index) const {
+            assert(_positionInit);
             assert(index < _positions.size());
 
             return _positions[index];
         }
 
         const vec2f &getUV(size_t index) const {
-            if (_uvInit) {
-                assert(index < _uvs.size());
-                return _uvs[index];
-            }
+            assert(_uvInit);
+            assert(index < _uvs.size());
 
-            static constexpr vec2f DefaultUVs[] {
-                vec2f(1_sg, 1_sg),
-                vec2f(1_sg, 0_sg),
-                vec2f(1_sg, 1_sg)
-            };
-
-            assert(index < std::size(DefaultUVs));
-            return DefaultUVs[index];
+            return _uvs[index];
         }
 
       private:
@@ -218,7 +210,17 @@ namespace igi {
     }
 
     inline decltype(auto) triangle::getUV(size_t index) const {
-        return _mesh->getUV(_indices[index]);
+        static constexpr vec2f DefaultUVs[] {
+            vec2f(1_sg, 1_sg),
+            vec2f(1_sg, 0_sg),
+            vec2f(1_sg, 1_sg)
+        };
+
+        if (_mesh->_uvInit)
+            return _mesh->getUV(_indices[index]);
+
+        assert(index < std::size(DefaultUVs));
+        return DefaultUVs[index];
     }
 
     inline decltype(auto) triangle::getPos() const {

@@ -39,7 +39,7 @@ namespace igi {
         vec2f xy(res->normal);
         single sinu       = xy.magnitude();
         single cosu       = res->normal[2];
-        auto [cosv, sinv] = (xy * (1_sg / sinu)).rows();
+        auto [cosv, sinv] = (xy * (1_sg / sinu)).asTuple();
 
         res->uv = vec2f(Saturate(atan2(sinu, cosu) * PiInv),
                         Saturate(PiTwoToZeroOne(atan2(res->normal[1], res->normal[0]))));

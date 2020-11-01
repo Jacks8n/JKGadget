@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <tuple>
 #include <type_traits>
@@ -10,6 +10,19 @@ namespace igi {
 
     template <typename TTo, typename... TFroms>
     constexpr bool all_convertible_v = (std::is_convertible_v<TFroms, TTo> && ...);
+
+    template <typename T, size_t N>
+    struct tuple_n {
+      private:
+        template <size_t... Is>
+        static constexpr std::tuple<std::conditional_t<true, T, decltype(Is)>...> impl(std::index_sequence<Is...>);
+
+      public:
+        using type = decltype(impl(std::make_index_sequence<N>()));
+    };
+
+    template <typename T, size_t N>
+    using tuple_n_t = typename tuple_n<T, N>::type;
 
     template <size_t I, size_t... Is>
     constexpr size_t GetFirstInt() {
@@ -45,16 +58,6 @@ namespace igi {
         return std::index_sequence<Ts::value...>();
     }
 
-    template <typename T, size_t... Is>
-    constexpr auto MakeTupleN(std::index_sequence<Is...>) {
-        return std::tuple<std::conditional_t<false, decltype(Is), T>...>();
-    }
-
-    template <typename T, size_t N>
-    constexpr auto MakeTupleN() {
-        return MakeTupleN<T>(std::make_index_sequence<N>());
-    }
-
     template <size_t I, size_t... Is>
     constexpr auto RemoveFromInts() {
         return ToIndexSeq(ConcatTrueCond(std::tuple<>(), std::make_tuple(cond_val<I != Is, Is>()...)));
@@ -65,16 +68,9 @@ namespace igi {
         return RemoveFromInts<I, Is...>();
     }
 
-    template <typename TFn, size_t... Is, typename... Ts,
-              std::enable_if_t<std::is_invocable_v<TFn, Ts...>, int> = 0>
-    constexpr void ForCE(TFn &&fn, std::index_sequence<Is...>, Ts &&... ts) {
-        (((void)Is, (void)fn(std::forward<Ts>(ts)...)), ...);
-    }
-
-    template <typename TFn, size_t... Is, typename... Ts,
-              std::enable_if_t<std::is_invocable_v<TFn, size_t, Ts...>, int> = 0>
-    constexpr auto ForCE(TFn &&fn, std::index_sequence<Is...>, Ts &&... ts) {
-        return std::make_tuple(fn(Is, std::forward<Ts>(ts)...)...);
+    template <typename TFn, size_t... Is, typename... TArgs>
+    requires(std::is_invocable_v<TFn, size_t, TArgs...>) constexpr auto ForCE(TFn &&fn, std::index_sequence<Is...>, TArgs &&... args) {
+        return std::make_tuple(fn(Is, std::forward<TArgs>(args)...)...);
     }
 
     template <size_t N, typename TFn, typename... Ts>

@@ -82,7 +82,7 @@ namespace igi {
                    }),
                    ser_pmr_name_a("perspective"))
 
-        camera_perspective(single fov = DefaultFOV, single ratio = DefaultFOV, single near = DefaultNear, single far = DefaultFar)
+        camera_perspective(single fov = DefaultFOV, single ratio = DefaultRatio, single near = DefaultNear, single far = DefaultFar)
             : camera_base(near, far) {
             _left   = -(_right = tan(fov * Deg2Rad * .5_sg));
             _bottom = -(_top = _right * ratio);

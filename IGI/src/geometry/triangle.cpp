@@ -51,13 +51,11 @@ bool igi::triangle::tryHit(ray &r, const transform &trans, surface_interaction *
     // n = cross(e_0, e_1)
     // t = det{ e_0, e_1, v } / cross(e_0.xy, e_1.xy)
 
-    ray lr = surface_helper::ToLocalRay(r, trans);
-
     const auto &[a, b, c] = getPos();
 
-    vec3f ra = lr.toRaySpace(a);
-    vec3f rb = lr.toRaySpace(b);
-    vec3f rc = lr.toRaySpace(c);
+    vec3f ra = r.toRaySpace(a);
+    vec3f rb = r.toRaySpace(b);
+    vec3f rc = r.toRaySpace(c);
 
     vec2f ra2(ra);
     vec2f rb2(rb);
@@ -80,14 +78,14 @@ bool igi::triangle::tryHit(ray &r, const transform &trans, surface_interaction *
         return false;
 
     esingle zsum = ra[2] * a12 + rb[2] * a20 + rc[2] * a01;
-    esingle tmin = lr.getTMin() * det, tmax = lr.getT() * det;
+    esingle tmin = r.getTMin() * det, tmax = r.getT() * det;
     if ((det > 0_sg && !InRangecf(tmin, tmax, zsum))
         || (det < 0_sg && !InRangecf(tmax, tmin, zsum)))
         return false;
 
     esingle detInv = 1_sg / det;
     zsum *= detInv;
-    if (!InRangecf(lr.getTMin(), lr.getT(), zsum))
+    if (!InRangecf(r.getTMin(), r.getT(), zsum))
         return false;
 
     single u = a01 * detInv;
@@ -107,7 +105,7 @@ bool igi::triangle::tryHit(ray &r, const transform &trans, surface_interaction *
     //        |                 |- igivec(b - a, c - a) : Construct a vector of vector
     //        |
     //        |- mat2x2f(uv1 - uv0, uv2 - uv0) : Construct matrix from two column vectors
-    std::tie(res->dpdu, res->dpdv) = mat2x2f(uv1 - uv0, uv2 - uv0).inverse().operator*(igivec(b - a, c - a)).rows();
+    std::tie(res->dpdu, res->dpdv) = mat2x2f(uv1 - uv0, uv2 - uv0).inverse().operator*(igivec(b - a, c - a)).row();
 
     res->normal = Cross(res->dpdu, res->dpdv).normalized();
     return true;
