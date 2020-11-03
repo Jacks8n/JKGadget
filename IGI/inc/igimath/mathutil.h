@@ -90,6 +90,9 @@ namespace igi {
 
     template <typename T>
     constexpr T FloorExp2(T val) {
+        if (val <= static_cast<T>(0))
+            return static_cast<T>(1);
+
         if constexpr (impl::is_ieee754float_compatible_v<T>)
             return 1 << FloorLog2(val);
         else {

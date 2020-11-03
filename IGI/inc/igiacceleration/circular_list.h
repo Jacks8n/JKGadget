@@ -1,7 +1,8 @@
 ﻿#pragma once
 
+#include <algorithm>
 #include <memory_resource>
-#include <mutex>
+#include "igimath/mathutil.h"
 
 namespace igi {
     template <typename T>
@@ -65,14 +66,14 @@ namespace igi {
         circular_list(const allocator_type &alloc)
             : circular_list(8, alloc) { }
 
-        circular_list(size_t capacity, const allocator_type &alloc)
-            : _alloc(alloc), _buflo(_alloc.allocate(capacity + 1)),
-              _bufhi(_buflo + capacity + 1), _begin(_buflo), _end(_buflo) { }
+        circular_list(size_t size, const allocator_type &alloc)
+            : _alloc(alloc), _buflo(_alloc.allocate(size + 1)),
+              _bufhi(_buflo + size + 1), _begin(_buflo), _end(_bufhi) { }
 
         circular_list(const circular_list &o, const allocator_type &alloc)
             : _alloc(alloc), _buflo(alloc.allocate(o.getBufSize())),
-              _bufhi(_buflo + o.getBufSize()), _begin(_buflo + o.getBeginIndex()),
-              _end(_buflo + o.getEndIndex()) { }
+              _bufhi(_buflo + o.getBufSize()), _begin(_buflo),
+              _end(_buflo + o.size()) { }
 
         ~circular_list() {
             _alloc.deallocate(_buflo, getBufSize());
@@ -91,13 +92,27 @@ namespace igi {
         }
 
         void reserve(size_t n) {
-            if (size() + n <= capacity())
+            if (n <= getEmptySpace())
                 return;
 
-            circular_list tmp(size() * 2, get_allocator());
+            const size_t cap = capacity(), sz = size();
+            const size_t newcap = FloorExp2((n + sz - 1) / cap + 1) * cap;
+            assert(newcap >= n + sz);
+
+            circular_list tmp(newcap, get_allocator());
+            tmp.resize(n + sz);
             std::move(begin(), end(), tmp.begin());
+
             this->~circular_list();
             new (this) circular_list(std::move(tmp));
+        }
+
+        void resize(size_t n) {
+            const size_t sz = size();
+
+            if (n > sz)
+                reserve(n - sz);
+            _end = _begin + n < _bufhi ? _begin + n : _end - (sz - n);
         }
 
         bool empty() const {
@@ -160,18 +175,28 @@ namespace igi {
             _end = _end + 1 == _bufhi ? _buflo : _end + 1;
         }
 
-        T &&pop_back() {
+        void pop_back() {
             assertNotEmpty();
-            T &&e = std::move(*_end);
-            _end  = (_end == _buflo ? _bufhi : _end) - 1;
-            return e;
+            _end = (_end == _buflo ? _bufhi : _end) - 1;
         }
 
-        T &&pop_front() {
+        void pop_front() {
             assertNotEmpty();
-            T &e   = *_begin;
             _begin = _begin == _bufhi - 1 ? _buflo : _begin + 1;
-            return std::move(e);
+        }
+
+        void clear() {
+            _begin = _end = _buflo;
+        }
+
+        T &operator[](size_t i) {
+            assert(i < size());
+            return *ptrAt(i);
+        }
+
+        const T &operator[](size_t i) const {
+            assert(i < size());
+            return *ptrAt(i);
         }
 
       private:
@@ -179,16 +204,20 @@ namespace igi {
         T *const _buflo, *const _bufhi;
         T *_begin, *_end;
 
-        size_t getBeginIndex() const {
-            return _begin - _buflo;
-        }
-
-        size_t getEndIndex() const {
-            return _end - _buflo;
-        }
-
         size_t getBufSize() const {
             return _bufhi - _buflo;
+        }
+
+        size_t getEmptySpace() const {
+            return capacity() - size();
+        }
+
+        T *ptrAt(size_t i) {
+            return _begin + i < _bufhi ? _begin + i : _buflo + (i - (_bufhi - _begin));
+        }
+
+        const T *ptrAt(size_t i) const {
+            return _begin + i < _bufhi ? _begin + i : _buflo + (i - (_bufhi - _begin));
         }
 
         void assertNotEmpty() {

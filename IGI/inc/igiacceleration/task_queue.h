@@ -43,7 +43,9 @@ namespace igi {
         using allocator_type = std::pmr::polymorphic_allocator<TTask>;
 
         worker_thread_upstream(size_t maxQueue, const allocator_type &alloc)
-            : _running(true), _activeCount(0), _queue(maxQueue, alloc) { }
+            : _running(true), _activeCount(0), _queue(maxQueue, alloc) {
+            _queue.clear();
+        }
 
         token getToken() {
             return token(*this);
@@ -82,7 +84,8 @@ namespace igi {
         bool retrieve_lock(TTask *in) {
             std::scoped_lock sl(_mutex);
             if (!_queue.empty()) {
-                new (in) TTask(_queue.pop_front());
+                new (in) TTask(_queue.front());
+                _queue.pop_front();
                 return true;
             }
             return false;

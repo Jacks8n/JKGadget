@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory_resource>
 #include <stack>
+#include "igiacceleration/circular_list.h"
 #include "igientity/entity.h"
 
 namespace igi {
@@ -12,7 +13,7 @@ namespace igi {
             size_t children[2];
             bound_t bound;
 
-            node() : childIsLeaf { false, false }, children { 0, 0 } { }
+            node() { }
 
             node(bool leftIsLeaf, size_t left, bool rightIsLeaf, size_t right, bound_t bound)
                 : childIsLeaf { leftIsLeaf, rightIsLeaf }, children { left, right }, bound(bound) { }
@@ -22,10 +23,20 @@ namespace igi {
             const entity *entity;
             bound_t bound;
 
-            leaf() : entity(nullptr) { }
+            leaf() { }
 
             constexpr leaf(const igi::entity &ep, bound_t b) : entity(&ep), bound(b) { }
         };
+
+        union packed_leaf {
+            packed_leaf(const leaf &l) : leaf(l) { }
+            packed_leaf(size_t n) : nleaves(n) { }
+
+            leaf leaf;
+            size_t nleaves;
+        };
+
+        using build_itr_queue_t = circular_list<packed_leaf>;
 
       public:
         using initializer_list_t = std::initializer_list<const std::reference_wrapper<entity>>;
@@ -71,7 +82,7 @@ namespace igi {
         std::pmr::vector<node> _nodes;
         std::pmr::vector<leaf> _leaves;
 
-        void initBuild(std::pmr::vector<leaf> &leaves, allocator_type tempAlloc);
+        void initBuild(build_itr_queue_t iterations, allocator_type tempAlloc);
 
         template <typename TIt>
         void initBuild(TIt &&entityIt, size_t n, const allocator_type &alloc, const allocator_type &tempAlloc) {
@@ -95,12 +106,19 @@ namespace igi {
                 return;
             }
 
-            std::pmr::vector<leaf> tmpLeaves(n, tempAlloc);
+            new (&_nodes) std::pmr::vector<node>(n - 1, alloc);
+            _nodes.clear();
 
-            for (size_t i = 0; i < n; i++, ++entityIt)
-                new (tmpLeaves.data() + i) leaf(*entityIt, (*entityIt).getBound());
+            build_itr_queue_t iterations(n * 2, alloc);
+            iterations.resize(n + 1);
 
-            initBuild(tmpLeaves, alloc);
+            iterations.front().nleaves = n;
+            std::for_each(++iterations.begin(), iterations.end(), [&](packed_leaf &i) {
+                new (&i.leaf) leaf(*entityIt, (*entityIt).getBound());
+                ++entityIt;
+            });
+
+            initBuild(std::move(iterations), alloc);
         }
 
         template <bool FindFirst, typename TRay, typename TFn>
