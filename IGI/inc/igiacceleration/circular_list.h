@@ -6,48 +6,75 @@
 namespace igi {
     template <typename T>
     class circular_list {
-      public:
-        class iterator {
+        template <typename U>
+        class generic_iterator {
             friend class circular_list;
 
-            T *_current, *const _buflo, *const _bufhi;
+          public:
+            using iterator_category = std::forward_iterator_tag;
+            using value_type        = std::remove_const_t<U>;
+            using difference_type   = std::ptrdiff_t;
+            using pointer           = U *;
+            using reference         = U &;
 
-            iterator(T *const current, T *const buflo, T *const bufhi)
+          private:
+            U *_current, *const _buflo, *const _bufhi;
+
+            generic_iterator(U *const current, U *const buflo, U *const bufhi)
                 : _current(current), _buflo(buflo), _bufhi(bufhi) { }
 
           public:
-            T &operator*() {
+            generic_iterator &operator=(const generic_iterator &o) {
+                new (this) generic_iterator(o);
+                return *this;
+            }
+
+            U &operator*() {
                 return *_current;
             }
 
-            iterator &operator++() {
+            generic_iterator &operator++() {
                 if (++_current == _bufhi)
                     _current = _buflo;
                 return *this;
             }
 
-            bool operator!=(const iterator &o) const {
+            bool operator!=(const generic_iterator &o) const {
                 return _current != o._current;
+            }
+
+            std::ptrdiff_t operator-(const generic_iterator &r) const {
+                return _current - r._current;
             }
         };
 
-        using allocator_type = std::pmr::polymorphic_allocator<T>;
+      public:
+        using value_type      = T;
+        using reference       = T &;
+        using const_reference = const T &;
+        using size_type       = size_t;
 
-        circular_list(size_t size, const allocator_type &alloc)
-            : _alloc(alloc), _buflo(_alloc.allocate(size + 1)),
-              _bufhi(_buflo + size + 1), _begin(_buflo), _end(_buflo) { }
+        using allocator_type = std::pmr::polymorphic_allocator<T>;
+        using iterator       = generic_iterator<T>;
+        using const_iterator = generic_iterator<const T>;
+
+        circular_list() = default;
+        circular_list(const circular_list &o) : circular_list(o, o.get_allocator()) { }
+        circular_list(circular_list &&o) = default;
+
+        circular_list(const allocator_type &alloc)
+            : circular_list(8, alloc) { }
+
+        circular_list(size_t capacity, const allocator_type &alloc)
+            : _alloc(alloc), _buflo(_alloc.allocate(capacity + 1)),
+              _bufhi(_buflo + capacity + 1), _begin(_buflo), _end(_buflo) { }
+
         circular_list(const circular_list &o, const allocator_type &alloc)
-            : _alloc(alloc), _buflo(_alloc.allocate(getBufSize())),
+            : _alloc(alloc), _buflo(alloc.allocate(o.getBufSize())),
               _bufhi(_buflo + o.getBufSize()), _begin(_buflo + o.getBeginIndex()),
               _end(_buflo + o.getEndIndex()) { }
-        circular_list(circular_list &&o, const allocator_type &alloc)
-            : _alloc(alloc), _buflo(o._buflo), _begin(o._begin), _end(o._end), _bufhi(o._bufhi) {
-            o._buflo = o._bufhi = o._begin = o._end = nullptr;
-        }
 
         ~circular_list() {
-            for (T &e : *this)
-                e.~T();
             _alloc.deallocate(_buflo, getBufSize());
         }
 
@@ -56,23 +83,65 @@ namespace igi {
         }
 
         size_t capacity() const {
-            return _bufhi - _buflo - 1;
+            return getBufSize() - 1;
         }
 
-        bool isEmpty() const {
+        size_t size() const {
+            return _end >= _begin ? _end - _begin : getBufSize() - (_begin - _end);
+        }
+
+        void reserve(size_t n) {
+            if (size() + n <= capacity())
+                return;
+
+            circular_list tmp(size() * 2, get_allocator());
+            std::move(begin(), end(), tmp.begin());
+            this->~circular_list();
+            new (this) circular_list(std::move(tmp));
+        }
+
+        bool empty() const {
             return _end == _begin;
         }
 
-        bool isFull() const {
-            return _end == _begin - 1 || (_end == _bufhi - 1 && _begin == _buflo);
+        bool full() const {
+            return size() == capacity();
         }
 
-        iterator begin() const {
+        iterator begin() {
             return iterator(_begin, _buflo, _bufhi);
         }
 
-        iterator end() const {
-            return iterator(_end, nullptr, nullptr);
+        iterator end() {
+            return iterator(_end, _buflo, _bufhi);
+        }
+
+        const_iterator begin() const {
+            return const_iterator(_begin, _buflo, _bufhi);
+        }
+
+        const_iterator end() const {
+            return const_iterator(_end, _buflo, _bufhi);
+        }
+
+        T &front() {
+            assertNotEmpty();
+            return *_begin;
+        }
+
+        const T &front() const {
+            assertNotEmpty();
+            return *_begin;
+        }
+
+        T &back() {
+            assertNotEmpty();
+            return (_end > _buflo ? _end : _bufhi)[-1];
+        }
+
+        const T &back() const {
+            assertNotEmpty();
+            return (_end > _buflo ? _end : _bufhi)[-1];
         }
 
         void push_back(const T &e) {
@@ -85,7 +154,8 @@ namespace igi {
 
         template <typename... Args>
         void emplace_back(Args &&... args) {
-            assertNotFull();
+            reserve(1);
+
             new (_end) T(std::forward<Args>(args)...);
             _end = _end + 1 == _bufhi ? _buflo : _end + 1;
         }

@@ -6,6 +6,7 @@
 #include "igigeometry/ray.h"
 #include "igimaterial/IMaterial.h"
 #include "igimaterial/interaction.h"
+#include "igiutilities/igiassert.h"
 
 namespace igi {
     class entity : public transformable_base {
@@ -55,7 +56,9 @@ namespace igi {
         }
 
         bound_t getBound() const {
-            return _surf->getBound(getTransform());
+            bound_t res = _surf->getBound(getTransform());
+            igiassert(!res.isSingular());
+            return res;
         }
     };
 }  // namespace igi

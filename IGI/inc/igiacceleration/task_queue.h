@@ -59,7 +59,7 @@ namespace igi {
 
         void waitFinish() {
             std::thread([&] {
-                while (!_queue.isEmpty())
+                while (!_queue.empty())
                     std::this_thread::yield();
                 _running = false;
                 while (_activeCount)
@@ -70,7 +70,7 @@ namespace igi {
         template <typename... T>
         void issue(T &&... in) {
             while (true) {
-                if (!_queue.isFull()) {
+                if (!_queue.full()) {
                     _queue.emplace_back(std::forward<T>(in)...);
                     break;
                 }
@@ -81,8 +81,8 @@ namespace igi {
       private:
         bool retrieve_lock(TTask *in) {
             std::scoped_lock sl(_mutex);
-            if (!_queue.isEmpty()) {
-                new (in) TTask(std::move(_queue.pop_front()));
+            if (!_queue.empty()) {
+                new (in) TTask(_queue.pop_front());
                 return true;
             }
             return false;

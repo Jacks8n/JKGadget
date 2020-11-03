@@ -24,7 +24,7 @@ namespace igi {
 
         shared_vector(size_t n, const allocator_type &alloc)
             : _alloc(alloc),
-              _buf(_alloc.allocate(n), [&](T *p) {
+              _buf(_alloc.allocate(n), [=](T *p) {
                   _alloc.deallocate(p, n);
               }),
               _end(_buf.get()), _cap(n) { }
@@ -96,20 +96,20 @@ namespace igi {
             _buf.reset(_buf.get(), deleter);
         }
 
-        std::shared_ptr<T[]> as_shared_ptr() const & {
+        const std::shared_ptr<T[]> &as_shared_ptr() const & {
             return _buf;
         }
 
-        std::shared_ptr<T[]> as_shared_ptr() && {
+        std::shared_ptr<T[]> &&as_shared_ptr() && {
             _end = nullptr;
             return std::move(_buf);
         }
 
-        operator std::shared_ptr<T[]>() const & {
+        operator const std::shared_ptr<T[]> &() const & {
             return as_shared_ptr();
         }
 
-        operator std::shared_ptr<T[]>() && {
+        operator std::shared_ptr<T[]> &&() && {
             return as_shared_ptr();
         }
 

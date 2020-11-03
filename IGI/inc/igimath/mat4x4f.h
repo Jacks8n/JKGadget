@@ -13,38 +13,16 @@ namespace igi {
 
         vec3f mulPos(const vec3f &p) const {
             vec<float, 4> vp(p, 1_sg);
-            vp = operator*(vp);
-            return vec3f(vp) * vp[3];
+            return vec3f(multiply<true>(vp));
         }
 
         vec3f mulVec(const vec3f &v) const {
             vec<float, 4> vp(v, 0_sg);
-            return vec3f(operator*(vp));
+            return vec3f(multiply<false>(vp));
         }
 
         vec4f operator*(const vec<float, 4> &r) const {
-            alignas(32) float res[8];
-            for (size_t i = 0; i < 4; i++) {
-                res[i]     = r[i];
-                res[i + 4] = r[i];
-            }
-
-            __m256 row01 = _mm256_load_ps(&get(0, 0));
-            __m256 row23 = _mm256_load_ps(&get(2, 0));
-
-            __m256 col = _mm256_load_ps(res);
-
-            __m256 res_xy = _mm256_dp_ps(row01, col, 0xFF);
-            __m256 res_zw = _mm256_dp_ps(row23, col, 0xFF);
-
-            __m256 res_xzyw = _mm256_blend_ps(res_xy, res_zw, 0b11001100);
-
-            __m256 res_ywxz = _mm256_permute2f128_ps(res_xzyw, res_xzyw, 1);
-
-            __m256 res_xyzw = _mm256_blend_ps(res_xzyw, res_ywxz, 0b01011010);
-
-            _mm256_store_ps(res, res_xyzw);
-            return vec4f(res[0], res[1], res[2], res[3]);
+            return multiply<false>(r);
         }
 
         matrix operator*(const matrix &r) const {
@@ -121,6 +99,39 @@ namespace igi {
             _mm256_store_ps(&res.get(2, 0), res23);
 
             return res;
+        }
+
+      private:
+        template <bool Homogeneous>
+        vec4f multiply(const vec<float, 4> &r) const {
+            alignas(32) float res[8];
+            for (size_t i = 0; i < 4; i++) {
+                res[i]     = r[i];
+                res[i + 4] = r[i];
+            }
+
+            __m256 row01 = _mm256_load_ps(&get(0, 0));
+            __m256 row23 = _mm256_load_ps(&get(2, 0));
+
+            __m256 col = _mm256_load_ps(res);
+
+            __m256 res_xy = _mm256_dp_ps(row01, col, 0xFF);
+            __m256 res_zw = _mm256_dp_ps(row23, col, 0xFF);
+
+            __m256 res_xzyw = _mm256_blend_ps(res_xy, res_zw, 0b11001100);
+
+            __m256 res_ywxz = _mm256_permute2f128_ps(res_xzyw, res_xzyw, 1);
+
+            __m256 res_xyzw = _mm256_blend_ps(res_xzyw, res_ywxz, 0b01011010);
+
+            if constexpr (Homogeneous) {
+                __m256 res_wwww = _mm256_permute_ps(res_xyzw, 0xFF);
+                res_xyzw        = _mm256_mul_ps(res_xyzw, res_wwww);
+            }
+
+            _mm256_store_ps(res, res_xyzw);
+
+            return vec4f(res[0], res[1], res[2], res[3]);
         }
     };
 }  // namespace igi

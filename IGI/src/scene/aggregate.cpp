@@ -1,22 +1,24 @@
 ﻿#include "igiscene/aggregate.h"
 #include <queue>
+#include "igiacceleration/circular_list.h"
 #include "igigeometry/triangle.h"
+#include "igiutilities/igiassert.h"
 
 /// This implementation of Spatial-Split BVH doesn't fully comply with the original idea
 /// "Shrinking bounding box" procedure is omitted because it requires perplexing interface design
 
-void igi::aggregate::initBuild(allocator_type tempAlloc) {
+void igi::aggregate::initBuild(std::pmr::vector<leaf> &leaves, allocator_type tempAlloc) {
     /// @brief vector with bound of its elements
     class bounded_vector {
       protected:
-        std::pmr::vector<leaf> _leaves;
         bound_t _bound;
+        std::pmr::vector<leaf> _leaves;
 
       public:
         bounded_vector() { }
 
-        explicit bounded_vector(const std::pmr::polymorphic_allocator<const leaf *> &alloc)
-            : _leaves(alloc), _bound(bound_t::NegInf()) { }
+        bounded_vector(const std::pmr::polymorphic_allocator<leaf> &alloc)
+            : _bound(bound_t::NegInf()), _leaves(alloc) { }
 
         void resetBound() {
             _bound = bound_t::NegInf();
@@ -35,6 +37,11 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
             return _leaves;
         }
 
+        void clear() {
+            _leaves.clear();
+            resetBound();
+        }
+
       protected:
         static void MoveTo(std::pmr::vector<leaf> &dest, std::pmr::vector<leaf> &src) {
             for (leaf &l : src)
@@ -48,6 +55,8 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
 
       public:
         bin() { }
+        bin(const std::pmr::polymorphic_allocator<leaf> &alloc)
+            : bounded_vector(alloc) { }
 
         void moveTo(std::pmr::vector<leaf> &dest) {
             MoveTo(dest, _leaves);
@@ -62,22 +71,17 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
 
       public:
         split() { }
-        split(const std::pmr::polymorphic_allocator<const leaf *> &alloc)
+        split(const std::pmr::polymorphic_allocator<leaf> &alloc)
             : bounded_vector(alloc), _leavesLeft(alloc), _leavesRight(alloc) { }
-
-        void clearCandidates() {
-            _leaves.clear();
-            resetBound();
-        }
 
         void clearLR() {
             _leavesLeft.clear();
             _leavesRight.clear();
         }
 
-        void addLeft(const entity *e, const bound_t &b) { _leavesLeft.emplace_back(e, b); }
+        void addLeft(const entity &e, const bound_t &b) { _leavesLeft.emplace_back(e, b); }
 
-        void addRight(const entity *e, const bound_t &b) { _leavesRight.emplace_back(e, b); }
+        void addRight(const entity &e, const bound_t &b) { _leavesRight.emplace_back(e, b); }
 
         auto getLeftLeaves() { return std::make_pair(_leavesLeft.begin(), _leavesLeft.end()); }
 
@@ -108,6 +112,11 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
             accumChildSA(bv);
         }
 
+        void include(const bounded_vector &bv) {
+            _bound.extend(bv.getBound());
+            accumChildSA(bv);
+        }
+
         void extend(const bound_t &b) {
             _bound.extend(b);
             _childSA += GetBoundSA(b);
@@ -128,6 +137,7 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
             tmp.extend(b);
 
             single cost = (_childSA + GetBoundSA(b)) / GetBoundSA(tmp);
+            igiassert(!std::isnan(cost));
 
             *res = tmp;
             return cost;
@@ -159,9 +169,9 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
     static constexpr size_t MaxBinCount = 16;
     static constexpr single MinBinSize  = 1e-2_sg;
 
-    constexpr auto getBinCount = [&](single interval) {
-        size_t n(interval * (1_sg / MinBinSize));
-        return Clamp(1, MaxBinCount, n);
+    constexpr auto getBinCount = [&](size_t nleaves, single interval) {
+        int nbin = nleaves > MaxBinCount ? MaxBinCount : nleaves;
+        return interval < MinBinSize * nbin ? Clamp(0, MaxBinCount, static_cast<int>(interval / MinBinSize)) : nbin;
     };
 
     constexpr auto getBinIndex = [](single coord, single binSizeInv, int binCount) -> size_t {
@@ -169,15 +179,16 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
         return Clamp(0, binCount - 1, i);
     };
 
-    std::pmr::vector<leaf> leaves(_leaves, tempAlloc);
-
-    bin bins[MaxBinCount];
+    std::pair<bin, bin> bins[MaxBinCount];
     split splits[MaxBinCount - 1];
     std::pair<sah, sah> binBounds[MaxBinCount - 1];
 
-    std::queue<itr_range_t, std::pmr::deque<itr_range_t>> iterations(tempAlloc);
+    std::queue<itr_range_t, circular_list<itr_range_t>> iterations(tempAlloc);
 
-    std::for_each(std::begin(bins), std::end(bins), [&](bin &b) { new (&b) bin(tempAlloc); });
+    std::for_each(std::begin(bins), std::end(bins), [&](std::pair<bin, bin> &b) {
+        new (&b.first) bin(tempAlloc);
+        new (&b.second) bin(tempAlloc);
+    });
     std::for_each(std::begin(splits), std::end(splits), [&](split &s) { new (&s) split(tempAlloc); });
 
     {
@@ -185,7 +196,7 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
         std::for_each(++leaves.begin(), leaves.end(), [&](leaf &e) { boundRoot.extend(e.bound); });
     }
 
-    iterations.emplace(0, _leaves.size());
+    iterations.emplace(0, leaves.size());
 
     size_t curr = 0;
     do {
@@ -200,7 +211,7 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
         const single interval     = diag[maxDim];
         const single minNodeCoord = currNodeBound.getMin(maxDim);
 
-        const size_t nbin       = getBinCount(interval);
+        const size_t nbin       = getBinCount(hi - lo, interval);
         const single binSize    = interval / nbin;
         const single binSizeInv = nbin / interval;
 
@@ -212,19 +223,21 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
 
             size_t loBin = getBinIndex(minLeafCoord - minNodeCoord, binSizeInv, nbin);
             size_t hiBin = getBinIndex(maxLeafCoord - minNodeCoord, binSizeInv, nbin);
-            if (loBin == hiBin)
-                bins[loBin].add(*loLeaf);
-            else
-                while (loBin < hiBin)
-                    splits[loBin++].add(*loLeaf);
+            igiassert(InRangeClosecf(loBin * binSize, (loBin + 1) * binSize, minLeafCoord - minNodeCoord));
+            igiassert(InRangeClosecf(hiBin * binSize, (hiBin + 1) * binSize, maxLeafCoord - minNodeCoord));
+
+            bins[loBin].first.add(*loLeaf);
+            bins[hiBin].second.add(*loLeaf);
+            while (loBin < hiBin)
+                splits[loBin++].add(*loLeaf);
         } while (++loLeaf != hiLeaf);
 
         // calculate two bounds of children if each split is performed
-        binBounds[0].first.set(bins[0]);
-        binBounds[nbin - 2].second.set(bins[nbin - 1]);
+        binBounds[0].first.set(bins[0].second);
+        binBounds[nbin - 2].second.set(bins[nbin - 1].first);
         for (size_t i = 1, j = nbin - 3; i < nbin - 1; i++, j--) {
-            (binBounds[i].first = binBounds[i - 1].first).extend(bins[i]);
-            (binBounds[j].second = binBounds[j + 1].second).extend(bins[j]);
+            (binBounds[i].first = binBounds[i - 1].first).include(bins[i].second);
+            (binBounds[j].second = binBounds[j + 1].second).include(bins[j].first);
         }
 
         // estimate and find split yielding minimum cost
@@ -232,23 +245,23 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
         single costMin = SingleInf;
         single costs[3], &costLeft = costs[0], &costRight = costs[1], &costSplit = costs[2];
         size_t minSplitI = ~0;
-        for (size_t i = 0; i < std::size(splits); i++) {
+        for (size_t i = 0; i < nbin - 1; i++) {
             split &split  = splits[i];
             sah &binLeft  = binBounds[i].first;
             sah &binRight = binBounds[i].second;
 
             // estimate costs of different split strategies
             const auto &splitLeaves = split.getLeaves();
-            const single splitCoord = minNodeCoord + i * binSize;
+            const single splitCoord = minNodeCoord + (i + 1) * binSize;
             for (const leaf &l : splitLeaves) {
                 // costs if partition the unbroken leaf
                 costLeft = binLeft.getSAHCostIfAdd(l.bound, &boundLeft)
                            + binRight.getSAHCost();
-                assert(!std::isnan(costLeft));
+                igiassert(!std::isnan(costLeft));
 
                 costRight = binRight.getSAHCostIfAdd(l.bound, &boundRight)
                             + binLeft.getSAHCost();
-                assert(!std::isnan(costRight));
+                igiassert(!std::isnan(costRight));
 
                 // costs if split the leaf into two parts
                 boundSplitRight = boundSplitLeft = l.bound;
@@ -258,26 +271,26 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
 
                 costSplit = binLeft.getSAHCostIfAdd(boundSplitLeft, &boundSplitLeft)
                             + binRight.getSAHCostIfAdd(boundSplitRight, &boundSplitRight);
-                assert(!std::isnan(costSplit));
+                igiassert(!std::isnan(costSplit));
 
                 switch (MinIcf(costLeft, costRight, costSplit)) {
                     case 0:
-                        split.addLeft(l.entity, boundLeft);
+                        split.addLeft(*l.entity, boundLeft);
                         binLeft.extend(boundLeft);
                         break;
                     case 1:
-                        split.addRight(l.entity, boundRight);
+                        split.addRight(*l.entity, boundRight);
                         binRight.extend(boundRight);
                         break;
                     default:
-                        split.addLeft(l.entity, boundSplitLeft);
-                        split.addRight(l.entity, boundSplitRight);
+                        split.addLeft(*l.entity, boundSplitLeft);
+                        split.addRight(*l.entity, boundSplitRight);
                         binLeft.extend(boundSplitLeft);
                         binRight.extend(boundSplitRight);
                         break;
                 }
             }
-            split.clearCandidates();
+            split.clear();
 
             single curCost = Mincf(costLeft, costRight, costSplit);
             if (curCost < costMin) {
@@ -290,23 +303,20 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
             else
                 split.clearLR();
         }
-        assert(minSplitI != ~0);
+        igiassert(minSplitI != ~0);
 
-        auto moveBin = [&](bin &b) {
-            b.moveTo(leaves);
-        };
         auto nextItr = [&](size_t lo, size_t hi, size_t side) {
-            assert(lo < hi);
+            igiassert(lo < hi);
 
             if (lo + 1 == hi) {
-                currNode.childIsLeaf[side] = true;
-                currNode.children[side]    = _leaves.size();
+                _nodes[curr].childIsLeaf[side] = true;
+                _nodes[curr].children[side]    = _leaves.size();
                 _leaves.push_back(leaves[lo]);
             }
             else {
-                currNode.childIsLeaf[side]  = false;
-                currNode.children[side]     = _nodes.size();
-                _nodes.emplace_back().bound = (side ? binBounds[minSplitI].second
+                _nodes[curr].childIsLeaf[side] = false;
+                _nodes[curr].children[side]    = _nodes.size();
+                _nodes.emplace_back().bound    = (side ? binBounds[minSplitI].second
                                                     : binBounds[minSplitI].first)
                                                   .getBound();
                 iterations.emplace(lo, hi);
@@ -314,19 +324,25 @@ void igi::aggregate::initBuild(allocator_type tempAlloc) {
         };
 
         size_t nextItrLo = leaves.size();
-        auto rightBinLo  = std::for_each_n(bins, minSplitI, moveBin);
+        auto rightBinLo  = std::for_each_n(bins, minSplitI, [&](std::pair<bin, bin> &b) {
+            b.second.moveTo(leaves);
+            b.first.clear();
+        });
         splits[minSplitI].moveLeftTo(leaves);
 
         size_t nextItrMid = leaves.size();
         nextItr(nextItrLo, nextItrMid, 0);
 
-        std::for_each(rightBinLo, bins + nbin, moveBin);
+        std::for_each(rightBinLo, bins + nbin, [&](std::pair<bin, bin> &b) {
+            b.first.moveTo(leaves);
+            b.second.clear();
+        });
         splits[minSplitI].moveRightTo(leaves);
         nextItr(nextItrMid, leaves.size(), 1);
 
         ++curr;
     } while (iterations.size());
 
-    std::for_each(std::begin(bins), std::end(bins), [](bin &b) { b.~bin(); });
+    std::for_each(std::begin(bins), std::end(bins), [](std::pair<bin, bin> &b) { b.first.~bin(); b.second.~bin(); });
     std::for_each(std::begin(splits), std::end(splits), [](split &s) { s.~split(); });
 }

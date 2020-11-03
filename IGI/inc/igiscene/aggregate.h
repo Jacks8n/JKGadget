@@ -13,6 +13,7 @@ namespace igi {
             bound_t bound;
 
             node() : childIsLeaf { false, false }, children { 0, 0 } { }
+
             node(bool leftIsLeaf, size_t left, bool rightIsLeaf, size_t right, bound_t bound)
                 : childIsLeaf { leftIsLeaf, rightIsLeaf }, children { left, right }, bound(bound) { }
         };
@@ -22,7 +23,8 @@ namespace igi {
             bound_t bound;
 
             leaf() : entity(nullptr) { }
-            constexpr leaf(const igi::entity *ep, bound_t b) : entity(ep), bound(b) { }
+
+            constexpr leaf(const igi::entity &ep, bound_t b) : entity(&ep), bound(b) { }
         };
 
       public:
@@ -34,12 +36,8 @@ namespace igi {
             : _nodes(std::move(o._nodes), alloc), _leaves(o._leaves, alloc) { }
 
         template <typename TIt>
-        aggregate(TIt &&entityIt, size_t n, const allocator_type &alloc, const allocator_type &tempAlloc)
-            : _nodes(n * 2, alloc), _leaves(n, alloc) {
-            _nodes.clear();
-            _leaves.clear();
-
-            initBuild(std::forward<TIt>(entityIt), n, tempAlloc);
+        aggregate(TIt &&entityIt, size_t n, const allocator_type &alloc, const allocator_type &tempAlloc) {
+            initBuild(std::forward<TIt>(entityIt), n, alloc, tempAlloc);
         }
 
         template <typename TIt>
@@ -73,27 +71,36 @@ namespace igi {
         std::pmr::vector<node> _nodes;
         std::pmr::vector<leaf> _leaves;
 
-        void initBuild(allocator_type tempAlloc);
+        void initBuild(std::pmr::vector<leaf> &leaves, allocator_type tempAlloc);
 
         template <typename TIt>
-        void initBuild(TIt &&entityIt, size_t n, allocator_type alloc) {
+        void initBuild(TIt &&entityIt, size_t n, const allocator_type &alloc, const allocator_type &tempAlloc) {
             if (!n)
                 return;
 
-            for (size_t i = 0; i < n; i++)
-                _leaves.emplace_back(&*entityIt, (*entityIt).getBound());
+            new (&_leaves) std::pmr::vector<leaf>(n, alloc);
 
             if (n < 3) {
+                new (&_nodes) std::pmr::vector<node>(1, alloc);
+                new (_leaves.data()) leaf(*entityIt, (*entityIt).getBound());
                 if (n == 1)
-                    _nodes.emplace_back(true, 0, false, 0, _leaves[0].bound);
-                else {
-                    bound_t b = _leaves[0].bound;
-                    _nodes.emplace_back(true, 0, true, 1, b.extend(_leaves[1].bound));
+                    _nodes.front() = node(true, 0, false, 0, _leaves[0].bound);
+                else if (n == 2) {
+                    ++entityIt;
+                    new (_leaves.data() + 1) leaf(*entityIt, (*entityIt).getBound());
+
+                    bound_t b      = _leaves[0].bound;
+                    _nodes.front() = node(true, 0, true, 1, b.extend(_leaves[1].bound));
                 }
                 return;
             }
 
-            initBuild(alloc);
+            std::pmr::vector<leaf> tmpLeaves(n, tempAlloc);
+
+            for (size_t i = 0; i < n; i++, ++entityIt)
+                new (tmpLeaves.data() + i) leaf(*entityIt, (*entityIt).getBound());
+
+            initBuild(tmpLeaves, alloc);
         }
 
         template <bool FindFirst, typename TRay, typename TFn>

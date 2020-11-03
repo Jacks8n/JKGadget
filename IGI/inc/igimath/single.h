@@ -315,6 +315,11 @@ namespace igi {
     constexpr bool InRangecf(TLo &&lo, THi &&hi, TV &&v) {
         return lo < v && v < hi;
     }
+    
+    template <typename TLo, typename THi, typename TV>
+    constexpr bool InRangeClosecf(TLo &&lo, THi &&hi, TV &&v) {
+        return lo <= v && v <= hi;
+    }
 
     template <typename TLo0, typename THi0, typename TLo1, typename THi1>
     constexpr bool Overlapcf(TLo0 &&lo0, THi0 &&hi0, TLo1 &&lo1, THi1 &&hi1) {

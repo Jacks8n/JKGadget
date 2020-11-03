@@ -83,12 +83,12 @@ path_with_texture demo_primitives(igi::mem_arena &arena, std::pmr::polymorphic_a
     igi::shared_vector<igi::IMaterial *> mats(alloc, &mat0, &mat1);
 
     igi::shared_vector<igi::ISurface *> surfs(nentity, alloc);
-    for (auto i : mesh)
+    for (auto &i : mesh)
         surfs.push_back(&i);
 
     igi::shared_vector<igi::entity> entities(nentity, alloc);
     for (size_t i = 0; i < nentity; i++)
-        entities.emplace_back(surfs[i], mats[i & 1]);
+        entities.emplace_back(surfs[i], mats[1]);
 
     igi::scene demo(mats.as_shared_ptr(), surfs.as_shared_ptr(), entities.as_shared_ptr(), nentity, igi::palette::black, alloc);
 

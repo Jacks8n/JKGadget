@@ -49,38 +49,22 @@ namespace igi {
     class triangle_mesh {
         friend class triangle;
 
-        template <typename T>
-        class triangle_getter : std::iterator_traits<triangle *> {
-            T _it;
-            const triangle_mesh &_mesh;
-
-          public:
-            triangle_getter(const triangle_mesh &mesh, const T &it) : _it(it), _mesh(mesh) { }
-            triangle_getter(const triangle_mesh &mesh, T &&it) : _it(it), _mesh(mesh) { }
-
-            triangle operator*() const {
-                return triangle(_it[0], _it[1], _it[2], _mesh);
-            }
-
-            triangle_getter &operator++() {
-                ++++++_it;
-                return *this;
-            }
-
-            bool operator!=(const triangle_getter &o) const {
-                return _it != o._it;
-            }
-        };
-
       public:
         using vertex_allocator_type   = std::pmr::vector<vec3f>::allocator_type;
         using uv_allocator_type       = std::pmr::vector<vec2f>::allocator_type;
         using triangle_allocator_type = std::pmr::vector<triangle>::allocator_type;
 
-        triangle_mesh() { }
+        triangle_mesh() : _positionInit(false), _uvInit(false), _triangleInit(false) { }
         triangle_mesh(triangle_mesh &&) = default;
 
-        ~triangle_mesh() { }
+        ~triangle_mesh() {
+            if (_positionInit)
+                _positions.~vector();
+            if (_uvInit)
+                _uvs.~vector();
+            if (_triangleInit)
+                _triangles.~vector();
+        }
 
         template <typename TLo, typename THi>
         void setPos(TLo &&posLo, THi &&posHi, const vertex_allocator_type &alloc) {
@@ -184,6 +168,7 @@ namespace igi {
             if (flag) {
                 if (vec.get_allocator() == alloc) {
                     vec.clear();
+                    vec.reserve(size);
                     return;
                 }
 

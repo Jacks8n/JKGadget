@@ -16,8 +16,9 @@ namespace igi {
             size_t u, v;
             color3 *res;
 
-            task()        = default;
-            task(task &&) = default;
+            task()             = default;
+            task(const task &) = default;
+
             task(size_t u, size_t v, color3 *res)
                 : u(u), v(v), res(res) {
             }

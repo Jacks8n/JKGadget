@@ -32,7 +32,7 @@ namespace igi {
                     return rflite::meta_helper::any_new<scene>(
                         std::move(mats).as_shared_ptr(),
                         std::move(surfs).as_shared_ptr(),
-                        std::move(ents), ents.size(), background, alloc);
+                        std::move(ents).as_shared_ptr(), ents.size(), background, alloc);
                 }))
 
         scene(std::shared_ptr<IMaterial *[]> mats, std::shared_ptr<ISurface *[]> surfs,

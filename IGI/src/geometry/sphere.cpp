@@ -33,8 +33,8 @@ namespace igi {
             return false;
 
         wr.setT(t);
-        res->normal   = r.cast(t).normalized();
-        res->position = res->normal * _r;
+        res->position = r.cast(t);
+        res->normal   = res->position.normalized();
 
         vec2f xy(res->normal);
         single sinu       = xy.magnitude();

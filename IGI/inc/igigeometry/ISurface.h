@@ -22,8 +22,7 @@ namespace igi {
             static ray ToLocalRay(const ray &wr, const transform &o2w) {
                 ray r;
                 r.setOrigin(o2w.mulPosInv(wr.getOrigin()))
-                    .setEndpoint(o2w.mulPosInv(wr.getEndpoint()))
-                    .normalizeDirection();
+                    .setEndpoint(o2w.mulPosInv(wr.getEndpoint()));
                 return r;
             }
 
