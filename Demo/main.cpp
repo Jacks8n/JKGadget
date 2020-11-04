@@ -68,8 +68,8 @@ path_with_texture demo_primitives(igi::mem_arena &arena, std::pmr::polymorphic_a
 
     static igi::vec3f vertices[3 * nentity];
 
-    std::default_random_engine e;
-    std::uniform_real_distribution<igi::single> rd(-1, 1);
+    std::default_random_engine e(reinterpret_cast<size_t>(&arena));
+    std::uniform_real_distribution<igi::single> rd(-2, 2);
 
     for (auto &i : vertices)
         i = igi::vec3f(rd(e), rd(e), rd(e) + 4);
@@ -88,17 +88,17 @@ path_with_texture demo_primitives(igi::mem_arena &arena, std::pmr::polymorphic_a
 
     igi::shared_vector<igi::entity> entities(nentity, alloc);
     for (size_t i = 0; i < nentity; i++)
-        entities.emplace_back(surfs[i], mats[1]);
+        entities.emplace_back(surfs[i], mats[i & 1]);
 
     igi::scene demo(mats.as_shared_ptr(), surfs.as_shared_ptr(), entities.as_shared_ptr(), nentity, igi::palette::black, alloc);
 
     igi::camera_perspective cam;
 
-    igi::path_trace pt(4, 1);
+    igi::path_trace pt(4, 4);
 
     igi::texture_rgb res(512, 512, alloc);
 
-    igi::render(demo, cam, pt, arena, res, 1, &std::cout);
+    igi::render(demo, cam, pt, arena, res, 4, &std::cout);
 
     return std::make_pair("demo_primitives.png", res);
 }

@@ -12,7 +12,7 @@ namespace igi {
             friend class circular_list;
 
           public:
-            using iterator_category = std::forward_iterator_tag;
+            using iterator_category = std::bidirectional_iterator_tag;
             using value_type        = std::remove_const_t<U>;
             using difference_type   = std::ptrdiff_t;
             using pointer           = U *;
@@ -25,6 +25,10 @@ namespace igi {
                 : _current(current), _buflo(buflo), _bufhi(bufhi) { }
 
           public:
+            generic_iterator(const generic_iterator<value_type> &o)
+                : _current(o._current), _buflo(o._buflo), _bufhi(o._bufhi) {
+            }
+
             generic_iterator &operator=(const generic_iterator &o) {
                 new (this) generic_iterator(o);
                 return *this;
@@ -40,12 +44,34 @@ namespace igi {
                 return *this;
             }
 
+            generic_iterator &operator--() {
+                if (--_current == _buflo)
+                    _current = _bufhi - 1;
+                return *this;
+            }
+
+            generic_iterator operator+(difference_type n) const {
+                assert(n < _bufhi - _buflo);
+
+                U *p = _current + n;
+                if (p < _buflo)
+                    p = _bufhi - (_buflo - p);
+                else if (p >= _bufhi)
+                    p = _buflo + (p - _bufhi);
+                return generic_iterator(p, _buflo, _bufhi);
+            }
+
+            generic_iterator operator-(difference_type n) const {
+                return operator+(-n);
+            }
+
             bool operator!=(const generic_iterator &o) const {
                 return _current != o._current;
             }
 
-            std::ptrdiff_t operator-(const generic_iterator &r) const {
-                return _current - r._current;
+          private:
+            void assertSameContainer(const generic_iterator &r) const {
+                assert(_buflo == r._buflo && _bufhi == r._bufhi);
             }
         };
 
@@ -61,7 +87,10 @@ namespace igi {
 
         circular_list() = default;
         circular_list(const circular_list &o) : circular_list(o, o.get_allocator()) { }
-        circular_list(circular_list &&o) = default;
+        circular_list(circular_list &&o)
+            : _alloc(o._alloc), _buflo(o._buflo), _bufhi(o._bufhi), _begin(o._begin), _end(o._end) {
+            o._buflo = o._bufhi = o._begin = o._end = nullptr;
+        }
 
         circular_list(const allocator_type &alloc)
             : circular_list(8, alloc) { }
@@ -76,7 +105,8 @@ namespace igi {
               _end(_buflo + o.size()) { }
 
         ~circular_list() {
-            _alloc.deallocate(_buflo, getBufSize());
+            if (_buflo)
+                _alloc.deallocate(_buflo, getBufSize());
         }
 
         allocator_type get_allocator() const noexcept {
@@ -95,16 +125,16 @@ namespace igi {
             if (n <= getEmptySpace())
                 return;
 
-            const size_t cap = capacity(), sz = size();
+            const size_t cap    = capacity();
+            const size_t sz     = size();
             const size_t newcap = FloorExp2((n + sz - 1) / cap + 1) * cap;
-            assert(newcap >= n + sz);
 
-            circular_list tmp(newcap, get_allocator());
-            tmp.resize(n + sz);
-            std::move(begin(), end(), tmp.begin());
+            circular_list tmp(std::move(*this));
 
-            this->~circular_list();
-            new (this) circular_list(std::move(tmp));
+            new (this) circular_list(newcap, tmp.get_allocator());
+            resize(sz);
+
+            std::move(tmp.begin(), tmp.end(), begin());
         }
 
         void resize(size_t n) {
@@ -112,7 +142,7 @@ namespace igi {
 
             if (n > sz)
                 reserve(n - sz);
-            _end = _begin + n < _bufhi ? _begin + n : _end - (sz - n);
+            _end = _begin + n < _bufhi ? _begin + n : _end + (n - sz);
         }
 
         bool empty() const {
@@ -180,13 +210,29 @@ namespace igi {
             _end = (_end == _buflo ? _bufhi : _end) - 1;
         }
 
+        void pop_back(size_t n) {
+            assertNoLessThan(n);
+            _end = _end - n >= _buflo ? _end - n : _bufhi - (n - (_end - _buflo));
+        }
+
         void pop_front() {
             assertNotEmpty();
             _begin = _begin == _bufhi - 1 ? _buflo : _begin + 1;
         }
 
+        void pop_front(size_t n) {
+            assertNoLessThan(n);
+            _begin = _begin + n < _bufhi ? _begin + n : _buflo + (n - (_bufhi - _begin));
+        }
+
         void clear() {
             _begin = _end = _buflo;
+        }
+
+        typename const_iterator::difference_type distance(const_iterator &l, const_iterator &r) const {
+            assertValidIterator(l);
+            assertValidIterator(r);
+            return _begin <= _end ? r._current - l._current : (_bufhi - l._current) + (r._current - _buflo);
         }
 
         T &operator[](size_t i) {
@@ -201,7 +247,7 @@ namespace igi {
 
       private:
         allocator_type _alloc;
-        T *const _buflo, *const _bufhi;
+        T *_buflo, *_bufhi;
         T *_begin, *_end;
 
         size_t getBufSize() const {
@@ -221,17 +267,19 @@ namespace igi {
         }
 
         void assertNotEmpty() {
-#if _DEBUG
-            if (_begin == _end)
-                throw;
-#endif
+            assert(_begin != _end);
         }
 
         void assertNotFull() {
-#if _DEBUG
-            if (isFull())
-                throw;
-#endif
+            assert(!full());
+        }
+
+        void assertNoLessThan(size_t n) {
+            assert(n <= size());
+        }
+
+        void assertValidIterator(const const_iterator &it) const {
+            assert(it._bufhi == _bufhi && it._buflo == _buflo);
         }
     };
 }  // namespace igi

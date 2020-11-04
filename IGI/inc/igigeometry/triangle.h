@@ -196,9 +196,9 @@ namespace igi {
 
     inline decltype(auto) triangle::getUV(size_t index) const {
         static constexpr vec2f DefaultUVs[] {
-            vec2f(1_sg, 1_sg),
-            vec2f(1_sg, 0_sg),
-            vec2f(1_sg, 1_sg)
+            vec2f(0_sg, 0_sg),
+            vec2f(0_sg, 1_sg),
+            vec2f(1_sg, 0_sg)
         };
 
         if (_mesh->_uvInit)

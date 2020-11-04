@@ -55,7 +55,11 @@ namespace igi {
         }
 
         constexpr bool isSingular() const {
-            return getMin(0) > getMax(0) || getMin(1) > getMax(1) || getMin(2) > getMax(2);
+            size_t nnull = 0;
+            for (size_t i = 0; i < 3; i++)
+                if (getMin(i) >= getMax(i))
+                    nnull++;
+            return nnull > 1;
         }
 
         constexpr aabb conservative() const {
@@ -82,8 +86,6 @@ namespace igi {
                 if (_max[i] < p[i])
                     _max[i] = p[i];
             }
-
-            assert(!isSingular());
             return *this;
         }
 

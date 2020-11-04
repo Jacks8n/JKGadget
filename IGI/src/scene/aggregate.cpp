@@ -14,6 +14,8 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
         sah() : _bound(bound_t::NegInf()), _childSA(0_sg), _boundSAInv(SingleInf) { }
 
         void include(const bound_t &b) {
+            igiassert(!b.isSingular());
+
             _bound.extend(b);
             _childSA += getSA(b);
         }
@@ -29,7 +31,7 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
         }
 
         single getSAH() const {
-            return _boundSAInv * _childSA;
+            return _childSA == 0_sg ? SingleInf : _boundSAInv * _childSA;
         }
 
         const bound_t &getBound() const {
@@ -40,11 +42,7 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
             new (this) sah();
         }
 
-      private:
         static single getSA(const bound_t &b) {
-            if (b.isSingular())
-                return 0_sg;
-
             vec3f size = b.getDiagonal();
             return size[0] * size[1] + size[1] * size[2] + size[2] * size[0];
         }
@@ -80,10 +78,12 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
 
     static constexpr size_t MaxBinCount   = 8;
     static constexpr size_t MaxSplitCount = MaxBinCount - 1;
+    static constexpr size_t BatchSize     = 4;
+    static constexpr single MinSplitRatio = .01_sg;
 
-    constexpr auto getBinIndex = [](single coord, single origin, single binSizeInv) {
+    constexpr auto getBinIndex = [](single coord, single origin, single binSizeInv, size_t maxBinCount) {
         int i = static_cast<int>((coord - origin) * binSizeInv);
-        return Clamp(0, MaxBinCount - 1, i);
+        return Clamp(0, maxBinCount - 1, i);
     };
 
     constexpr auto sahIfInclude = [](const sah &s, const bound_t &b) {
@@ -93,12 +93,15 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
         return res;
     };
 
-    auto setNodeChildLeaf = [&](size_t i, const leaf &l, size_t c) {
+    auto setNodeChildLeaf = [&](size_t i, auto lo, size_t nleaves, size_t c) {
         node &n = _nodes[i];
 
-        n.childIsLeaf[c] = true;
-        n.children[c]    = _leaves.size();
-        _leaves.push_back(l);
+        n.childIsLeaf[c]     = true;
+        n.children[c]        = _leaves.size();
+        n.nchildrenLeaves[c] = nleaves;
+
+        _leaves.reserve(nleaves);
+        std::copy_n(lo, nleaves, std::back_inserter(_leaves));
     };
 
     auto setNodeChildNode = [&](size_t i, const bound_t &b, size_t c) {
@@ -116,7 +119,7 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
     // e.g., all of the leaves that are on the left side of a given split "end" on the left side of the split
     // thus, the leftmost and rightmost bins are accounted for only once
     // sahBegins: not accounted | .. | .. |       ..
-    //  sahEnds :      ..       | .. | .. | not accounted
+    // sahEnds:        ..       | .. | .. | not accounted
     sah sahBegins[MaxSplitCount], sahEnds[MaxSplitCount];
     // split records leaves that are across the split for further cost evaluation
     split splits[MaxSplitCount];
@@ -124,10 +127,15 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
     std::pmr::vector<leaf> tmpLeaves(tempAlloc);
 
     // prepare for recursion
+    single splitSAThres;
     {
         std::for_each(std::begin(splits), std::end(splits), [&](split &s) { new (&s) split(tempAlloc); });
 
         _nodes.emplace_back();
+        bound_t &rootBound = _nodes.front().bound = bound_t::NegInf();
+        std::for_each(++iterations.begin(), iterations.end(), [&](packed_leaf &l) { rootBound.extend(l.leaf.bound); });
+
+        splitSAThres = sah::getSA(rootBound) * MinSplitRatio;
     }
 
     size_t nodeIndex = 0;
@@ -141,9 +149,11 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
         const size_t nsplits = nbins - 1;
 
         // calculate bound of current node
-        bound_t &nodeBound = _nodes[nodeIndex].bound = bound_t::NegInf();
-        std::for_each_n(iterations.begin(), nleaves, [&](packed_leaf &l) { nodeBound.extend(l.leaf.bound); });
+        bound_t &nodeBound = _nodes[nodeIndex].bound;
         igiassert(!nodeBound.isSingular());
+
+        // determine whether attmpt to split or not
+        const bool trySplit = sah::getSA(nodeBound) > splitSAThres;
 
         // select widest dimension of the bound
         const vec3f diagonal      = nodeBound.getDiagonal();
@@ -158,14 +168,16 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
             const leaf &leaf         = l.leaf;
             const bound_t &leafBound = leaf.bound;
 
-            const auto binLo = getBinIndex(leafBound.getMin(maxDim), nodeBoundMin, binSizeInv);
-            const auto binHi = getBinIndex(leafBound.getMax(maxDim), nodeBoundMin, binSizeInv);
+            const auto binLo = getBinIndex(leafBound.getMin(maxDim), nodeBoundMin, binSizeInv, nbins);
+            const auto binHi = getBinIndex(leafBound.getMax(maxDim), nodeBoundMin, binSizeInv, nbins);
+            igiassert(leafBound.getMin(maxDim) >= nodeBound.getMin(maxDim));
+            igiassert(leafBound.getMax(maxDim) <= nodeBound.getMax(maxDim));
             igiassert(binLo <= binHi);
             igiassert(InRangeClosecf(0, nbins - 1, binLo));
             igiassert(InRangeClosecf(0, nbins - 1, binHi));
 
             if (binLo)
-                sahBegins[binLo].include(leafBound);
+                sahBegins[binLo - 1].include(leafBound);
             if (binHi < nbins - 1)
                 sahEnds[binHi].include(leafBound);
 
@@ -182,7 +194,7 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
         }
 
         // estimate sah of leaves lying across splits
-        single maxSAH         = -SingleInf;
+        single minSAH         = SingleInf;
         size_t bestSplitIndex = ~0;
         {
             // stores new leaves by split
@@ -201,27 +213,37 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
                 single sahs[3];
                 size_t sahIndex;
                 for (auto &j : split) {
-                    const leaf &leaf = j.first;
-                    bool &leafSide   = j.second;
+                    leaf &leaf         = j.first;
+                    bound_t &leafBound = leaf.bound;
+                    bool &leafSide     = j.second;
 
                     const sah left  = sahIfInclude(sahLeft, leaf.bound);
                     const sah right = sahIfInclude(sahRight, leaf.bound);
 
+                    sahs[0] = left.getSAH() + sahRight.getSAH();
+                    sahs[1] = right.getSAH() + sahLeft.getSAH();
+
                     // todo
                     // it simply split the bound without shrinking it to compactly fit the leaf
                     // more careful estimation is required
-                    bound_t leafBound = leaf.bound;
-                    leafBound.setMax(maxDim, splitCoord);
-                    const sah splitLeft = sahIfInclude(sahLeft, leaf.bound);
+                    sah splitLeft, splitRight;
+                    if (trySplit) {
+                        const auto [tmpMin, tmpMax] = leafBound.getInterval(maxDim);
 
-                    leafBound.setMin(maxDim, splitCoord);
-                    leafBound.setMax(maxDim, leaf.bound.getMax(maxDim));
-                    const sah splitRight = sahIfInclude(sahRight, leaf.bound);
+                        leafBound.setMax(maxDim, splitCoord);
+                        splitLeft = sahIfInclude(sahLeft, leafBound);
+                        leafBound.setMax(maxDim, tmpMax);
 
-                    sahs[0]  = left.getSAH();
-                    sahs[1]  = right.getSAH();
-                    sahs[2]  = splitLeft.getSAH() + splitRight.getSAH();
-                    sahIndex = MaxIcf(sahs[0], sahs[1], sahs[2]);
+                        leafBound.setMin(maxDim, splitCoord);
+                        splitRight = sahIfInclude(sahRight, leafBound);
+                        leafBound.setMin(maxDim, tmpMin);
+
+                        sahs[2] = splitLeft.getSAH() + splitRight.getSAH();
+                    }
+                    else
+                        sahs[2] = 0_sg;
+
+                    sahIndex = MinIcf(sahs[0], sahs[1], sahs[2]);
                     switch (sahIndex) {
                         case 0:
                             sahLeft  = left;
@@ -232,17 +254,22 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
                             leafSide = true;
                             break;
                         default:
+                            igiassert(trySplit);
+                            leavesSplit.push_back(leaf);
+
                             sahLeft  = splitLeft;
                             leafSide = false;
+                            leafBound.setMax(maxDim, splitCoord);
+
                             sahRight = splitRight;
-                            leavesSplit.push_back(leaf);
+                            leavesSplit.back().bound.setMin(maxDim, splitCoord);
                             break;
                     }
                 }
 
-                if (maxSAH < sahs[sahIndex]) {
+                if (minSAH > sahs[sahIndex]) {
                     bestSplitIndex = i;
-                    maxSAH         = sahs[sahIndex];
+                    minSAH         = sahs[sahIndex];
 
                     for (leaf &j : leavesSplit)
                         split.add(j, true);
@@ -257,10 +284,10 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
         {
             std::pmr::vector<leaf> &leavesRight = tmpLeaves;
 
-            const size_t leftChildrenIndex = iterations.size() - nleaves;
-            const single splitCoord        = (bestSplitIndex + 1) * binSize + nodeBoundMin;
+            const single splitCoord = (bestSplitIndex + 1) * binSize + nodeBoundMin;
 
             // emplace the number of leaves on the left side
+            const size_t leftChildrenIndex = iterations.size() - nleaves;
             iterations.emplace_back(0);
 
             size_t nleft = 0;
@@ -288,27 +315,25 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
 
             // if there is only one leaf as child, store it directly
             assert(nleft);
-            if (nleft == 1) {
-                setNodeChildLeaf(nodeIndex, iterations.back().leaf, 0);
-                iterations.pop_back();
-                // pop the element for the number of leaves
-                iterations.pop_back();
+            if (nleft < BatchSize) {
+                setNodeChildLeaf(nodeIndex, iterations.end() - nleft, nleft, 0);
+                iterations.pop_back(nleft + 1);
             }
             else {
                 iterations[leftChildrenIndex].nleaves = nleft;
 
-                setNodeChildNode(nodeIndex, sahBegins[bestSplitIndex].getBound(), 0);
+                setNodeChildNode(nodeIndex, sahEnds[bestSplitIndex].getBound(), 0);
             }
 
             igiassert(!leavesRight.empty());
-            if (leavesRight.size() == 1)
-                setNodeChildLeaf(nodeIndex, leavesRight.front(), 1);
+            if (leavesRight.size() < BatchSize)
+                setNodeChildLeaf(nodeIndex, leavesRight.begin(), leavesRight.size(), 1);
             else {
                 iterations.emplace_back(leavesRight.size());
                 for (const leaf &i : leavesRight)
                     iterations.emplace_back(i);
 
-                setNodeChildNode(nodeIndex, sahEnds[bestSplitIndex].getBound(), 1);
+                setNodeChildNode(nodeIndex, sahBegins[bestSplitIndex].getBound(), 1);
             }
 
             leavesRight.clear();

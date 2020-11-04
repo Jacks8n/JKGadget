@@ -11,6 +11,7 @@ namespace igi {
         struct node {
             bool childIsLeaf[2];
             size_t children[2];
+            size_t nchildrenLeaves[2];
             bound_t bound;
 
             node() { }
@@ -31,6 +32,10 @@ namespace igi {
         union packed_leaf {
             packed_leaf(const leaf &l) : leaf(l) { }
             packed_leaf(size_t n) : nleaves(n) { }
+
+            operator const leaf &() const {
+                return leaf;
+            }
 
             leaf leaf;
             size_t nleaves;
@@ -94,14 +99,18 @@ namespace igi {
             if (n < 3) {
                 new (&_nodes) std::pmr::vector<node>(1, alloc);
                 new (_leaves.data()) leaf(*entityIt, (*entityIt).getBound());
-                if (n == 1)
-                    _nodes.front() = node(true, 0, false, 0, _leaves[0].bound);
+                if (n == 1) {
+                    new (_nodes.data()) node(true, 0, false, 0, _leaves[0].bound);
+                    _nodes.front().nchildrenLeaves[0] = 1;
+                }
                 else if (n == 2) {
                     ++entityIt;
                     new (_leaves.data() + 1) leaf(*entityIt, (*entityIt).getBound());
 
-                    bound_t b      = _leaves[0].bound;
-                    _nodes.front() = node(true, 0, true, 1, b.extend(_leaves[1].bound));
+                    bound_t b = _leaves[0].bound;
+                    new (_nodes.data()) node(true, 0, true, 1, b.extend(_leaves[1].bound));
+                    _nodes.front().nchildrenLeaves[0] = 1;
+                    _nodes.front().nchildrenLeaves[1] = 1;
                 }
                 return;
             }
@@ -134,15 +143,21 @@ namespace igi {
                 if (curr->bound.isHit(r)) {
                     for (size_t i = 0; i < 2; i++)
                         if (curr->childIsLeaf[i]) {
-                            const leaf &l = _leaves[curr->children[i]];
-                            if (l.bound.isHit(r) && fn(*l.entity, r)) {
-                                hit = true;
+                            const auto nleaves = curr->nchildrenLeaves[i];
+                            const auto leavesLo      = curr->children[i];
 
-                                if constexpr (FindFirst) {
-                                    do
-                                        itrtmp.pop();
-                                    while (itrtmp.size() > emptySize);
-                                    goto end;
+                            for (size_t j = 0; j < nleaves; j++) {
+                                const leaf &l = _leaves[j + leavesLo];
+
+                                if (l.bound.isHit(r) && fn(*l.entity, r)) {
+                                    hit = true;
+
+                                    if constexpr (FindFirst) {
+                                        do
+                                            itrtmp.pop();
+                                        while (itrtmp.size() > emptySize);
+                                        goto end;
+                                    }
                                 }
                             }
                         }
