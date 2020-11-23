@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #ifndef RFLITE_PREPROCESS_ONLY
+#include <bit>
 #include <tuple>
 #endif
 
@@ -110,7 +111,7 @@ RFLITE_NS {
         }
 
         template <typename... Us>
-        static constexpr decltype(auto) invoke(T (C::*ptr)(Ts...), C &ins, Us &&... us) {
+        static constexpr decltype(auto) invoke(T (C::*ptr)(Ts...), C &ins, Us &&...us) {
             return (ins.*ptr)(::std::forward<Us>(us)...);
         }
     };
@@ -131,7 +132,7 @@ RFLITE_NS {
         }
 
         template <typename... Us>
-        static constexpr decltype(auto) invoke(T (C::*ptr)(Ts...) const, const C &ins, Us &&... us) {
+        static constexpr decltype(auto) invoke(T (C::*ptr)(Ts...) const, const C &ins, Us &&...us) {
             return (ins.*ptr)(::std::forward<Us>(us)...);
         }
     };
@@ -151,7 +152,7 @@ RFLITE_NS {
         }
 
         template <typename... Us>
-        static constexpr decltype(auto) invoke(T (*ptr)(Ts...), Us &&... us) {
+        static constexpr decltype(auto) invoke(T (*ptr)(Ts...), Us &&...us) {
             return ptr(::std::forward<Us>(us)...);
         }
     };
@@ -255,7 +256,7 @@ RFLITE_IMPL_NS {
 
         template <typename... Ts>
         requires(sizeof...(Ts) != 1 || ((!::std::is_same_v<::std::remove_cvref_t<Ts>, T> && !::std::is_same_v<Ts, const any_defer_impl &> && !::std::is_same_v<Ts, any_defer_impl &&>)&&...))
-            any_defer_impl(Ts &&... args) noexcept {
+            any_defer_impl(Ts &&...args) noexcept {
             new (&_mem) T(::std::forward<Ts>(args)...);
         }
 
@@ -293,12 +294,12 @@ RFLITE_NS {
 
     struct meta_helper {
         template <typename T, typename... Ts>
-        static any_defer<T> any_ins(Ts &&... ts) noexcept {
+        static any_defer<T> any_ins(Ts &&...ts) noexcept {
             return any_defer<T>(::std::forward<Ts>(ts)...);
         }
 
         template <typename T, typename... Ts>
-        static T *any_new(Ts &&... ts) noexcept {
+        static T *any_new(Ts &&...ts) noexcept {
             struct alignas(alignof(T)) storage {
                 char _[sizeof(T)];
             };

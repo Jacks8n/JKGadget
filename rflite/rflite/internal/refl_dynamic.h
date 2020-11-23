@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#ifndef RFLITE_DYNAMIC_DISABLE
+#ifndef RFLITE_DISABLE_DYNAMIC
 
 #ifndef RFLITE_PREPROCESS_ONLY
 #include <assert.h>
@@ -730,8 +730,10 @@ RFLITE_NS {
 
 #else
 
+#define META_RT_REGIST
+
 #define META_E_RT META_E
 
-#define META_EMPTY_RT(type, ...) META_EMPTY(type, __VA_ARGS__)
+#define META_BE_RT(type, ...) META_EMPTY(type, __VA_ARGS__)
 
 #endif

@@ -7,6 +7,8 @@
 //      Don't know whether it's by design or a bug of clang 10.0 :(
 //      These duplication will be marked out
 
+#ifndef RFLITE_DISABLE_DYNAMIC
+
 #include "rflite/internal/attribute.h"
 
 #define RFLITE_META_INFO meta_info
@@ -173,12 +175,12 @@
                                                                                               \
       public:                                                                                 \
         template <typename... _T>                                                             \
-        static constexpr decltype(auto) map(_T &&... t) noexcept {                            \
+        static constexpr decltype(auto) map(_T &&...t) noexcept {                             \
             return get_member_traits().map(::std::forward<_T>(t)..., member_ptr());           \
         }                                                                                     \
                                                                                               \
         template <typename... _Ts>                                                            \
-        static constexpr decltype(auto) invoke(_Ts &&... ts) {                                \
+        static constexpr decltype(auto) invoke(_Ts &&...ts) {                                 \
             return get_member_traits().invoke(member_ptr(), ::std::forward<_Ts>(ts)...);      \
         }                                                                                     \
     };
@@ -306,3 +308,19 @@ RFLITE_NS {
     }())
 
 #pragma endregion
+
+#else
+#define RFLITE_META_INFO
+
+#define RFLITE_META_TYPE(type)
+
+#define META_B(_type, ...)
+
+#define META(member, ...)
+
+#define META_E
+
+#define META_BE(type, ...)
+
+#define RFLITE_DISABLE_DYNAMIC
+#endif
