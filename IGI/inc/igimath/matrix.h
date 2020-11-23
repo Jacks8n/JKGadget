@@ -88,7 +88,7 @@ namespace igi {
         sub_matrix(sub_matrix &&)      = default;
 
         template <typename... Ts>
-        constexpr sub_matrix(TMatrix &matrix, Ts &&... is)
+        constexpr sub_matrix(TMatrix &matrix, Ts &&...is)
             : _mat(matrix), _subs { static_cast<size_t>(is)... } { }
 
         sub_tuple_t asTuple() {
@@ -147,7 +147,7 @@ namespace igi {
     };
 
     template <sub_matrix_type Type, is_matrix_c TMatrix, typename... Ts>
-    constexpr auto make_sub_matrix(TMatrix &&matrix, Ts &&... is) {
+    constexpr auto make_sub_matrix(TMatrix &&matrix, Ts &&...is) {
         return sub_matrix<Type, sizeof...(Ts), std::remove_reference_t<TMatrix>>(matrix, std::forward<Ts>(is)...);
     }
 
@@ -210,18 +210,18 @@ namespace igi {
             : matrix_base(o, makeNIndexSeq()) { }
 
         template <typename... Ts>
-        requires(all_convertible_v<element_t, Ts &&...>) constexpr explicit matrix_base(Ts &&... ts) : _elem { static_cast<element_t>(ts)... } { }
+        requires(all_convertible_v<element_t, Ts &&...>) constexpr explicit matrix_base(Ts &&...ts) : _elem { static_cast<element_t>(ts)... } { }
 
         template <typename Fn>
         requires(is_indexable_ctor_v<Fn &&>) constexpr explicit matrix_base(Fn &&fn)
             : matrix_base(fn, makeNIndexSeq()) { }
 
         template <typename... Ts>
-        requires(Nrow > 1 && sizeof...(Ts) == Nrow && all_convertible_v<row_vec_t, Ts &&...>) constexpr explicit matrix_base(Ts &&... ts)
+        requires(Nrow > 1 && sizeof...(Ts) == Nrow && all_convertible_v<row_vec_t, Ts &&...>) constexpr explicit matrix_base(Ts &&...ts)
             : matrix_base(std::tuple_cat(static_cast<row_vec_t>(ts).asTuple()...), makeNIndexSeq()) { }
 
         template <typename... Ts>
-        requires(Ncol > 1 && sizeof...(Ts) == Ncol && all_convertible_v<col_vec_t, Ts &&...> && true) constexpr explicit matrix_base(Ts &&... ts)
+        requires(Ncol > 1 && sizeof...(Ts) == Ncol && all_convertible_v<col_vec_t, Ts &&...> && true) constexpr explicit matrix_base(Ts &&...ts)
             : matrix_base(std::tuple_cat(static_cast<col_vec_t>(ts).asTuple()...), makeNIndexSeq(), 0) { }
 
         template <typename... Ts>

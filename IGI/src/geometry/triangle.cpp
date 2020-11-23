@@ -1,5 +1,8 @@
 ﻿#include "igigeometry/triangle.h"
 
+template <typename T, size_t Depth = 1>
+bool tryHitTriangle(const igi::triangle &t, igi::ray &r, const igi::transform &trans, igi::surface_interaction *res);
+
 bool igi::triangle::isHit(const ray &r, const transform &trans) const {
     const auto &[a, b, c] = getPos();
 
@@ -42,62 +45,89 @@ bool igi::triangle::isHit(const ray &r, const transform &trans) const {
 }
 
 bool igi::triangle::tryHit(ray &r, const transform &trans, surface_interaction *res) const {
-    // solve: <n, v - (o + td)> = 0
-    // <n, v> - <n, o> - t<n, d> = 0
-    // o = (0, 0, 0), d = (0, 0, 1), since triangles are projected to ray space
-    // t = <n, v> / n.z
-    //
-    // e_i := v_{(i + 1) % 3} - v_i
-    // n = cross(e_0, e_1)
-    // t = det{ e_0, e_1, v } / cross(e_0.xy, e_1.xy)
+    return tryHitTriangle<single>(*this, r, trans, res);
+}
 
-    const auto &[a, b, c] = getPos();
+template <typename T, size_t Depth>
+bool tryHitTriangle(const igi::triangle &t, igi::ray &r, const igi::transform &trans, igi::surface_interaction *res) {
+    using precise = igi::precise_float_t<T>;
+    using single  = T;
+    using esingle = igi::error_single<T>;
+    using vec2ef  = igi::vec2<esingle>;
+    using vec3ef  = igi::vec3<esingle>;
 
-    vec3f ra = r.toRaySpace(a);
-    vec3f rb = r.toRaySpace(b);
-    vec3f rc = r.toRaySpace(c);
+    static constexpr bool TryPrecise = Depth > 0 && !std::is_same_v<T, precise>;
 
-    vec2f ra2(ra);
-    vec2f rb2(rb);
-    vec2f rc2(rc);
+    static constexpr T Zero(0), One(1);
 
-    vec2f e0 = rb2 - ra2;
-    vec2f e1 = rc2 - rb2;
-    vec2f e2 = ra2 - rc2;
+    auto preciseHit = [&]() {
+        if constexpr (TryPrecise)
+            return tryHitTriangle<precise, Depth - 1>(t, r, trans, res);
+        else
+            return false;
+    };
 
-    esingle a01 = Cross(e0, ra2);
-    esingle a12 = Cross(e1, rb2);
-    esingle a20 = Cross(e2, rc2);
+    const auto &[a, b, c] = t.getPos();
 
-    if (!((a01 > 0_sg && a12 > 0_sg && a20 > 0_sg)
-          || (a01 < 0_sg && a12 < 0_sg && a20 < 0_sg)))
-        return false;
+    const vec3ef ra(r.toRaySpace(trans.mulPos(a)));
+    const vec3ef rb(r.toRaySpace(trans.mulPos(b)));
+    const vec3ef rc(r.toRaySpace(trans.mulPos(c)));
 
-    esingle det = a01 + a12 + a20;
-    if (det == 0_sg)
-        return false;
+    const vec2ef ra2(ra);
+    const vec2ef rb2(rb);
+    const vec2ef rc2(rc);
+
+    const vec2ef e0(rb2 - ra2);
+    const vec2ef e1(rc2 - rb2);
+    const vec2ef e2(ra2 - rc2);
+
+    const esingle a01 = igi::Cross(e0, ra2);
+    const esingle a12 = igi::Cross(e1, rb2);
+    const esingle a20 = igi::Cross(e2, rc2);
+
+    int cmp = 0;
+    {
+        const esingle as[3] { a01, a12, a20 };
+        for (size_t i = 0; i < 3; i++) {
+            if (as[i] > Zero)
+                cmp += 3;
+            else if (as[i] < Zero)
+                cmp--;
+        }
+    }
+
+    if (cmp != 9 && cmp != -3) {
+        if constexpr (TryPrecise) {
+            if (cmp != 1 && cmp != 2 && cmp != 5)
+                preciseHit();
+        }
+        else
+            return false;
+    }
+
+    const esingle det = a01 + a12 + a20;
+    if (det == Zero)
+        return preciseHit();
 
     esingle zsum = ra[2] * a12 + rb[2] * a20 + rc[2] * a01;
     esingle tmin = r.getTMin() * det, tmax = r.getT() * det;
-    if ((det > 0_sg && !InRangecf(tmin, tmax, zsum))
-        || (det < 0_sg && !InRangecf(tmax, tmin, zsum)))
-        return false;
+    if (tmin > tmax)
+        std::swap(tmin, tmax);
+    if (!InRangecf(tmin, tmax, zsum))
+        return preciseHit();
 
-    esingle detInv = 1_sg / det;
-    zsum *= detInv;
-    if (!InRangecf(r.getTMin(), r.getT(), zsum))
-        return false;
+    const single detInv = One / det;
 
-    single u = a01 * detInv;
-    single v = a12 * detInv;
-    single w = a20 * detInv;
+    const single u = a01 * detInv;
+    const single v = a12 * detInv;
+    const single w = a20 * detInv;
 
-    r.setT(zsum);
-    res->position = vec3f(a * u + b * v + c * w);
+    r.setT(static_cast<igi::esingle>(zsum * detInv));
+    res->position = igi::vec3f(a * u + b * v + c * w);
 
-    auto [uv0, uv1, uv2] = getUV();
+    auto [uv0, uv1, uv2] = t.getUV();
 
-    res->uv = vec2f(uv0 * u + uv1 * v + uv2 * w);
+    res->uv = igi::vec2f(uv0 * u + uv1 * v + uv2 * w);
 
     // (...).rows() : Returns a tuple encapsulating two vec3f's
     //   |
@@ -105,7 +135,7 @@ bool igi::triangle::tryHit(ray &r, const transform &trans, surface_interaction *
     //        |                 |- igivec(b - a, c - a) : Construct a vector of vector
     //        |
     //        |- mat2x2f(uv1 - uv0, uv2 - uv0) : Construct matrix from two column vectors
-    std::tie(res->dpdu, res->dpdv) = mat2x2f(uv1 - uv0, uv2 - uv0).inverse().operator*(igivec(b - a, c - a)).row();
+    std::tie(res->dpdu, res->dpdv) = igi::mat2x2f(uv1 - uv0, uv2 - uv0).inverse().operator*(igivec(b - a, c - a)).row();
 
     res->normal = Cross(res->dpdu, res->dpdv).normalized();
     return true;

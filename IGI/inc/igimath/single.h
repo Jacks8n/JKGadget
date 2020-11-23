@@ -1,9 +1,9 @@
 ﻿#pragma once
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <compare>
+#include <ostream>
 #include <utility>
 #include "igimath/mathutil.h"
 #include "igiutilities/serialize.h"
@@ -22,8 +22,12 @@ namespace igi {
 
     constexpr single SingleLarge = static_cast<single>(1) / SingleEpsilon;
 
+    /// @brief ordering is not transitive, i.e., a == b && b == c doesn't imply a == c, though the comparison is implemented as weak_ordering
     template <is_single_float_c T>
     class error_single {
+        template <is_single_float_c U>
+        friend class error_single;
+
         template <is_single_float_c U>
         friend constexpr error_single<U> operator+(const error_single<U> &l, const U &r);
         template <is_single_float_c U>
@@ -59,6 +63,9 @@ namespace igi {
         template <is_single_float_c U>
         friend constexpr std::weak_ordering operator<=>(const error_single<U> &l, const error_single<U> &r);
 
+        template <is_single_float_c U>
+        friend inline decltype(auto) operator<<(std::ostream &os, const error_single<U> &val);
+
         template <typename U>
         friend inline error_single<U> Sqrt(const error_single<U> &val);
 
@@ -75,6 +82,9 @@ namespace igi {
         constexpr error_single(error_single &&)      = default;
 
         constexpr error_single(const T &val) : _value(val), _lowerBound(val), _upperBound(val) { }
+
+        template <typename U>
+        constexpr error_single(const error_single<U> &val) : _value(val._value), _lowerBound(val._lowerBound), _upperBound(val._upperBound) { }
 
       private:
         constexpr error_single(const T &val, const T &lower, const T &upper) : _value(val), _lowerBound(lower), _upperBound(upper) { }
@@ -211,7 +221,6 @@ namespace igi {
         T lu = l._lowerBound * r._upperBound;
         T ul = l._upperBound * r._lowerBound;
         T uu = l._upperBound * r._upperBound;
-
         return error_single<T>::nextError(l._value * r._value,
                                           std::min(std::min(ll, lu), std::min(ul, uu)),
                                           std::max(std::max(ll, lu), std::max(ul, uu)));
@@ -243,23 +252,58 @@ namespace igi {
 
     template <is_single_float_c T>
     constexpr std::weak_ordering operator<=>(const error_single<T> &l, const T &r) {
-        return l._upperBound < r ? std::weak_ordering::less
-                                 : r < l._lowerBound ? std::weak_ordering::greater
-                                                     : std::weak_ordering::equivalent;
+        return l._upperBound < r   ? std::weak_ordering::less
+               : r < l._lowerBound ? std::weak_ordering::greater
+                                   : std::weak_ordering::equivalent;
     }
 
     template <is_single_float_c T>
     constexpr std::weak_ordering operator<=>(const T &l, const error_single<T> &r) {
-        return l < r._lowerBound ? std::weak_ordering::less
-                                 : r._upperBound < l ? std::weak_ordering::greater
-                                                     : std::weak_ordering::equivalent;
+        return l < r._lowerBound   ? std::weak_ordering::less
+               : r._upperBound < l ? std::weak_ordering::greater
+                                   : std::weak_ordering::equivalent;
     }
 
     template <is_single_float_c T>
     constexpr std::weak_ordering operator<=>(const error_single<T> &l, const error_single<T> &r) {
-        return l._upperBound < r._lowerBound ? std::weak_ordering::less
-                                             : r._upperBound < l._lowerBound ? std::weak_ordering::greater
-                                                                             : std::weak_ordering::equivalent;
+        return l._upperBound < r._lowerBound   ? std::weak_ordering::less
+               : r._upperBound < l._lowerBound ? std::weak_ordering::greater
+                                               : std::weak_ordering::equivalent;
+    }
+
+    template <is_single_float_c T>
+    constexpr bool operator==(const T &l, const error_single<T> &r) {
+        return l <= r && r <= l;
+    }
+
+    template <is_single_float_c T>
+    constexpr bool operator==(const error_single<T> &l, const T &r) {
+        return l <= r && r <= l;
+    }
+
+    template <is_single_float_c T>
+    constexpr bool operator==(const error_single<T> &l, const error_single<T> &r) {
+        return l <= r && r <= l;
+    }
+
+    template <is_single_float_c T>
+    constexpr bool operator!=(const T &l, const error_single<T> &r) {
+        return !operator==(l, r);
+    }
+
+    template <is_single_float_c T>
+    constexpr bool operator!=(const error_single<T> &l, const T &r) {
+        return !operator==(l, r);
+    }
+
+    template <is_single_float_c T>
+    constexpr bool operator!=(const error_single<T> &l, const error_single<T> &r) {
+        return !operator==(l, r);
+    }
+
+    template <is_single_float_c T>
+    inline decltype(auto) operator<<(std::ostream &os, const error_single<T> &val) {
+        return os << "{ " << val._lowerBound << ", " << val._value << ", " << val._upperBound << " }";
     }
 
     using esingle = error_single<single>;
@@ -289,33 +333,37 @@ namespace igi {
 
     template <typename T0, typename T1, typename T2>
     constexpr size_t MaxIcf(T0 &&v0, T1 &&v1, T2 &&v2) {
-        return v0 < v1 ? v1 < v2 ? 2 : 1
-                       : v0 < v2 ? 2 : 0;
+        return v0 < v1   ? v1 < v2 ? 2 : 1
+               : v0 < v2 ? 2
+                         : 0;
     }
 
     template <typename T0, typename T1, typename T2>
     constexpr size_t MinIcf(T0 &&v0, T1 &&v1, T2 &&v2) {
-        return v0 < v1 ? v0 < v2 ? 0 : 2
-                       : v1 < v2 ? 1 : 2;
+        return v0 < v1   ? v0 < v2 ? 0 : 2
+               : v1 < v2 ? 1
+                         : 2;
     }
 
     template <typename T0, typename T1, typename T2>
     constexpr decltype(auto) Maxcf(T0 &&v0, T1 &&v1, T2 &&v2) {
-        return v0 < v1 ? v1 < v2 ? v2 : v1
-                       : v0 < v2 ? v2 : v0;
+        return v0 < v1   ? v1 < v2 ? v2 : v1
+               : v0 < v2 ? v2
+                         : v0;
     }
 
     template <typename T0, typename T1, typename T2>
     constexpr decltype(auto) Mincf(T0 &&v0, T1 &&v1, T2 &&v2) {
-        return v0 < v1 ? v0 < v2 ? v0 : v2
-                       : v1 < v2 ? v1 : v2;
+        return v0 < v1   ? v0 < v2 ? v0 : v2
+               : v1 < v2 ? v1
+                         : v2;
     }
 
     template <typename TLo, typename THi, typename TV>
     constexpr bool InRangecf(TLo &&lo, THi &&hi, TV &&v) {
         return lo < v && v < hi;
     }
-    
+
     template <typename TLo, typename THi, typename TV>
     constexpr bool InRangeClosecf(TLo &&lo, THi &&hi, TV &&v) {
         return lo <= v && v <= hi;
