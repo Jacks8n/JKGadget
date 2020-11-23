@@ -1,14 +1,18 @@
 ﻿#pragma once
 
+#include <memory_resource>
+#include "igicontext.h"
 #include "igimath/transform.h"
 
 namespace igi {
     class transformable_base {
-        transform _transform;
+        static inline std::pmr::vector<transform> Transfoms { context::GetTypedAllocator<transform>() };
+
+        transform &_transform;
 
       public:
-        transformable_base() = default;
-        explicit transformable_base(const transform &trans) : _transform(trans) { }
+        transformable_base() : _transform(Transfoms.emplace_back()) { }
+        transformable_base(transform &transform) : _transform(transform) { }
 
         igi::transform &getTransform() {
             return _transform;

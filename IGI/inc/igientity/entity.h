@@ -23,7 +23,7 @@ namespace igi {
 
         entity(const ISurface *surf = nullptr, const IMaterial *mat = nullptr)
             : transformable_base(), _surf(surf), _mat(mat) { }
-        entity(const transform &trans, const ISurface *surf = nullptr, const IMaterial *mat = nullptr)
+        entity(transform &trans, const ISurface *surf = nullptr, const IMaterial *mat = nullptr)
             : transformable_base(trans), _surf(surf), _mat(mat) { }
 
         const ISurface &getSurface() const {

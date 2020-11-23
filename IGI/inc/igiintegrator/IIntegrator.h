@@ -9,9 +9,10 @@ namespace igi {
 
         pcg32 pcg;
         itr_stack_t itrtmp;
+        void *data;
 
-        integrator_context(const allocator_type &alloc)
-            : pcg(), itrtmp(alloc) { }
+        integrator_context(const allocator_type &alloc, void *data = nullptr)
+            : pcg(), itrtmp(alloc), data(data) { }
     };
 
     struct IIntegrator {

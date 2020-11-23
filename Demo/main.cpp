@@ -2,6 +2,7 @@
 #include "igigeometry/cylinder.h"
 #include "igigeometry/sphere.h"
 #include "igigeometry/triangle.h"
+#include "igiintegrator/integrator_debug.h"
 #include "igiintegrator/path_trace.h"
 #include "igimaterial/material_emissive.h"
 #include "igimaterial/material_phong.h"
@@ -16,6 +17,7 @@ path_with_texture demo_primitives(igi::mem_arena &arena, std::pmr::polymorphic_a
 int main() {
     igi::mem_arena arena;
     std::pmr::polymorphic_allocator<char> alloc(&arena);
+    igi::context::ExternalAllocator = &alloc;
 
     //path_with_texture res = demo_json(arena, alloc);
     path_with_texture res = demo_primitives(arena, alloc);
@@ -43,11 +45,11 @@ path_with_texture demo_json(igi::mem_arena &arena, std::pmr::polymorphic_allocat
     doc.ParseInsitu(config);
 
     const auto &camProp   = doc["camera"];
-    igi::camera_base *cam = igi::serialization::DeserializePmr<igi::camera_base>(camProp, alloc, camProp["type"].GetString());
+    igi::camera_base *cam = igi::serialization::DeserializePmr<igi::camera_base>(camProp, camProp["type"].GetString());
 
-    igi::scene *demo     = igi::serialization::Deserialize<igi::scene>(doc, alloc);
+    igi::scene *demo     = igi::serialization::Deserialize<igi::scene>(doc);
     igi::path_trace pt   = igi::serialization::Deserialize<igi::path_trace>(doc["integrator"]);
-    igi::texture_rgb res = igi::serialization::Deserialize<igi::texture_rgb>(doc["film"], alloc);
+    igi::texture_rgb res = igi::serialization::Deserialize<igi::texture_rgb>(doc["film"]);
 
     IGI_SERIALIZE_OPTIONAL(size_t, spp, 4, doc);
 
@@ -69,10 +71,10 @@ path_with_texture demo_primitives(igi::mem_arena &arena, std::pmr::polymorphic_a
     static igi::vec3f vertices[3 * nentity];
 
     std::default_random_engine e(reinterpret_cast<size_t>(&arena));
-    std::uniform_real_distribution<igi::single> rd(-2, 2);
+    std::uniform_real_distribution<igi::single> rd(-1, 1);
 
     for (auto &i : vertices)
-        i = igi::vec3f(rd(e), rd(e), rd(e) + 4);
+        i = igi::vec3f(rd(e), rd(e), rd(e) + 5);
 
     igi::triangle_mesh mesh;
     mesh.setPos(std::begin(vertices), std::end(vertices), alloc);
@@ -90,15 +92,16 @@ path_with_texture demo_primitives(igi::mem_arena &arena, std::pmr::polymorphic_a
     for (size_t i = 0; i < nentity; i++)
         entities.emplace_back(surfs[i], mats[i & 1]);
 
-    igi::scene demo(mats.as_shared_ptr(), surfs.as_shared_ptr(), entities.as_shared_ptr(), nentity, igi::palette::black, alloc);
+    igi::scene demo(mats.as_shared_ptr(), surfs.as_shared_ptr(), entities.as_shared_ptr(), nentity, igi::palette::black);
 
-    igi::camera_perspective cam;
+    igi::camera_perspective cam(igi::camera_perspective::DefaultFOV, 1.f, igi::camera_perspective::DefaultNear, 7.f);
 
-    igi::path_trace pt(4, 4);
+    //igi::path_trace pt(4, 4);
+    igi::integrator_debug dbg(igi::integrator_debug_mode::depth);
 
-    igi::texture_rgb res(512, 512, alloc);
+    igi::texture_rgb res(512, 512);
 
-    igi::render(demo, cam, pt, arena, res, 4, &std::cout);
+    igi::render(demo, cam, dbg, arena, res, 1, &std::cout);
 
     return std::make_pair("demo_primitives.png", res);
 }

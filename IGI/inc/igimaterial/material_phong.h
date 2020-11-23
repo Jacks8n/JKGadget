@@ -7,15 +7,12 @@ namespace igi {
         color3 _spec;
 
       public:
-        META_BE_RT(material_phong, ser_pmr_name_a("phong"), deser_pmr_func_a<IMaterial>([](const serializer_t &ser, const ser_allocator_t<char> &alloc) {
+        META_BE_RT(material_phong, ser_pmr_name_a("phong"), deser_pmr_func_a<IMaterial>([](const serializer_t &ser) {
                        IGI_SERIALIZE_OPTIONAL(single, shine, 5_sg, ser);
                        IGI_SERIALIZE_OPTIONAL(color3, specular, palette::white, ser);
 
-                       using allocator = std::allocator_traits<ser_allocator_t<material_phong>>;
-
-                       ser_allocator_t<material_phong> a(alloc);
-                       material_phong *p = allocator::allocate(a, 1);
-                       allocator::construct(a, p, shine, specular);
+                       material_phong *p = context::Allocate<material_phong>();
+                       context::Construct(p, shine, specular);
                        return p;
                    }))
 

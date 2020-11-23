@@ -4,6 +4,7 @@
 #include <memory_resource>
 #include <stack>
 #include "igiacceleration/circular_list.h"
+#include "igicontext.h"
 #include "igientity/entity.h"
 
 namespace igi {
@@ -45,20 +46,14 @@ namespace igi {
 
       public:
         using initializer_list_t = std::initializer_list<const std::reference_wrapper<entity>>;
-        using allocator_type     = std::pmr::polymorphic_allocator<leaf>;
         using itr_stack_t        = std::stack<const void *, std::pmr::vector<const void *>>;
 
-        aggregate(aggregate &&o, const allocator_type &alloc)
-            : _nodes(std::move(o._nodes), alloc), _leaves(o._leaves, alloc) { }
+        aggregate(aggregate &&o) = default;
 
         template <typename TIt>
-        aggregate(TIt &&entityIt, size_t n, const allocator_type &alloc, const allocator_type &tempAlloc) {
-            initBuild(std::forward<TIt>(entityIt), n, alloc, tempAlloc);
+        aggregate(TIt &&entityIt, size_t n) {
+            initBuild(std::forward<TIt>(entityIt), n);
         }
-
-        template <typename TIt>
-        aggregate(TIt &&entityIt, size_t n, const allocator_type &alloc)
-            : aggregate(std::forward<TIt>(entityIt), n, alloc, alloc) { }
 
         aggregate &operator=(const aggregate &) = delete;
         aggregate &operator=(aggregate &&) = delete;
@@ -87,17 +82,17 @@ namespace igi {
         std::pmr::vector<node> _nodes;
         std::pmr::vector<leaf> _leaves;
 
-        void initBuild(build_itr_queue_t iterations, allocator_type tempAlloc);
+        void initBuild(build_itr_queue_t iterations);
 
         template <typename TIt>
-        void initBuild(TIt &&entityIt, size_t n, const allocator_type &alloc, const allocator_type &tempAlloc) {
+        void initBuild(TIt &&entityIt, size_t n) {
             if (!n)
                 return;
 
-            new (&_leaves) std::pmr::vector<leaf>(n, alloc);
+            new (&_leaves) std::pmr::vector<leaf>(n, context::GetTypedAllocator<leaf>());
 
             if (n < 3) {
-                new (&_nodes) std::pmr::vector<node>(1, alloc);
+                new (&_nodes) std::pmr::vector<node>(1, context::GetTypedAllocator<node>());
                 new (_leaves.data()) leaf(*entityIt, (*entityIt).getBound());
                 if (n == 1) {
                     new (_nodes.data()) node(true, 0, false, 0, _leaves[0].bound);
@@ -115,10 +110,10 @@ namespace igi {
                 return;
             }
 
-            new (&_nodes) std::pmr::vector<node>(n - 1, alloc);
+            new (&_nodes) std::pmr::vector<node>(n - 1, context::GetTypedAllocator<node>());
             _nodes.clear();
 
-            build_itr_queue_t iterations(n * 2, alloc);
+            build_itr_queue_t iterations(n * 2, context::GetTypedAllocator<packed_leaf, allocate_usage::temp>());
             iterations.resize(n + 1);
 
             iterations.front().nleaves = n;
@@ -127,7 +122,7 @@ namespace igi {
                 ++entityIt;
             });
 
-            initBuild(std::move(iterations), alloc);
+            initBuild(std::move(iterations));
         }
 
         template <bool FindFirst, typename TRay, typename TFn>
@@ -143,8 +138,8 @@ namespace igi {
                 if (curr->bound.isHit(r)) {
                     for (size_t i = 0; i < 2; i++)
                         if (curr->childIsLeaf[i]) {
-                            const auto nleaves = curr->nchildrenLeaves[i];
-                            const auto leavesLo      = curr->children[i];
+                            const auto nleaves  = curr->nchildrenLeaves[i];
+                            const auto leavesLo = curr->children[i];
 
                             for (size_t j = 0; j < nleaves; j++) {
                                 const leaf &l = _leaves[j + leavesLo];

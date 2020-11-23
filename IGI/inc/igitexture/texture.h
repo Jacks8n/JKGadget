@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <memory_resource>
+#include "igicontext.h"
 #include "igitexture/color.h"
 #include "png.h"
 
@@ -70,24 +71,17 @@ namespace igi {
 
         using const_iterator = const iterator;
 
-        using allocator_type = std::pmr::polymorphic_allocator<T>;
-
-        META_BE(texture, rflite::func_a([](const serializer_t &ser, const allocator_type &alloc) {
+        META_BE(texture, rflite::func_a([](const serializer_t &ser) {
                     size_t w = serialization::Deserialize<size_t>(ser["width"]);
                     size_t h = serialization::Deserialize<size_t>(ser["height"]);
-                    return rflite::meta_helper::any_ins<texture>(w, h, alloc);
+                    return rflite::meta_helper::any_ins<texture>(w, h);
                 }))
 
         texture(const texture &o) = default;
         texture(texture &&o)      = default;
 
-        texture(const texture &o, const allocator_type &alloc)
-            : _alloc(alloc), _buf(AllocBuffer(o._w, o._h, _alloc)), _w(o._w), _h(o._h) {
-            std::copy(&o.get(0, 0), &o.get(_w, _h), &get(0, 0));
-        }
-
-        texture(size_t w, size_t h, const allocator_type &alloc)
-            : _alloc(alloc), _buf(AllocBuffer(w, h, _alloc)), _w(w), _h(h) { }
+        texture(size_t w, size_t h)
+            : _buf(AllocBuffer(w, h)), _w(w), _h(h) { }
 
         texture &operator=(const texture &) = delete;
         texture &operator=(texture &&) = delete;
@@ -131,12 +125,11 @@ namespace igi {
         }
 
       private:
-        allocator_type _alloc;
         std::shared_ptr<T[]> _buf;
         size_t _w, _h;
 
-        static std::shared_ptr<T[]> AllocBuffer(size_t w, size_t h, allocator_type &alloc) {
-            return std::allocate_shared<T[]>(alloc, w * h);
+        static std::shared_ptr<T[]> AllocBuffer(size_t w, size_t h) {
+            return std::allocate_shared<T[]>(context::GetTypedAllocator<T>(), w * h);
         }
 
         void assertInRange(size_t u, size_t v) const {

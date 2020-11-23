@@ -5,7 +5,7 @@
 /// This implementation of Spatial-Split BVH doesn't fully comply with the original idea
 /// "Shrinking bounding box" procedure is omitted because it requires perplexing interface design
 
-void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type tempAlloc) {
+void igi::aggregate::initBuild(build_itr_queue_t iterations) {
     class sah {
         bound_t _bound;
         single _childSA, _boundSAInv;
@@ -52,8 +52,7 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
         std::pmr::vector<std::pair<leaf, bool>> _leaves;
 
       public:
-        split() { }
-        split(const decltype(_leaves)::allocator_type &alloc) : _leaves(alloc) { }
+        split() : _leaves(context::GetTypedAllocator<std::pair<leaf, bool>>()) { }
 
         void add(const leaf &l, bool bl = false) {
             _leaves.emplace_back(l, bl);
@@ -124,13 +123,11 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
     // split records leaves that are across the split for further cost evaluation
     split splits[MaxSplitCount];
 
-    std::pmr::vector<leaf> tmpLeaves(tempAlloc);
+    std::pmr::vector<leaf> tmpLeaves(context::GetTypedAllocator<leaf, allocate_usage::temp>());
 
     // prepare for recursion
     single splitSAThres;
     {
-        std::for_each(std::begin(splits), std::end(splits), [&](split &s) { new (&s) split(tempAlloc); });
-
         _nodes.emplace_back();
         bound_t &rootBound = _nodes.front().bound = bound_t::NegInf();
         std::for_each(++iterations.begin(), iterations.end(), [&](packed_leaf &l) { rootBound.extend(l.leaf.bound); });
@@ -211,7 +208,7 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
                 const single splitCoord = (i + 1) * binSize + nodeBoundMin;
 
                 single sahs[3];
-                size_t sahIndex;
+                size_t sahIndex = ~0;
                 for (auto &j : split) {
                     leaf &leaf         = j.first;
                     bound_t &leafBound = leaf.bound;
@@ -266,6 +263,7 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
                             break;
                     }
                 }
+                igiassert(sahIndex != ~0);
 
                 if (minSAH > sahs[sahIndex]) {
                     bestSplitIndex = i;
@@ -278,7 +276,7 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
                 leavesSplit.clear();
             }
         }
-        assert(bestSplitIndex != ~0);
+        igiassert(bestSplitIndex != ~0);
 
         // group leaves of left and right children nodes for next recursion
         {
@@ -314,7 +312,7 @@ void igi::aggregate::initBuild(build_itr_queue_t iterations, allocator_type temp
             }
 
             // if there is only one leaf as child, store it directly
-            assert(nleft);
+            igiassert(nleft);
             if (nleft < BatchSize) {
                 setNodeChildLeaf(nodeIndex, iterations.end() - nleft, nleft, 0);
                 iterations.pop_back(nleft + 1);

@@ -9,14 +9,11 @@ namespace igi {
         single _r;
 
       public:
-        META_BE_RT(sphere, ser_pmr_name_a("sphere"), deser_pmr_func_a<ISurface>([](const serializer_t &ser, const ser_allocator_t<char> &alloc) {
+        META_BE_RT(sphere, ser_pmr_name_a("sphere"), deser_pmr_func_a<ISurface>([](const serializer_t &ser) {
                        IGI_SERIALIZE_OPTIONAL(single, radius, 1_sg, ser);
 
-                       using allocator = std::allocator_traits<ser_allocator_t<sphere>>;
-
-                       ser_allocator_t<sphere> a(alloc);
-                       sphere *p = allocator::allocate(a, 1);
-                       allocator::construct(a, p, radius);
+                       sphere *p = context::Allocate<sphere>();
+                       context::Construct(p, radius);
                        return p;
                    }))
 

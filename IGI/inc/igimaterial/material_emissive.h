@@ -7,15 +7,12 @@ namespace igi {
         color3 _e;
 
       public:
-        META_BE_RT(material_emissive, ser_pmr_name_a("emissive"), deser_pmr_func_a<IMaterial>([](const serializer_t &ser, const ser_allocator_t<char> &alloc) {
+        META_BE_RT(material_emissive, ser_pmr_name_a("emissive"), deser_pmr_func_a<IMaterial>([](const serializer_t &ser) {
                        IGI_SERIALIZE_OPTIONAL(single, energy, 10_sg, ser);
                        IGI_SERIALIZE_OPTIONAL(color3, color, palette::white, ser);
 
-                       using allocator = std::allocator_traits<ser_allocator_t<material_emissive>>;
-
-                       ser_allocator_t<material_emissive> a(alloc);
-                       material_emissive *p = allocator::allocate(a, 1);
-                       allocator::construct(a, p, energy, color);
+                       material_emissive *p = context::Allocate<material_emissive>();
+                       context::Construct(p, energy, color);
                        return p;
                    }))
 

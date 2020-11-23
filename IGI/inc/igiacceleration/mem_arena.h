@@ -92,15 +92,15 @@ namespace igi {
         }
 
       private:
-        void *do_allocate(size_t _Bytes, size_t _Align) override {
-            void *alloc = _chunks.getLast().tryAlloc(_Bytes, _Align);
-            return alloc ? alloc : _chunks.allocChunk(_Bytes, _Align).alloc(_Bytes);
+        void *do_allocate(size_t bytes, size_t align) override {
+            void *alloc = _chunks.getLast().tryAlloc(bytes, align);
+            return alloc ? alloc : _chunks.allocChunk(bytes, align).alloc(bytes);
         }
 
-        void do_deallocate(void *_Ptr, size_t _Bytes, size_t _Align) override { }
+        void do_deallocate(void *ptr, size_t bytes, size_t align) override { }
 
-        bool do_is_equal(const memory_resource &_That) const noexcept override {
-            return &_That == this;
+        bool do_is_equal(const memory_resource &o) const noexcept override {
+            return &o == this;
         }
 
         static void *ceilAddr(void *add, size_t align) {
