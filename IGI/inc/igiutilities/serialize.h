@@ -129,15 +129,11 @@ namespace igi {
 
         template <typename T, template <typename> typename TContainer, typename TExPo>
         static TContainer<T> DeserializeArray_impl(const serializer_t &ser, TExPo &&policy) {
-            TContainer<T> arr(ser.Size(), context::GetTypedAllocator<T, allocate_usage::temp>());
+            TContainer<T> arr(ser.Size(), context::GetTypedAllocator<T>());
 
-            auto i    = arr.begin();
             auto iser = ser.Begin();
-            while (i != arr.end()) {
+            for (auto i = arr.begin(); i != arr.end(); ++i, ++iser)
                 new (&*i) T(policy(*iser));
-                ++i;
-                ++iser;
-            }
 
             return arr;
         }

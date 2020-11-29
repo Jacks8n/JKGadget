@@ -4,15 +4,14 @@
 
 namespace igi {
     struct integrator_context {
-        using itr_stack_t    = typename aggregate::itr_stack_t;
-        using allocator_type = std::pmr::polymorphic_allocator<typename itr_stack_t::value_type>;
+        using itr_stack_t = typename aggregate::itr_stack_t;
 
         pcg32 pcg;
         itr_stack_t itrtmp;
         void *data;
 
-        integrator_context(const allocator_type &alloc, void *data = nullptr)
-            : pcg(), itrtmp(alloc), data(data) { }
+        integrator_context(void *data = nullptr)
+            : pcg(), itrtmp(context::GetTypedAllocator<itr_stack_t::value_type>()), data(data) { }
     };
 
     struct IIntegrator {

@@ -50,10 +50,6 @@ namespace igi {
         friend class triangle;
 
       public:
-        using vertex_allocator_type   = std::pmr::vector<vec3f>::allocator_type;
-        using uv_allocator_type       = std::pmr::vector<vec2f>::allocator_type;
-        using triangle_allocator_type = std::pmr::vector<triangle>::allocator_type;
-
         triangle_mesh() : _positionInit(false), _uvInit(false), _triangleInit(false) { }
         triangle_mesh(triangle_mesh &&) = default;
 
@@ -67,21 +63,21 @@ namespace igi {
         }
 
         template <typename TLo, typename THi>
-        void setPos(TLo &&posLo, THi &&posHi, const vertex_allocator_type &alloc) {
-            SetVector(_positions, _positionInit, std::forward<TLo>(posLo), std::forward<THi>(posHi), alloc);
+        void setPos(TLo &&posLo, THi &&posHi) {
+            SetVector(_positions, _positionInit, std::forward<TLo>(posLo), std::forward<THi>(posHi), context::GetTypedAllocator<vec3f>());
         }
 
         template <typename TLo, typename THi>
-        void setUV(TLo &&uvLo, THi &&uvHi, const uv_allocator_type &alloc) {
-            SetVector(_uvs, _uvInit, std::forward<TLo>(uvLo), std::forward<THi>(uvHi), alloc);
+        void setUV(TLo &&uvLo, THi &&uvHi) {
+            SetVector(_uvs, _uvInit, std::forward<TLo>(uvLo), std::forward<THi>(uvHi), context::GetTypedAllocator<vec2f>());
         }
 
         template <typename TLo, typename THi>
-        void setTriangle(TLo &&triangleLo, THi &&triangleHi, const triangle_allocator_type &alloc) {
-            SetVector(_triangles, _triangleInit, std::forward<TLo>(triangleLo), std::forward<THi>(triangleHi), alloc);
+        void setTriangle(TLo &&triangleLo, THi &&triangleHi) {
+            SetVector(_triangles, _triangleInit, std::forward<TLo>(triangleLo), std::forward<THi>(triangleHi), context::GetTypedAllocator<triangle>());
         }
 
-        void setTriangle(triangle_topology topology, const triangle_allocator_type &alloc) {
+        void setTriangle(triangle_topology topology) {
             assert(_positionInit);
             igiassert(_positions.size() <= std::numeric_limits<triangle::index_t>::max(),
                       "vertex count exceeds allowed maximum index");
@@ -102,7 +98,7 @@ namespace igi {
             if (!ntriangle)
                 return;
 
-            InitVector(_triangles, _triangleInit, ntriangle, alloc);
+            InitVector(_triangles, _triangleInit, ntriangle, context::GetTypedAllocator<triangle>());
 
             switch (topology) {
                 case igi::triangle_topology::list:
@@ -138,6 +134,17 @@ namespace igi {
 
         decltype(auto) end() {
             return _triangles.end();
+        }
+
+        template <typename T>
+        void addTrianglesTo(T &&it) {
+            for (auto &i : *this) {
+                if constexpr (std::is_pointer_v<T>)
+                    *it = &i;
+                else
+                    *it = i;
+                ++it;
+            }
         }
 
         const vec3f &getPos(size_t index) const {

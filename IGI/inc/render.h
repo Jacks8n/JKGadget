@@ -11,7 +11,7 @@
 namespace igi {
     template <typename TCam>
     inline void render(const scene &scene, const TCam &camera, const IIntegrator &integrator,
-                       mem_arena &arena, texture_rgb &res, size_t spp = 1, std::ostream *log = nullptr) {
+                       texture_rgb &res, size_t spp = 1, std::ostream *log = nullptr) {
         struct task {
             size_t u, v;
             color3 *res;
@@ -28,15 +28,13 @@ namespace igi {
             integrator_context ic;
             unit_square_distribution usd;
 
-            context(const typename integrator_context::allocator_type &alloc)
-                : ic(alloc), usd() { }
+            context() = default;
         };
 
         res.clear(palette::black);
 
         std::mutex m;
         single w = res.getWidth(), h = res.getHeight();
-        typename worker_group<task, context>::allocator_type alloc(&arena);
         auto group = worker_group<task, context>::DetachMax(
             [&, w, h](std::pair<task, context> &pair) {
                 task &in(pair.first);
@@ -53,7 +51,7 @@ namespace igi {
                 std::scoped_lock sl(m);
                 *in.res = *in.res + i;
             },
-            1024, alloc, alloc);
+            1024);
 
         size_t total  = res.getHeight() * res.getWidth() * spp;
         single oneper = total / 100_sg, oneperInv = 100_sg / total;

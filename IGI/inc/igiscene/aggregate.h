@@ -134,6 +134,7 @@ namespace igi {
             do {
                 const node *curr = static_cast<const node *>(itrtmp.top());
                 itrtmp.pop();
+                igiassert(curr);
 
                 if (curr->bound.isHit(r)) {
                     for (size_t i = 0; i < 2; i++)

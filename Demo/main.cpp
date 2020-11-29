@@ -11,16 +11,16 @@ using namespace demo;
 
 using path_with_texture = std::pair<std::string_view, igi::texture_rgb>;
 
-path_with_texture demo_json(igi::mem_arena &arena, std::pmr::polymorphic_allocator<char> &alloc);
-path_with_texture demo_primitives(igi::mem_arena &arena, std::pmr::polymorphic_allocator<char> &alloc);
+path_with_texture demo_json(std::pmr::polymorphic_allocator<char> &alloc);
+path_with_texture demo_primitives(std::pmr::polymorphic_allocator<char> &alloc);
 
 int main() {
     igi::mem_arena arena;
     std::pmr::polymorphic_allocator<char> alloc(&arena);
     igi::context::ExternalAllocator = &alloc;
 
-    //path_with_texture res = demo_json(arena, alloc);
-    path_with_texture res = demo_primitives(arena, alloc);
+    //path_with_texture res = demo_json(alloc);
+    path_with_texture res = demo_primitives(alloc);
 
     std::ofstream os;
     os.open(res.first.data(), std::ios_base::binary);
@@ -38,7 +38,7 @@ int main() {
     return 0;
 }
 
-path_with_texture demo_json(igi::mem_arena &arena, std::pmr::polymorphic_allocator<char> &alloc) {
+path_with_texture demo_json(std::pmr::polymorphic_allocator<char> &alloc) {
     char *config = ReadConfig("demo.json", alloc);
 
     rapidjson::Document doc;
@@ -60,48 +60,48 @@ path_with_texture demo_json(igi::mem_arena &arena, std::pmr::polymorphic_allocat
         std::cout << "spp not set, using default value\n";
     std::cout << "spp: " << spp << '\n';
 
-    igi::render(*demo, *cam, pt, arena, res, spp, &std::cout);
+    igi::render(*demo, *cam, pt, res, spp, &std::cout);
 
     return std::make_pair(path, res);
 }
 
-path_with_texture demo_primitives(igi::mem_arena &arena, std::pmr::polymorphic_allocator<char> &alloc) {
+path_with_texture demo_primitives(std::pmr::polymorphic_allocator<char> &alloc) {
     static constexpr size_t nentity = 12;
 
     static igi::vec3f vertices[3 * nentity];
 
-    std::default_random_engine e(reinterpret_cast<size_t>(&arena));
-    std::uniform_real_distribution<igi::single> rd(-1, 1);
+    std::default_random_engine e(reinterpret_cast<size_t>(&alloc));
+    std::uniform_real_distribution<igi::single> rd(-.5f, .5f);
 
     for (auto &i : vertices)
         i = igi::vec3f(rd(e), rd(e), rd(e) + 5);
 
     igi::triangle_mesh mesh;
-    mesh.setPos(std::begin(vertices), std::end(vertices), alloc);
-    mesh.setTriangle(igi::triangle_topology::list, alloc);
+    mesh.setPos(std::begin(vertices), std::end(vertices));
+    mesh.setTriangle(igi::triangle_topology::list);
 
     igi::material_phong mat0;
     igi::material_emissive mat1;
     igi::shared_vector<igi::IMaterial *> mats(alloc, &mat0, &mat1);
 
     igi::shared_vector<igi::ISurface *> surfs(nentity, alloc);
-    for (auto &i : mesh)
-        surfs.push_back(&i);
+    mesh.addTrianglesTo(surfs.begin());
 
     igi::shared_vector<igi::entity> entities(nentity, alloc);
     for (size_t i = 0; i < nentity; i++)
-        entities.emplace_back(surfs[i], mats[i & 1]);
+        new (&entities[i]) igi::entity(surfs[i], mats[i & 1]);
 
     igi::scene demo(mats.as_shared_ptr(), surfs.as_shared_ptr(), entities.as_shared_ptr(), nentity, igi::palette::black);
 
-    igi::camera_perspective cam(igi::camera_perspective::DefaultFOV, 1.f, igi::camera_perspective::DefaultNear, 7.f);
+    igi::camera_perspective cam;
+    cam.setFar(7.f);
 
-    //igi::path_trace pt(4, 4);
-    igi::integrator_debug dbg(igi::integrator_debug_mode::depth);
+    igi::path_trace itg(4, 4);
+    //igi::integrator_debug itg(igi::integrator_debug_mode::depth);
 
-    igi::texture_rgb res(512, 512);
+    igi::texture_rgb res(256, 256);
 
-    igi::render(demo, cam, dbg, arena, res, 1, &std::cout);
+    igi::render(demo, cam, itg, res, 1, &std::cout);
 
     return std::make_pair("demo_primitives.png", res);
 }

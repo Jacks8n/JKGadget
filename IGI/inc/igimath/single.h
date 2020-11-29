@@ -22,6 +22,8 @@ namespace igi {
 
     constexpr single SingleLarge = static_cast<single>(1) / SingleEpsilon;
 
+    // todo: deal with 0 / 0
+
     /// @brief ordering is not transitive, i.e., a == b && b == c doesn't imply a == c, though the comparison is implemented as weak_ordering
     template <is_single_float_c T>
     class error_single {

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include <assert.h>
 #include <memory_resource>
+#include "igiassert.h"
 
 namespace igi {
     template <typename T>
@@ -27,19 +27,20 @@ namespace igi {
               _buf(_alloc.allocate(n), [=](T *p) {
                   _alloc.deallocate(p, n);
               }),
-              _end(_buf.get()), _cap(n) { }
+              _end(_buf.get() + n), _cap(n) { }
 
         template <typename U>
         shared_vector(std::initializer_list<U> il, const allocator_type &alloc)
             : shared_vector(il.size(), alloc) {
             for (size_t i = 0; i < il.size(); i++)
-                emplace_back(il[i]);
+                alloc.construct(_buf.get() + i, il[i]);
         }
 
         template <typename... Ts>
-        shared_vector(const allocator_type &alloc, Ts &&... ts)
+        shared_vector(const allocator_type &alloc, Ts &&...ts)
             : shared_vector(sizeof...(Ts), alloc) {
-            (emplace_back(ts), ...);
+            iterator lo = begin();
+            ((new (&*lo) T(std::forward<Ts>(ts)), ++lo), ...);
         }
 
         iterator begin() {
@@ -68,7 +69,7 @@ namespace igi {
         }
 
         template <typename... Ts>
-        iterator emplace_back(Ts &&... ts) {
+        iterator emplace_back(Ts &&...ts) {
             assert_space_free();
             return new (_end++) T(std::forward<Ts>(ts)...);
         }
@@ -115,11 +116,11 @@ namespace igi {
 
       private:
         void assert_space_free() const {
-            assert(size() < capacity());
+            igiassert(size() < capacity());
         }
 
         void assert_in_range(size_t i) const {
-            assert(i < size());
+            igiassert(i < size());
         }
     };
 }  // namespace igi

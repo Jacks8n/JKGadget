@@ -39,7 +39,7 @@ namespace igi {
         static allocator_t &GetAllocator() {
             static allocator_wrapper Allocator { Usage == allocate_usage::persistent ? ExternalAllocator
                                                  : Usage == allocate_usage::temp     ? ExternalTempAllocator
-                                                                                      : nullptr };
+                                                                                     : nullptr };
 
             return Allocator.Allocator;
         }
@@ -63,6 +63,21 @@ namespace igi {
             using allocator_t = allocator_generic_t<T>;
 
             return std::allocator_traits<allocator_t>::construct(GetTypedAllocator<T, Usage>(), p, std::forward<TArgs>(args)...);
+        }
+
+        template <typename T, allocate_usage Usage = allocate_usage::persistent>
+        static void Destroy(T *p, size_t n = 1) {
+            using allocator_t = allocator_generic_t<T>;
+
+            for (size_t i = 0; i < n; i++)
+                std::allocator_traits<allocator_t>::destroy(GetTypedAllocator<T, Usage>(), p++);
+        }
+
+        template <typename T, allocate_usage Usage = allocate_usage::persistent>
+        static decltype(auto) Deallocate(T *p, size_t n = 1) {
+            using allocator_t = allocator_generic_t<T>;
+
+            return std::allocator_traits<allocator_t>::deallocate(GetTypedAllocator<T, Usage>(), p, n);
         }
     };
 }  // namespace igi

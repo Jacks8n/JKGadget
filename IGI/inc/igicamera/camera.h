@@ -16,14 +16,18 @@ namespace igi {
 
         virtual ray getRay(single x, single y) const = 0;
 
-      protected:
-        camera_base(single near, single far) : _near(near), _far(far) { }
-
         single getNear() const { return _near; }
+
+        void setNear(single n) { _near = n; }
 
         single getFar() const { return _far; }
 
+        void setFar(single f) { _far = f; }
+
         single getDepth() const { return _far - _near; }
+
+      protected:
+        camera_base(single near, single far) : _near(near), _far(far) { }
     };
 
     class camera_orthographic : public camera_base {

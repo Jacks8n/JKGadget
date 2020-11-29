@@ -40,10 +40,8 @@ namespace igi {
 
         friend class token;
 
-        using allocator_type = std::pmr::polymorphic_allocator<TTask>;
-
-        worker_thread_upstream(size_t maxQueue, const allocator_type &alloc)
-            : _running(true), _activeCount(0), _queue(maxQueue, alloc) {
+        worker_thread_upstream(size_t maxQueue)
+            : _running(true), _activeCount(0), _queue(maxQueue, context::GetTypedAllocator<TTask>()) {
             _queue.clear();
         }
 
@@ -70,7 +68,7 @@ namespace igi {
         }
 
         template <typename... T>
-        void issue(T &&... in) {
+        void issue(T &&...in) {
             while (true) {
                 if (!_queue.full()) {
                     _queue.emplace_back(std::forward<T>(in)...);
@@ -112,7 +110,7 @@ namespace igi {
 
         template <typename... TContextArgs>
         worker_thread(task_upstream_t &upstream, const worker_func_t &workerFunc,
-                      TContextArgs &&... contextArgs)
+                      TContextArgs &&...contextArgs)
             : _thread(worker_func_wrapper(
                 upstream, workerFunc, std::forward<TContextArgs>(contextArgs)...)) { }
 
@@ -131,7 +129,7 @@ namespace igi {
             template <typename... TContextArgs,
                       std::enable_if_t<!std::is_same_v<TContext, void>, int> = 0>
             worker_func_wrapper(task_upstream_t &upstream, const worker_func_t &workerFunc,
-                                TContextArgs &&... args)
+                                TContextArgs &&...args)
                 : _upstream(upstream), _func(workerFunc),
                   _in(TTask(), TContext(std::forward<TContextArgs>(args)...)) { }
 
@@ -159,51 +157,44 @@ namespace igi {
     template <typename TTask, typename TContext = void>
     class worker_group {
       public:
-        using worker_thread_t      = worker_thread<TTask, TContext>;
-        using worker_func_t        = typename worker_thread_t::worker_func_t;
-        using allocator_type       = std::pmr::polymorphic_allocator<worker_thread_t>;
-        using group_allocator_type = std::pmr::polymorphic_allocator<worker_group>;
+        using worker_thread_t = worker_thread<TTask, TContext>;
+        using worker_func_t   = typename worker_thread_t::worker_func_t;
 
         using upstream_t = worker_thread_upstream<TTask>;
 
         template <typename... TContextArgs>
-        worker_group(const worker_func_t &workerFunc, size_t maxQueue, size_t workerCount,
-                     const allocator_type &alloc, TContextArgs &&... contextArgs)
-            : _alloc(alloc), _workers(_alloc.allocate(workerCount)),
-              _workerCount(workerCount), _upstream(maxQueue, alloc) {
+        worker_group(const worker_func_t &workerFunc, size_t maxQueue, size_t workerCount, TContextArgs &&...contextArgs)
+            : _workers(context::Allocate<worker_thread_t>(workerCount)), _workerCount(workerCount),
+              _upstream(maxQueue) {
             for (size_t i = 0; i < workerCount; i++)
-                _alloc.construct(&_workers[i], _upstream, workerFunc,
-                                 std::forward<TContextArgs>(contextArgs)...);
+                context::Construct(&_workers[i], _upstream, workerFunc, std::forward<TContextArgs>(contextArgs)...);
         }
 
         ~worker_group() {
-            for (size_t i = 0; i < _workerCount; i++)
-                _workers[i].~worker_thread();
-            _alloc.deallocate(_workers, _workerCount);
+            context::Destroy(_workers, _workerCount);
+            context::Allocate.deallocate(_workers, _workerCount);
         }
 
 #pragma region Static Functions
 
         template <typename... TContextArgs>
-        static worker_group *DetachN(const worker_func_t &workerFunc, size_t maxQueue, size_t workerCount,
-                                     const group_allocator_type &alloc, TContextArgs &&... contextArgs) {
-            group_allocator_type alloctmp(alloc);
-            worker_group *group = alloctmp.allocate(1);
-            new (group) worker_group(workerFunc, maxQueue, workerCount, static_cast<allocator_type>(alloc),
-                                     std::forward<TContextArgs>(contextArgs)...);
+        static worker_group *DetachN(const worker_func_t &workerFunc, size_t maxQueue, size_t workerCount, TContextArgs &&...contextArgs) {
+            worker_group *group = context::Allocate<worker_group>();
+            context::Construct(group, workerFunc, maxQueue, workerCount, std::forward<TContextArgs>(contextArgs)...);
             return group;
         }
 
         template <typename... TContextArgs>
-        static worker_group *DetachMax(const worker_func_t &workerFunc, size_t maxQueue,
-                                       const group_allocator_type &alloc, TContextArgs &&... contextArgs) {
+        static worker_group *DetachMax(const worker_func_t &workerFunc, size_t maxQueue, TContextArgs &&...contextArgs) {
+            size_t threadCount;
+
 #ifdef _DEBUG
-            return DetachN(workerFunc, maxQueue, 1, alloc,
-                           std::forward<TContextArgs>(contextArgs)...);
+            threadCount = 1;
 #else
-            return DetachN(workerFunc, maxQueue, std::thread::hardware_concurrency(),
-                           alloc, std::forward<TContextArgs>(contextArgs)...);
+            threadCount = std::thread::hardware_concurrency();
 #endif
+
+            return DetachN(workerFunc, maxQueue, threadCount, std::forward<TContextArgs>(contextArgs)...);
         }
 
 #pragma endregion
@@ -211,7 +202,7 @@ namespace igi {
         size_t getWorkerCount() { return _workerCount; }
 
         template <typename... T>
-        void issue(T &&... in) {
+        void issue(T &&...in) {
             return _upstream.issue(std::forward<T>(in)...);
         }
 
@@ -224,7 +215,6 @@ namespace igi {
         }
 
       private:
-        allocator_type _alloc;
         worker_thread_t *_workers;
         size_t _workerCount;
         upstream_t _upstream;
