@@ -8,7 +8,7 @@
 
 #define RFLITE_PROJECT_NAME rflite
 
-#define RFLITE_NS      namespace RFLITE_PROJECT_NAME
+#define RFLITE_NS namespace RFLITE_PROJECT_NAME
 #define RFLITE_IMPL_NS namespace RFLITE_PROJECT_NAME::impl
 
 #define RFLITE      ::RFLITE_PROJECT_NAME::

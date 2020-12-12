@@ -3,7 +3,7 @@
 #ifndef RFLITE_DISABLE_DYNAMIC
 
 #ifndef RFLITE_PREPROCESS_ONLY
-#include <assert.h>
+#include <cassert>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -31,7 +31,7 @@ RFLITE_IMPL_NS {
     }
 
     template <typename T, typename... Ts>
-    static inline void construct(allocator_type<T> & alloc, T * ptr, Ts && ... ts) noexcept {
+    static inline void construct(allocator_type<T> & alloc, T * ptr, Ts && ...ts) noexcept {
         ::std::allocator_traits<allocator_type<T>>::construct(alloc, ptr, ::std::forward<Ts>(ts)...);
     }
 
@@ -73,7 +73,7 @@ RFLITE_IMPL_NS {
     }
 
     template <typename T, typename... Ts>
-    static constexpr T max(const T &t0, const T &t1, const Ts &... ts) {
+    static constexpr T max(const T &t0, const T &t1, const Ts &...ts) {
         return max((t0 < t1) ? t1 : t0, ts...);
     }
 
@@ -106,13 +106,15 @@ RFLITE_NS {
         friend class refl_class;
         friend class refl_member;
 
-        using indexed_attr_t = ::std::pair<typename attribute_tag::id_t, const attribute_tag *>;
+        using indexed_attr_t = ::std::pair<typename attribute_tag::attribute_id_t, const attribute_tag *>;
 
         static inline RFLITE_IMPL allocator_type<indexed_attr_t> Alloc = RFLITE_IMPL get_allocator<indexed_attr_t>();
 
         indexed_attr_t *_attrs;
 
         const size_t _nattr;
+
+        refl_attr_collection() : _nattr(0) { }
 
         template <typename... Ts, size_t... Is>
         refl_attr_collection(const ::std::tuple<Ts...> &t, ::std::index_sequence<Is...>)
@@ -135,14 +137,15 @@ RFLITE_NS {
         }
 
         template <typename T>
-        const T &get() const requires(!RFLITE_IMPL typed_attribute<RFLITE_IMPL attr_wrap_t<T>>) {
+        decltype(auto) get() const {
             using wrap_t = RFLITE_IMPL attr_wrap_t<T>;
             return *static_cast<const wrap_t *>(get_impl<wrap_t>());
         }
 
-        template <RFLITE_IMPL typed_attribute T, typename TClass>
-        const typename T::template typed<TClass> &get() const {
-            return *static_cast<const T::template typed<TClass> *>(get_impl<T>());
+        template <typename T, typename TClass>
+        decltype(auto) get() const {
+            using typed_ptr_t = const typename T::template typed<TClass> *;
+            return *static_cast<typed_ptr_t>(get_impl<T>());
         }
 
       private:
@@ -321,7 +324,7 @@ RFLITE_NS {
         }
 
         template <typename... Ts>
-        void invoke(void *buf, Ts &&... args) const {
+        void invoke(void *buf, Ts &&...args) const {
             invoke_impl(buf, ::std::index_sequence_for<Ts...>(), ::std::forward<Ts>(args)...);
         }
 
@@ -339,7 +342,7 @@ RFLITE_NS {
         }
 
         template <typename... Ts, size_t... Is>
-        void invoke_impl(void *buf, ::std::index_sequence<Is...>, Ts &&... args) const {
+        void invoke_impl(void *buf, ::std::index_sequence<Is...>, Ts &&...args) const {
             assert_is_func();
 
             void *param[sizeof...(Ts)] { (&args)... };
@@ -379,7 +382,7 @@ RFLITE_NS {
         }
 
         template <typename... Ts>
-        void invoke(void *buf, Ts &&... args) {
+        void invoke(void *buf, Ts &&...args) {
             if (has_flag(_meta.type(), member_type::function_this)) {
                 assert(_ins);
                 _meta.invoke(buf, _ins, ::std::forward<Ts>(args)...);
@@ -425,6 +428,8 @@ RFLITE_NS {
         }
 
       public:
+        refl_class(int) : _name(), _size(0), _align(0), _nmember(0), _isBase(false), _baseIt() { }
+
         refl_class(const refl_class &) = delete;
         refl_class(refl_class &&)      = default;
 
@@ -489,6 +494,10 @@ RFLITE_NS {
 
         bool operator==(const refl_class &r) const {
             return &r == this;
+        }
+
+        bool operator!=(const refl_class &r) const {
+            return &r != this;
         }
     };
 
@@ -647,12 +656,13 @@ RFLITE_NS {
 
         template <typename T>
         static refl_iter_t regist(::std::string_view name) {
-            if (is_registered(name))
-                return ClassMap.find(name);
-
             refl_iter_t base;
             if constexpr (!is_base_v<T>)
                 base = regist<base_of<T>>();
+
+            auto [it, res] = ClassMap.emplace(name, 0);
+            if (!res)
+                return it;
 
             constexpr size_t nrefl = meta_of<T>::get_meta_count();
 
@@ -671,21 +681,13 @@ RFLITE_NS {
             });
 
             constexpr const auto &attrs = meta_of<T>::attributes.all();
-            refl_class rc(name, sizeof(T), alignof(T), attrs, members, nrefl, is_base_v<T>, base);
+            new (&it->second) refl_class(name, sizeof(T), alignof(T), attrs, members, nrefl, is_base_v<T>, base);
 
-            auto [it, res] = ClassMap.emplace(name, ::std::move(rc));
-            if (res)
-                return it;
-            throw;
+            return it;
         }
 
         static const refl_class &get_class(::std::string_view name) {
             return ClassMap.at(name);
-        }
-
-      private:
-        static bool is_registered(::std::string_view name) {
-            return ClassMap.contains(name);
         }
     };
 

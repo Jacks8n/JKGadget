@@ -99,7 +99,7 @@ TEST(rflite_test, MemberMap) {
 TEST(rflite_test, ForEach) {
     size_t n = 0;
     meta_of<refl_sample>::foreach<member_type::any>([&](auto &&meta) {
-        using attr_t = std::remove_cvref_t<decltype(meta.attributes.template get<1>())>;
+        using attr_t = remove_cref_t<decltype(meta.attributes.template get<1>())>;
 
         constexpr bool bl = std::is_same_v<attr_t, any_a<std::string_view>>;
         EXPECT_TRUE(bl);
@@ -458,11 +458,13 @@ struct refl_sample11 : refl_sample9 {
 
 TEST(rflite_test, ForeachMeta) {
     size_t i  = 0;
-    auto func = [&]<typename T>(const T &) {
-        i++;
-        static_assert(is_null_meta_v<T>);
+    auto func = [&](auto meta) {
+        using meta_t = decltype(meta);
 
-        using type = remove_null_meta_t<T>;
+        i++;
+        static_assert(is_null_meta_v<meta_t>);
+
+        using type = remove_null_meta_t<meta_t>;
         return static_cast<type>(sizeof(type));
     };
 

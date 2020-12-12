@@ -1,8 +1,8 @@
 ﻿#pragma once
 
 #ifndef RFLITE_PREPROCESS_ONLY
-#include <bit>
 #include <tuple>
+#include <type_traits>
 #endif
 
 #include "rflite/internal/macro.h"
@@ -12,6 +12,9 @@ RFLITE_IMPL_NS {
 }
 
 RFLITE_NS {
+    template <typename T>
+    using remove_cref_t = ::std::remove_const_t<::std::remove_reference_t<T>>;
+
     enum class member_type : size_t {
         null            = 0,
         field           = 1,
@@ -189,14 +192,14 @@ RFLITE_NS {
     template <size_t Lo, size_t Len, typename... Ts>
     using sub_type_pack_t = typename sub_type_pack<Lo, Len, Ts...>::type;
 
-    template <auto Val, auto... Vals>
+    template <size_t Val, size_t... Vals>
     class index_of_first {
-        template <size_t I, auto V>
+        template <size_t I, size_t V>
         static constexpr size_t find() {
             return I;
         }
 
-        template <size_t I, auto V, auto V0, auto... Vs>
+        template <size_t I, size_t V, size_t V0, size_t... Vs>
         static constexpr size_t find() {
             return V != V0 ? find<I + 1, V, Vs...>() : I;
         }
@@ -205,7 +208,7 @@ RFLITE_NS {
         static constexpr size_t value = find<0, Val, Vals...>();
     };
 
-    template <auto Val, auto... Vals>
+    template <size_t Val, size_t... Vals>
     static constexpr size_t index_of_first_v = index_of_first<Val, Vals...>::value;
 
     template <typename T>
@@ -221,7 +224,7 @@ RFLITE_NS {
     };
 
     template <template <typename...> typename T, typename TSpec>
-    concept is_specialization_of = is_specialization_of_impl<TSpec>::template value<T>;
+    constexpr bool is_specialization_of_v = is_specialization_of_impl<TSpec>::template value<T>;
 
     template <size_t N, template <typename...> typename TT, typename... Ts>
     class bind_traits {
@@ -242,11 +245,19 @@ RFLITE_NS {
 }
 
 RFLITE_IMPL_NS {
-    template <typename T, size_t S>
-    requires(sizeof(T) == S) class alignas(alignof(T)) any_defer_impl {
-        char _mem[S];
+    template <size_t Align, size_t Size>
+    struct alignas(Align) type_storage {
+        char buf[Size];
+    };
+
+    template <typename T, size_t Align, size_t Size>
+    class any_defer_impl {
+        type_storage<Align, Size> _mem;
 
       public:
+        any_defer_impl() noexcept {
+            new (&_mem) T();
+        }
         any_defer_impl(const any_defer_impl &o) noexcept {
             new (&_mem) T(o.operator const T &());
         }
@@ -254,10 +265,9 @@ RFLITE_IMPL_NS {
             new (&_mem) T(::std::move(o).operator T &&());
         }
 
-        template <typename... Ts>
-        requires(sizeof...(Ts) != 1 || ((!::std::is_same_v<::std::remove_cvref_t<Ts>, T> && !::std::is_same_v<Ts, const any_defer_impl &> && !::std::is_same_v<Ts, any_defer_impl &&>)&&...))
-            any_defer_impl(Ts &&...args) noexcept {
-            new (&_mem) T(::std::forward<Ts>(args)...);
+        template <typename U, typename... Ts, typename = ::std::enable_if_t<!::std::is_same_v<remove_cref_t<U>, any_defer_impl>>>
+        any_defer_impl(U &&arg, Ts &&...args) noexcept {
+            new (&_mem) T(::std::forward<U>(arg), ::std::forward<Ts>(args)...);
         }
 
         any_defer_impl &operator=(const any_defer_impl &o) {
@@ -290,7 +300,7 @@ RFLITE_IMPL_NS {
 
 RFLITE_NS {
     template <typename T>
-    using any_defer = RFLITE_IMPL any_defer_impl<T, sizeof(T)>;
+    using any_defer = RFLITE_IMPL any_defer_impl<T, alignof(T), sizeof(T)>;
 
     struct meta_helper {
         template <typename T, typename... Ts>
@@ -300,11 +310,7 @@ RFLITE_NS {
 
         template <typename T, typename... Ts>
         static T *any_new(Ts &&...ts) noexcept {
-            struct alignas(alignof(T)) storage {
-                char _[sizeof(T)];
-            };
-
-            void *ptr = new storage();
+            void *ptr = new RFLITE_IMPL type_storage<alignof(T), sizeof(T)>();
             return new (ptr) T(::std::forward<Ts>(ts)...);
         }
     };

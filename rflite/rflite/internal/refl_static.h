@@ -1,11 +1,10 @@
 ﻿#pragma once
 
-// Notes:
-//  0.  Some `requires` constraints duplicate concept codes, which is intended, because these
-//      expressions are somehow `cached` and yield identical value in contexts where they are
-//      supposed to differ, e.g. declared but not completely defined and after defined
-//      Don't know whether it's by design or a bug of clang 10.0 :(
-//      These duplication will be marked out
+// N.B.
+// Some of trait variables and types are defined twice with "_predecl" suffix.
+// Because of the potential compiler implementation which assumes these traits
+// are always evaluated consistent, some tricks such as looking for base class
+// while declaring template class might fail.
 
 #ifndef RFLITE_DISABLE_DYNAMIC
 
@@ -195,12 +194,29 @@
     META_B(type, __VA_ARGS__) \
     META_E
 
-RFLITE_NS {
+RFLITE_IMPL_NS {
     template <template <size_t, typename> typename>
-    class has_meta_impl { };
+    using if_meta_info_template_t = void;
+
+    template <typename T, typename = void>
+    struct has_meta_impl : ::std::false_type { };
 
     template <typename T>
-    concept has_meta = requires { typename has_meta_impl<T::template RFLITE_META_INFO>; };
+    struct has_meta_impl<T, if_meta_info_template_t<T::template RFLITE_META_INFO>> : ::std::true_type { };
+    
+    template <typename T, typename = void>
+    struct has_meta_impl_predecl: ::std::false_type { };
+
+    template <typename T>
+    struct has_meta_impl_predecl<T, if_meta_info_template_t<T::template RFLITE_META_INFO>> : ::std::true_type { };
+
+    template <typename T>
+    constexpr bool has_meta_predecl = RFLITE_IMPL has_meta_impl_predecl<T>::value;
+}
+
+RFLITE_NS {
+    template <typename T>
+    constexpr bool has_meta = RFLITE_IMPL has_meta_impl<T>::value;
 
     template <typename T>
     struct null_meta {
@@ -226,28 +242,27 @@ RFLITE_NS {
 
 RFLITE_IMPL_NS {
     constexpr size_t meta_null_id = 0;
-    template <typename T>
+
+    template <typename T, typename = void>
     struct try_get_base {
         using type = T;
     };
 
     template <typename T>
-    // Duplication of `RFLITE has_meta`
-    requires requires { typename has_meta_impl<T::template RFLITE_META_INFO>; }
-    struct try_get_base<T> {
+    struct try_get_base<T, ::std::enable_if_t<has_meta_predecl<T>>> {
         using type = typename T::template RFLITE_META_INFO<0>::base_t;
     };
 
     template <typename T>
     using try_get_base_t = typename try_get_base<T>::type;
 
-    template <typename T>
+    template <typename T, typename = void>
     struct meta_of_impl {
         using type = null_meta<T>;
     };
 
-    template <has_meta T>
-    struct meta_of_impl<T> {
+    template <typename T>
+    struct meta_of_impl<T, ::std::enable_if_t<has_meta<T>>> {
         using type = typename T::template RFLITE_META_INFO<T::template RFLITE_META_INFO<RFLITE_IMPL meta_null_id>::get_id()>;
     };
 
