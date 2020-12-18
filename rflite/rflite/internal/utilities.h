@@ -307,11 +307,5 @@ RFLITE_NS {
         static any_defer<T> any_ins(Ts &&...ts) noexcept {
             return any_defer<T>(::std::forward<Ts>(ts)...);
         }
-
-        template <typename T, typename... Ts>
-        static T *any_new(Ts &&...ts) noexcept {
-            void *ptr = new RFLITE_IMPL type_storage<alignof(T), sizeof(T)>();
-            return new (ptr) T(::std::forward<Ts>(ts)...);
-        }
     };
 }
