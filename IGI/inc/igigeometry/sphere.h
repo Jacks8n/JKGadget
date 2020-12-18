@@ -14,7 +14,7 @@ namespace igi {
 
                        sphere *p = context::Allocate<sphere>();
                        context::Construct(p, radius);
-                       return p;
+                       return static_cast<ISurface *>(p);
                    }))
 
         sphere(single r) : _r(r) { }

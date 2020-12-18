@@ -19,7 +19,8 @@ igi::color3 igi::path_trace::integrate_impl(const scene &scene, const vec3f &o, 
     color3 bxdf;
     igi::interaction ia;
 
-    color3 lint = palette::black;
+    color3 lint  = palette::black;
+    single nsamp = 0_sg;
     for (size_t i = 0; i < _split; i++) {
         scat = mat.getScatter(o, ns, context.pcg);
         if ((scat.pdf == 0_sg) || (scat.pdf < .001_sg && urd(context.pcg) < .5_sg))
@@ -38,7 +39,9 @@ igi::color3 igi::path_trace::integrate_impl(const scene &scene, const vec3f &o, 
         r.reset(surf.position, scat.direction);
         if (scene.getAggregate().tryHit(r, &ia, context.itrtmp))
             lint = lint + integrate_impl(scene, scat.direction, ia, depth - 1, context) * bxdf / scat.pdf;
+
+        nsamp += 1_sg;
     }
 
-    return lu + lint;
+    return nsamp > 0_sg ? lu + lint / nsamp : lu;
 }

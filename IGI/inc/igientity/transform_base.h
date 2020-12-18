@@ -3,16 +3,17 @@
 #include <memory_resource>
 #include "igicontext.h"
 #include "igimath/transform.h"
+#include "igiutilities/igiassert.h"
 
 namespace igi {
     class transformable_base {
-        static inline std::pmr::vector<transform> Transfoms { context::GetTypedAllocator<transform>() };
+        static inline std::pmr::vector<transform> Transforms { context::GetTypedAllocator<transform>() };
 
         transform &_transform;
 
       public:
-        transformable_base() : _transform(Transfoms.emplace_back()) { }
-        transformable_base(transform &transform) : _transform(transform) { }
+        transformable_base() : _transform(Transforms.emplace_back()) { }
+        transformable_base(transform &trans) : _transform(gatherTransform(trans)) { }
 
         igi::transform &getTransform() {
             return _transform;
@@ -20,6 +21,15 @@ namespace igi {
 
         const igi::transform &getTransform() const {
             return _transform;
+        }
+
+      private:
+        static transform &gatherTransform(transform &trans) {
+            if (Transforms.data() < &trans && &trans <= &Transforms.back())
+                return trans;
+
+            Transforms.emplace_back(trans);
+            return Transforms.back();
         }
     };
 }  // namespace igi

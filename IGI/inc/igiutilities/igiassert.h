@@ -5,7 +5,7 @@
 
 namespace igi {
     template <typename... Ts>
-    constexpr void LogError(Ts &&... ts) {
+    constexpr void LogError(Ts &&...ts) {
         if (std::is_constant_evaluated())
             return;
         else {
@@ -16,7 +16,7 @@ namespace igi {
     }
 
     template <typename... Ts>
-    constexpr void Assert(bool b, Ts &&... ts) {
+    constexpr void Assert(bool b, Ts &&...ts) {
         if (std::is_constant_evaluated())
             return;
         else {
@@ -30,9 +30,9 @@ namespace igi {
 }  // namespace igi
 
 #if _DEBUG
-#define igierror(...) ::igi::LogError(__VA_ARGS__)
+#define igierror(...) (std::is_constant_evaluated() ? (void)0 : ::igi::LogError(__VA_ARGS__))
 
-#define igiassert(cond, ...) ::igi::Assert((cond), __FILE__, ':', __LINE__, ": ", #cond, " is false. ", ##__VA_ARGS__)
+#define igiassert(cond, ...) (std::is_constant_evaluated() ? (void)0 : ::igi::Assert((cond), __FILE__, ':', __LINE__, ": ", #cond, " is false. ", ##__VA_ARGS__))
 
 #define igiassert_eq(val, expect)                                             \
     do {                                                                      \

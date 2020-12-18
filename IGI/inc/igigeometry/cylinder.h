@@ -15,13 +15,11 @@ namespace igi {
 
                        cylinder *p = context::Allocate<cylinder>();
                        context::Construct(p, radius, min, max);
-                       return p;
+                       return static_cast<ISurface *>(p);
                    }))
 
         cylinder(single r, single zMin, single zMax)
-            : _r(r), _zMin(zMin), _zMax(zMax) {
-            if (_zMax < _zMin)
-                std::swap(_zMax, _zMin);
+            : _r(r), _zMin(zMin < zMax ? zMin : zMax), _zMax(zMin < zMax ? zMax : zMin) {
         }
 
         single getArea() const override {

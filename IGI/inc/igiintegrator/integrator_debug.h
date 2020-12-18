@@ -3,13 +3,13 @@
 #include "igiintegrator/IIntegrator.h"
 
 namespace igi {
-    enum class integrator_debug_mode { postion,
-                                       normal,
-                                       uv,
-                                       dpdv,
-                                       dpdu,
-                                       depth,
-                                       material_lum };
+    enum class integrator_debug_mode : size_t { postion      = 0,
+                                                normal       = 1,
+                                                uv           = 2,
+                                                dpdv         = 3,
+                                                dpdu         = 4,
+                                                depth        = 5,
+                                                material_lum = 6 };
 
     class integrator_debug : public IIntegrator {
         using debug_func_t = color3 (*)(ray &r, interaction &i);
@@ -17,6 +17,13 @@ namespace igi {
         debug_func_t _debug;
 
       public:
+        META_BE_RT(integrator_debug, ser_pmr_name_a("debug"), deser_pmr_func_a<IIntegrator>([](const serializer_t &ser) {
+                       auto mode = static_cast<integrator_debug_mode>(serialization::Deserialize<size_t>(ser["mode"]));
+
+                       IIntegrator *debug = context::New<integrator_debug>(mode);
+                       return debug;
+                   }))
+
         integrator_debug(integrator_debug_mode mode) {
             debug(mode);
         }

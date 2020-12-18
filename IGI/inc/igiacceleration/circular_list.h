@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <memory_resource>
 #include "igimath/mathutil.h"
+#include "igiutilities/igiassert.h"
 
 namespace igi {
     template <typename T>
@@ -51,7 +52,7 @@ namespace igi {
             }
 
             generic_iterator operator+(difference_type n) const {
-                assert(n < _bufhi - _buflo);
+                igiassert(n < _bufhi - _buflo);
 
                 U *p = _current + n;
                 if (p < _buflo)
@@ -71,7 +72,7 @@ namespace igi {
 
           private:
             void assertSameContainer(const generic_iterator &r) const {
-                assert(_buflo == r._buflo && _bufhi == r._bufhi);
+                igiassert(_buflo == r._buflo && _bufhi == r._bufhi);
             }
         };
 
@@ -127,7 +128,7 @@ namespace igi {
 
             const size_t cap    = capacity();
             const size_t sz     = size();
-            const size_t newcap = FloorExp2((n + sz - 1) / cap + 1) * cap;
+            const size_t newcap = Exp2Floor((n + sz - 1) / cap + 1) * cap;
 
             circular_list tmp(std::move(*this));
 
@@ -198,7 +199,7 @@ namespace igi {
         }
 
         template <typename... Args>
-        void emplace_back(Args &&... args) {
+        void emplace_back(Args &&...args) {
             reserve(1);
 
             new (_end) T(std::forward<Args>(args)...);
@@ -236,12 +237,12 @@ namespace igi {
         }
 
         T &operator[](size_t i) {
-            assert(i < size());
+            igiassert(i < size());
             return *ptrAt(i);
         }
 
         const T &operator[](size_t i) const {
-            assert(i < size());
+            igiassert(i < size());
             return *ptrAt(i);
         }
 
@@ -267,19 +268,19 @@ namespace igi {
         }
 
         void assertNotEmpty() {
-            assert(_begin != _end);
+            igiassert(_begin != _end);
         }
 
         void assertNotFull() {
-            assert(!full());
+            igiassert(!full());
         }
 
         void assertNoLessThan(size_t n) {
-            assert(n <= size());
+            igiassert(n <= size());
         }
 
         void assertValidIterator(const const_iterator &it) const {
-            assert(it._bufhi == _bufhi && it._buflo == _buflo);
+            igiassert(it._bufhi == _bufhi && it._buflo == _buflo);
         }
     };
 }  // namespace igi

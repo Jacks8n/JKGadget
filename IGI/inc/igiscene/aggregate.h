@@ -122,6 +122,7 @@ namespace igi {
                 ++entityIt;
             });
 
+            _leaves.clear();
             initBuild(std::move(iterations));
         }
 

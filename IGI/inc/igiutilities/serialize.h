@@ -31,7 +31,7 @@ namespace igi {
     class serialization {
       public:
         template <typename T, typename... TArgs>
-        static decltype(auto) Deserialize(const serializer_t &ser, TArgs &&...args) {
+        static constexpr decltype(auto) Deserialize(const serializer_t &ser, TArgs &&...args) {
             if constexpr (rflite::has_meta<T>) {
                 constexpr auto ctor = rflite::meta_of<T>::attributes.template get<rflite::func_a>();
 
@@ -47,7 +47,7 @@ namespace igi {
                             else {
                                 constexpr size_t index = rflite::index_of_first_v<true, std::is_convertible_v<TArgs &&, type>...>;
 
-                                // try matching by converting from `args`
+                                // try to match by converting from `args`
                                 if constexpr (index < sizeof...(TArgs))
                                     return std::get<index>(std::forward_as_tuple(std::forward<TArgs>(args)...));
                                 else
@@ -142,7 +142,7 @@ namespace igi {
 
 #define IGI_SERIALIZE_OPTIONAL(type, name, _default, ser, ...) \
     bool has_##name = (ser).HasMember(#name);                  \
-    type name       = has_##name ? ::igi::serialization::Deserialize<type>((ser)[#name], __VA_ARGS__) : (_default)
+    type name       = has_##name ? static_cast<type>(::igi::serialization::Deserialize<type>((ser)[#name], __VA_ARGS__)) : static_cast<type>(_default)
 
 #else
 #define IGI_SERIALIZE_OPTIONAL(type, name, _default, ser, ...)

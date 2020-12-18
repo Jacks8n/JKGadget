@@ -24,14 +24,14 @@ bool igi::cylinder::tryHit(ray &wr, const transform &trans, surface_interaction 
     esingle a = Dot(dxy, dxy);
     esingle b = Dot(oxy, dxy) * 2_sg;
     esingle c = Dot(oxy, oxy) - _r * _r;
-    esingle t0, t1;
-    if (!Quadratic(a, b, c, &t0, &t1))
+
+    auto [solved, t0, t1] = Quadratic(a, b, c);
+    if (!solved)
         return false;
 
     single oz = r.getOrigin()[2];
     single dz = r.getDirection()[2];
     esingle t;
-
     if (r.isNearerT(t0) && InRangecf(_zMin, _zMax, oz + dz * t0))
         t = t0;
     else if (r.isNearerT(t1) && InRangecf(_zMin, _zMax, oz + dz * t1))

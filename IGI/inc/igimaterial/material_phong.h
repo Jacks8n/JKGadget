@@ -11,8 +11,7 @@ namespace igi {
                        IGI_SERIALIZE_OPTIONAL(single, shine, 5_sg, ser);
                        IGI_SERIALIZE_OPTIONAL(color3, specular, palette::white, ser);
 
-                       material_phong *p = context::Allocate<material_phong>();
-                       context::Construct(p, shine, specular);
+                       IMaterial *p = context::New<material_phong>(shine, specular);
                        return p;
                    }))
 

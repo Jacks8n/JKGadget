@@ -10,11 +10,13 @@ namespace igi {
         const size_t _split;
 
       public:
-        META_BE(path_trace, rflite::func_a([](const serializer_t &ser) {
-                    IGI_SERIALIZE_OPTIONAL(size_t, depth, 4, ser);
-                    IGI_SERIALIZE_OPTIONAL(size_t, split, 1, ser);
-                    return rflite::meta_helper::any_ins<path_trace>(depth, split);
-                }))
+        META_BE_RT(path_trace, ser_pmr_name_a("path trace"), deser_pmr_func_a<IIntegrator>([](const serializer_t &ser) {
+                       IGI_SERIALIZE_OPTIONAL(size_t, depth, 4, ser);
+                       IGI_SERIALIZE_OPTIONAL(size_t, split, 1, ser);
+
+                       IIntegrator *pt = context::New<path_trace>(depth, split);
+                       return pt;
+                   }))
 
         path_trace(size_t depth = 4, size_t split = 1)
             : _depth(depth), _split(split < 1 ? 1 : split) { }

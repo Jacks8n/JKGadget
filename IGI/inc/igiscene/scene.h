@@ -27,8 +27,8 @@ namespace igi {
                     shared_vector<ISurface *> surfs = serialization::DeserializePmrArray<ISurface, shared_vector>(sser, policy);
                     shared_vector<entity> ents      = serialization::DeserializeArray<entity, shared_vector>(eser, mats, surfs);
 
-                    return rflite::meta_helper::any_new<scene>(mats.as_shared_ptr(), surfs.as_shared_ptr(), ents.as_shared_ptr(),
-                                                               ents.size(), background);
+                    return context::New<scene>(mats.as_shared_ptr(), surfs.as_shared_ptr(), ents.as_shared_ptr(),
+                                               ents.size(), background);
                 }))
 
         scene(std::shared_ptr<IMaterial *[]> mats, std::shared_ptr<ISurface *[]> surfs,

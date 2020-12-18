@@ -11,8 +11,7 @@ namespace igi {
                        IGI_SERIALIZE_OPTIONAL(single, energy, 10_sg, ser);
                        IGI_SERIALIZE_OPTIONAL(color3, color, palette::white, ser);
 
-                       material_emissive *p = context::Allocate<material_emissive>();
-                       context::Construct(p, energy, color);
+                       IMaterial *p = context::New<material_emissive>(energy, color);
                        return p;
                    }))
 

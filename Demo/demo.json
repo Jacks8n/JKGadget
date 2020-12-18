@@ -11,7 +11,7 @@
     },
     {
       "type": "emissive",
-      "energy": 35
+      "energy": 3.5
     }
   ],
   "surface": [
@@ -40,7 +40,7 @@
     }
   ],
   "integrator": {
-    "type": "pathtrace",
+    "type": "path trace",
     "depth": 4,
     "split": 4
   },

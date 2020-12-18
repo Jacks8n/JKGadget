@@ -43,7 +43,8 @@ namespace igi {
                        IGI_SERIALIZE_OPTIONAL(single, near, DefaultNear, ser);
                        IGI_SERIALIZE_OPTIONAL(single, far, DefaultFar, ser);
 
-                       return rflite::meta_helper::any_new<camera_orthographic>(w, h, near, far);
+                       camera_base *camera = context::New<camera_orthographic>(w, h, near, far);
+                       return camera;
                    }),
                    ser_pmr_name_a("orthographic"))
 
@@ -83,7 +84,8 @@ namespace igi {
                        IGI_SERIALIZE_OPTIONAL(single, near, DefaultNear, ser);
                        IGI_SERIALIZE_OPTIONAL(single, far, DefaultFar, ser);
 
-                       return rflite::meta_helper::any_new<camera_perspective>(fov, ratio, near, far);
+                       camera_base *camera = context::New<camera_perspective>(fov, ratio, near, far);
+                       return camera;
                    }),
                    ser_pmr_name_a("perspective"))
 

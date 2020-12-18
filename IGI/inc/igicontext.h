@@ -65,6 +65,21 @@ namespace igi {
             return std::allocator_traits<allocator_t>::construct(GetTypedAllocator<T, Usage>(), p, std::forward<TArgs>(args)...);
         }
 
+        template <typename T, allocate_usage Usage = allocate_usage::persistent, typename... TArgs>
+        static decltype(auto) New(TArgs &&...args) {
+            auto buf = Allocate<T, Usage>();
+            Construct<T, Usage>(buf, std::forward<TArgs>(args)...);
+            return buf;
+        }
+
+        template <typename T, allocate_usage Usage = allocate_usage::persistent, typename... TArgs>
+        static decltype(auto) NewArray(size_t n, TArgs &&...args) {
+            auto buf = Allocate<T, Usage>(n);
+            for (size_t i = 0; i < n; i++)
+                Construct<T, Usage>(&buf[i], std::forward<TArgs>(args)...);
+            return buf;
+        }
+
         template <typename T, allocate_usage Usage = allocate_usage::persistent>
         static void Destroy(T *p, size_t n = 1) {
             using allocator_t = allocator_generic_t<T>;
@@ -78,6 +93,13 @@ namespace igi {
             using allocator_t = allocator_generic_t<T>;
 
             return std::allocator_traits<allocator_t>::deallocate(GetTypedAllocator<T, Usage>(), p, n);
+        }
+
+        template <typename T, allocate_usage Usage = allocate_usage::persistent>
+        static decltype(auto) Delete(T *p, size_t n = 1) {
+            while (n--)
+                Destroy(p + n);
+            return Deallocate(p);
         }
     };
 }  // namespace igi

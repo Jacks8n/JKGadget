@@ -15,12 +15,16 @@ path_with_texture demo_json(std::pmr::polymorphic_allocator<char> &alloc);
 path_with_texture demo_primitives(std::pmr::polymorphic_allocator<char> &alloc);
 
 int main() {
+    constexpr igi::esingle bar = 1.f;
+    constexpr igi::esingle foo = igi::Sqrt(bar);
+    constexpr auto ab          = igi::Quadratic<igi::esingle>(1.f, -2.f, 1.f);
+
     igi::mem_arena arena;
     std::pmr::polymorphic_allocator<char> alloc(&arena);
     igi::context::ExternalAllocator = &alloc;
 
-    //path_with_texture res = demo_json(alloc);
-    path_with_texture res = demo_primitives(alloc);
+    path_with_texture res = demo_json(alloc);
+    //path_with_texture res = demo_primitives(alloc);
 
     std::ofstream os;
     os.open(res.first.data(), std::ios_base::binary);
@@ -47,8 +51,10 @@ path_with_texture demo_json(std::pmr::polymorphic_allocator<char> &alloc) {
     const auto &camProp   = doc["camera"];
     igi::camera_base *cam = igi::serialization::DeserializePmr<igi::camera_base>(camProp, camProp["type"].GetString());
 
+    const auto &itgProp   = doc["integrator"];
+    igi::IIntegrator *itg = igi::serialization::DeserializePmr<igi::IIntegrator>(itgProp, itgProp["type"].GetString());
+
     igi::scene *demo     = igi::serialization::Deserialize<igi::scene>(doc);
-    igi::path_trace pt   = igi::serialization::Deserialize<igi::path_trace>(doc["integrator"]);
     igi::texture_rgb res = igi::serialization::Deserialize<igi::texture_rgb>(doc["film"]);
 
     IGI_SERIALIZE_OPTIONAL(size_t, spp, 4, doc);
@@ -60,7 +66,7 @@ path_with_texture demo_json(std::pmr::polymorphic_allocator<char> &alloc) {
         std::cout << "spp not set, using default value\n";
     std::cout << "spp: " << spp << '\n';
 
-    igi::render(*demo, *cam, pt, res, spp, &std::cout);
+    igi::render(*demo, *cam, *itg, res, spp, &std::cout);
 
     return std::make_pair(path, res);
 }
@@ -96,8 +102,8 @@ path_with_texture demo_primitives(std::pmr::polymorphic_allocator<char> &alloc) 
     igi::camera_perspective cam;
     cam.setFar(7.f);
 
-    igi::path_trace itg(4, 4);
-    //igi::integrator_debug itg(igi::integrator_debug_mode::depth);
+    //igi::path_trace itg(4, 4);
+    igi::integrator_debug itg(igi::integrator_debug_mode::normal);
 
     igi::texture_rgb res(256, 256);
 

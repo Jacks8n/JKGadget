@@ -34,7 +34,7 @@ namespace igi {
         res.clear(palette::black);
 
         std::mutex m;
-        single w = res.getWidth(), h = res.getHeight();
+        const single w = res.getWidth(), h = res.getHeight();
         auto group = worker_group<task, context>::DetachMax(
             [&, w, h](std::pair<task, context> &pair) {
                 task &in(pair.first);
@@ -53,8 +53,8 @@ namespace igi {
             },
             1024);
 
-        size_t total  = res.getHeight() * res.getWidth() * spp;
-        single oneper = total / 100_sg, oneperInv = 100_sg / total;
+        const size_t total  = res.getHeight() * res.getWidth() * spp;
+        const single oneper = total / 100_sg, oneperInv = 100_sg / total;
         size_t issued = 0_sg, totalIssued = 0_sg;
         size_t prec;
         if (log) {
@@ -64,25 +64,24 @@ namespace igi {
             *log << std::fixed;
         }
 
-        auto start = std::chrono::high_resolution_clock::now();
+        const auto start = std::chrono::high_resolution_clock::now();
         for (size_t j = 0; j < res.getHeight(); j++)
             for (size_t i = 0; i < res.getWidth(); i++)
                 for (size_t k = 0; k < spp; k++) {
                     group->issue(i, j, &res.get(i, j));
 
                     if (log && ++issued >= oneper) {
-                        auto elapsed = std::chrono::high_resolution_clock::now() - start;
+                        const auto elapsed = std::chrono::high_resolution_clock::now() - start;
 
                         totalIssued += issued;
                         *log << oneperInv * totalIssued << "%\t"
-                             << elapsed.count() * 1e-9 << "s used" << std::endl;
+                             << elapsed.count() * 1e-9 << "s" << std::endl;
                         issued = 0;
                     }
                 }
-
         group->waitFinish();
 
-        single sppinv = 1_sg / spp;
+        const single sppinv = 1_sg / spp;
         for (size_t j = 0; j < res.getHeight(); j++)
             for (size_t i = 0; i < res.getWidth(); i++) {
                 color3 &c = res.get(i, j);
@@ -91,7 +90,7 @@ namespace igi {
             }
 
         if (log) {
-            auto elapsed = std::chrono::high_resolution_clock::now() - start;
+            const auto elapsed = std::chrono::high_resolution_clock::now() - start;
             *log << "finished in " << elapsed.count() * 1e-9 << "s" << std::endl;
 
             log->precision(prec);

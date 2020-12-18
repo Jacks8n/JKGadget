@@ -63,7 +63,7 @@ namespace igi {
                 size_t csize = static_cast<size_t>(size * 1.36);
                 if (csize < MinChunkSize)
                     csize = MinChunkSize;
-                csize = CeilExp2(csize);
+                csize = Exp2Ceil(csize);
                 return *(_last = chunk::AllocChunk(csize, align, _last));
             }
 

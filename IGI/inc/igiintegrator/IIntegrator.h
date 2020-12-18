@@ -15,6 +15,8 @@ namespace igi {
     };
 
     struct IIntegrator {
+        META_BE_RT(IIntegrator)
+
         virtual color3 integrate(const scene &scene, ray &r, integrator_context &context) const = 0;
     };
 }  // namespace igi
