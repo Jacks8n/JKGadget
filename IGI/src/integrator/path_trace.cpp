@@ -7,12 +7,12 @@ igi::color3 igi::path_trace::integrate_impl(const scene &scene, const vec3f &o, 
     const surface_interaction &surf = interaction.surface;
     const igi::IMaterial &mat       = *interaction.material;
 
-    color3 lu = mat.getLuminance() * -Dot(o, surf.normal);
+    const color3 lu = mat.getLuminance() * -Dot(o, surf.normal);
 
     if (!depth)
         return lu;
 
-    mat3x3f ns = surf.getNormalSpace();
+    const mat3x3f ns = surf.getNormalSpace();
 
     ray r;
     scatter scat;
@@ -36,7 +36,7 @@ igi::color3 igi::path_trace::integrate_impl(const scene &scene, const vec3f &o, 
             scat.pdf *= .5_sg;
         }
 
-        r.reset(surf.position, scat.direction);
+        r = ray(surf.position, scat.direction);
         if (scene.getAggregate().tryHit(r, &ia, context.itrtmp))
             lint = lint + integrate_impl(scene, scat.direction, ia, depth - 1, context) * bxdf / scat.pdf;
 

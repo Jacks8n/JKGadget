@@ -29,12 +29,12 @@ bool igi::cylinder::tryHit(ray &wr, const transform &trans, surface_interaction 
     if (!solved)
         return false;
 
-    single oz = r.getOrigin()[2];
-    single dz = r.getDirection()[2];
+    const single &oz = r.getOrigin()[2];
+    const single &dz = r.getDirection()[2];
     esingle t;
-    if (r.isNearerT(t0) && InRangecf(_zMin, _zMax, oz + dz * t0))
+    if (wr.occlude(t0) && InRangecf(_zMin, _zMax, oz + dz * t0))
         t = t0;
-    else if (r.isNearerT(t1) && InRangecf(_zMin, _zMax, oz + dz * t1))
+    else if (wr.occlude(t1) && InRangecf(_zMin, _zMax, oz + dz * t1))
         t = t1;
     else
         return false;

@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "igiutilities/igiassert.h"
 #include "igimath/transform.h"
 #include "igimath/vec.h"
 
@@ -40,27 +41,24 @@ namespace igi {
             return _o;
         }
 
-        ray &setOrigin(const vec3f &o) {
-            _o = o;
-            return *this;
+        void setOrigin(const vec3f &o) {
+            new (this) ray(o, getEndpoint() - o, 1_sg);
         }
 
         constexpr const vec3f &getDirection() const {
             return _d;
         }
 
-        ray &setDirection(const vec3f &d) {
+        void setDirection(const vec3f &d) {
             new (this) ray(_o, d, _t);
-            return *this;
         }
 
         constexpr vec3f getEndpoint() const {
             return cast(_t);
         }
 
-        ray &setEndpoint(const vec3f &e) {
+        void setEndpoint(const vec3f &e) {
             new (this) ray(_o, e - _o, 1_sg);
-            return *this;
         }
 
         constexpr single getTMin() const {
@@ -71,19 +69,18 @@ namespace igi {
             return _t;
         }
 
-        ray &setT(esingle t) {
-            assert(t > getTMin());
+        void setT(esingle t) {
+            igiassert(t > getTMin());
 
             _t = t;
-            return *this;
         }
 
-        constexpr bool isNearerT(esingle t) const {
+        constexpr bool occlude(esingle t) const {
             return InRangecf(getTMin(), getT(), t);
         }
 
-        ray &reset(const vec3f &o, const vec3f &d, esingle t = DefaultT) {
-            return setOrigin(o).setDirection(d).setT(t);
+        void reset(const vec3f &o, const vec3f &e) {
+            new (this) ray(o, e - o, 1_sg);
         }
 
         void normalizeDirection() {
@@ -106,7 +103,7 @@ namespace igi {
 
       private:
         void assertNormalizdDir() const {
-            assert(_d.isNormalized());
+            igiassert(_d.isNormalized());
         }
     };
 }  // namespace igi

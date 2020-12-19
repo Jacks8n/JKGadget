@@ -3,8 +3,8 @@
 
 namespace igi {
     bool sphere::isHit(const ray &wr, const transform &trans) const {
-        ray r    = surface_helper::ToLocalRay(r, trans);
-        single p = -Dot(r.getOrigin(), r.getDirection());
+        const ray r = surface_helper::ToLocalRay(wr, trans);
+        single p    = -Dot(r.getOrigin(), r.getDirection());
         return r.cast(p).magnitudeSqr() < _r * _r
                && p < r.getT() * r.getDirection().magnitudeSqr();
     }
@@ -12,10 +12,10 @@ namespace igi {
     bool sphere::tryHit(ray &wr, const transform &o2w, surface_interaction *res) const {
         const ray r = surface_helper::ToLocalRay(wr, o2w);
 
-        single a = r.getDirection().magnitudeSqr();
-        single b = 2_sg * Dot(r.getDirection(), r.getOrigin());
-        single c = r.getOrigin().magnitudeSqr() - _r * _r;
-        single d = b * b - 4_sg * a * c;
+        esingle a = r.getDirection().magnitudeSqr();
+        esingle b = 2_sg * Dot(r.getDirection(), r.getOrigin());
+        esingle c = r.getOrigin().magnitudeSqr() - _r * _r;
+        esingle d = b * b - 4_sg * a * c;
 
         if (!(d > 0)) return false;
 
@@ -23,11 +23,10 @@ namespace igi {
         b = -b * a;
         d = sqrt(d) * a;
 
-        single t;
-
-        if (InRangecf(r.getTMin(), r.getT(), b - d))
+        esingle t;
+        if (wr.occlude(b - d))
             t = b - d;
-        else if (InRangecf(r.getTMin(), r.getT(), b + d))
+        else if (wr.occlude(b + d))
             t = b + d;
         else
             return false;
