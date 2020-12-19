@@ -17,12 +17,9 @@ namespace igi {
 
     constexpr single SingleEpsilon = std::numeric_limits<single>::epsilon();
 
-    static_assert(std::numeric_limits<single>::has_infinity);
     constexpr single SingleInf = std::numeric_limits<single>::infinity();
 
-    constexpr single SingleLarge = static_cast<single>(1) / SingleEpsilon;
-
-    // todo: deal with 0 / 0
+    constexpr single SingleLarge = static_cast<single>(1 << 15);
 
     /// @brief ordering is not transitive, i.e., a == b && b == c doesn't imply a == c, though the comparison is implemented as weak_ordering
     template <is_single_float_c T>

@@ -7,9 +7,15 @@
 namespace igi {
     template <typename T, size_t N>
     requires(N > 1) class matrix<T, N, 1> : public matrix_base<T, N, 1> {
+      public:
+        using typename matrix_base<T, N, 1>::ref_element_t;
+        using typename matrix_base<T, N, 1>::cref_element_t;
+
         using matrix_base<T, N, 1>::matrix_base;
 
-      public:
+        using matrix_base<T, N, 1>::row;
+        using matrix_base<T, N, 1>::col;
+
         META_BE(matrix, rflite::func_a([](const serializer_t &ser) {
                     if (!ser.IsArray() || ser.Size() != N)
                         throw;
@@ -47,23 +53,33 @@ namespace igi {
         }
 
         template <typename... Is>
-        constexpr matrix permute(Is &&... is) const {
+        constexpr matrix permute(Is &&...is) const {
             return matrix(operator[](std::forward<Is>(is))...);
         }
 
         decltype(auto) operator[](size_t i) {
-            assert(i < N);
+            igiassert(i < N);
             return matrix_base<T, N, 1>::get(i, 0);
         }
 
         constexpr decltype(auto) operator[](size_t i) const {
-            assert(i < N);
+            igiassert(i < N);
             return matrix_base<T, N, 1>::get(i, 0);
+        }
+
+        template <size_t Nsub>
+        requires(Nsub < N) constexpr operator matrix<ref_element_t, Nsub, 1>() {
+            return row(std::make_index_sequence<Nsub>());
+        }
+
+        template <size_t Nsub>
+        requires(Nsub < N) constexpr operator matrix<cref_element_t, Nsub, 1>() const {
+            return row(std::make_index_sequence<Nsub>());
         }
     };
 
     template <typename T0, typename... Ts>
-    constexpr auto igivec(T0 &&t0, Ts &&... ts) {
+    constexpr auto igivec(T0 &&t0, Ts &&...ts) {
         return matrix<std::remove_cvref_t<T0>, sizeof...(Ts) + 1, 1>(
             std::forward<T0>(t0), std::forward<Ts>(ts)...);
     }
@@ -71,9 +87,9 @@ namespace igi {
     template <typename T, size_t N>
     using vec = matrix<T, N, 1>;
     template <size_t N>
-    using vecf = matrix<single, N, 1>;
+    using vecf = vec<single, N>;
     template <size_t N>
-    using vecef = matrix<esingle, N, 1>;
+    using vecef = vec<esingle, N>;
 
     template <typename T>
     using vec2 = vec<T, 2>;
