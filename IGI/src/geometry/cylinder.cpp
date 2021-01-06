@@ -32,9 +32,9 @@ bool igi::cylinder::tryHit(ray &wr, const transform &trans, surface_interaction 
     const single &oz = r.getOrigin()[2];
     const single &dz = r.getDirection()[2];
     esingle t;
-    if (wr.occlude(t0) && InRangecf(_zMin, _zMax, oz + dz * t0))
+    if (wr.occluded(t0) && InRangecf(_zMin, _zMax, oz + dz * t0))
         t = t0;
-    else if (wr.occlude(t1) && InRangecf(_zMin, _zMax, oz + dz * t1))
+    else if (wr.occluded(t1) && InRangecf(_zMin, _zMax, oz + dz * t1))
         t = t1;
     else
         return false;
@@ -42,13 +42,13 @@ bool igi::cylinder::tryHit(ray &wr, const transform &trans, surface_interaction 
     wr.setT(t);
     res->position = r.cast(t);
 
-    res->normal = vec3f(res->position[0], res->position[1], 0_sg);
+    res->normal = vec3f(res->position.row<0, 1>(), 0_sg);
+
+    res->uv = vec2f(PiTwoToZeroOne(atan2(res->normal[1], res->normal[0])),
+                    Saturate(Ratio(_zMin, _zMax, res->position[2])));
 
     res->dpdu = vec3f(-res->position[1], res->position[0], 0_sg);
     res->dpdv = vec3f(0_sg, 0_sg, _zMax - _zMin);
-
-    res->uv = vec2f(Saturate(PiTwoToZeroOne(atan2(res->normal[1], res->normal[0]))),
-                    Saturate(Ratio(_zMin, _zMax, res->position[2])));
 
     res->normal = MakeReversedOrient(r.getDirection(), res->normal);
 

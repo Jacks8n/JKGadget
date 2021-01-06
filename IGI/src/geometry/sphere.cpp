@@ -1,5 +1,4 @@
 ﻿#include "igigeometry/sphere.h"
-#include <cmath>
 
 namespace igi {
     bool sphere::isHit(const ray &wr, const transform &trans) const {
@@ -21,12 +20,12 @@ namespace igi {
 
         a = .5_sg / a;
         b = -b * a;
-        d = sqrt(d) * a;
+        d = Sqrt(d) * a;
 
         esingle t;
-        if (wr.occlude(b - d))
+        if (wr.occluded(b - d))
             t = b - d;
-        else if (wr.occlude(b + d))
+        else if (wr.occluded(b + d))
             t = b + d;
         else
             return false;
@@ -41,7 +40,7 @@ namespace igi {
         auto [cosv, sinv] = (xy * (1_sg / sinu)).asTuple();
 
         res->uv = vec2f(Saturate(atan2(sinu, cosu) * PiInv),
-                        Saturate(PiTwoToZeroOne(atan2(res->normal[1], res->normal[0]))));
+                        PiTwoToZeroOne(atan2(res->normal[1], res->normal[0])));
 
         res->dpdu = vec3f(cosv * cosu * _r, sinv * cosu * _r, -sinu * _r);
         res->dpdv = vec3f(-sinv * sinu * _r, cosv * sinu * _r, 0_sg);

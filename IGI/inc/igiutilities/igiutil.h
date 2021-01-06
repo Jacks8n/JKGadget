@@ -69,12 +69,12 @@ namespace igi {
     }
 
     template <typename TFn, size_t... Is, typename... TArgs>
-    requires(std::is_invocable_v<TFn, size_t, TArgs...>) constexpr auto ForCE(TFn &&fn, std::index_sequence<Is...>, TArgs &&... args) {
+    requires(std::is_invocable_v<TFn, size_t, TArgs...>) constexpr auto ForCE(TFn &&fn, std::index_sequence<Is...>, TArgs &&...args) {
         return std::make_tuple(fn(Is, std::forward<TArgs>(args)...)...);
     }
 
     template <size_t N, typename TFn, typename... Ts>
-    constexpr auto ForCE(TFn &&fn, Ts &&... ts) {
+    constexpr auto ForCE(TFn &&fn, Ts &&...ts) {
         return ForCE(std::forward<TFn>(fn), std::make_index_sequence<N>(), std::forward<Ts>(ts)...);
     }
 }  // namespace igi

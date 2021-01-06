@@ -75,7 +75,7 @@ namespace igi {
             _t = t;
         }
 
-        constexpr bool occlude(esingle t) const {
+        constexpr bool occluded(esingle t) const {
             return InRangecf(getTMin(), getT(), t);
         }
 
