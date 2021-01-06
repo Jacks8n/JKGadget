@@ -24,10 +24,6 @@ namespace igi {
     }
 
     constexpr auto PiTwoToZeroOne(const single &val) {
-        return val * PiTwoInv + .5_sg;
-    }
-
-    constexpr auto ZeroOneToPiTwo(const single &val) {
-        return val * PiTwo - Pi;
+        return Saturate(val * PiTwoInv + .5_sg);
     }
 }  // namespace igi

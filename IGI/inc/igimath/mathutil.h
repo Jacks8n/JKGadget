@@ -134,6 +134,11 @@ namespace igi {
     }
 
     template <typename T>
+    constexpr std::remove_cvref_t<T> Abs(T &&val) {
+        return std::is_constant_evaluated() ? val < 0 ? -val : val : std::abs(val);
+    }
+
+    template <typename T>
     using precise_float_t = std::conditional_t<std::is_same_v<T, float>, double, std::conditional_t<std::is_same_v<T, double> && std::is_same_v<T, long double>, long double, T>>;
 
     template <typename T, typename TRes = std::remove_cvref_t<T>>

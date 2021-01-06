@@ -87,6 +87,8 @@ namespace igi {
     template <typename T, size_t N>
     using vec = matrix<T, N, 1>;
     template <size_t N>
+    using veci = vec<int, N>;
+    template <size_t N>
     using vecf = vec<single, N>;
     template <size_t N>
     using vecef = vec<esingle, N>;
@@ -98,9 +100,9 @@ namespace igi {
     template <typename T>
     using vec4 = vec<T, 4>;
 
-    using vec2i = vec2<int>;
-    using vec3i = vec3<int>;
-    using vec4i = vec4<int>;
+    using vec2i = veci<2>;
+    using vec3i = veci<3>;
+    using vec4i = veci<4>;
 
     using vec2f = vecf<2>;
     using vec3f = vecf<3>;
