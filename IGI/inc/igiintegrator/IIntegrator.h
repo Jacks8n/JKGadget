@@ -7,11 +7,22 @@ namespace igi {
         using itr_stack_t = typename aggregate::itr_stack_t;
 
         pcg32 pcg;
-        itr_stack_t itrtmp;
-        void *data;
 
-        integrator_context(void *data = nullptr)
-            : pcg(), itrtmp(context::GetTypedAllocator<itr_stack_t::value_type>()), data(data) { }
+        itr_stack_t itrtmp;
+
+        integrator_context()
+            : pcg(GetSeed()), itrtmp(context::GetTypedAllocator<typename itr_stack_t::value_type>()) {
+        }
+
+      private:
+        static uint64_t GetSeed() {
+#ifdef NDEBUG
+            static std::random_device rd;
+            return rd();
+#else
+            return 0;
+#endif
+        }
     };
 
     struct IIntegrator {

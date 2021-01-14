@@ -36,9 +36,9 @@ namespace igi {
 
         META_BE_RT(camera_base)
 
-        ray getRay(single x, single y) const {
+        ray getRay(vec2f uv) const {
             ray r;
-            r.reset(_v2w.mulPos(vec3f(x, y, 0_sg)), _v2w.mulPos(vec3f(x, y, 1_sg)));
+            r.reset(_v2w.mulPos(vec3f(uv, 0_sg)), _v2w.mulPos(vec3f(uv, 1_sg)));
             r.normalizeDirection();
             return r;
         }
