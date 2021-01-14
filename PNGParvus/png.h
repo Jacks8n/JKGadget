@@ -12,7 +12,7 @@ namespace pngparvus {
             : _c { r, g, b } { }
 
         constexpr uint8_t operator[](size_t index) const {
-#if _DEBUG
+#ifndef NDEBUG
             if (index > 2) throw;
 #endif
             return _c[index];
@@ -27,7 +27,7 @@ namespace pngparvus {
             : _c { r, g, b, a } { }
 
         constexpr uint8_t operator[](size_t index) const {
-#if _DEBUG
+#ifndef DEBUG
             if (index > 3) throw;
 #endif
             return _c[index];
@@ -61,7 +61,8 @@ namespace pngparvus {
 
         static constexpr size_t channel = std::is_same_v<pixel_t, pixel_rgb>
                                               ? 3
-                                              : std::is_same_v<pixel_t, pixel_rgba> ? 4 : 0;
+                                          : std::is_same_v<pixel_t, pixel_rgba> ? 4
+                                                                                : 0;
     };
 
     template <typename T>
