@@ -3,11 +3,59 @@
 #include "igimath/vec.h"
 
 namespace igi {
-    template <size_t N, typename T = size_t>
-    requires(std::is_unsigned_v<T>) class mcode {
+    template <size_t N, typename T = unsigned>
+    class mvec {
       public:
         using coord_t = vec<T, N>;
-        using index_t = T;
+
+      private:
+        coord_t _coord;
+
+      public:
+        constexpr mvec() : _coord() { }
+
+        constexpr mvec(const coord_t &coord) : _coord(coord) { }
+
+        constexpr const coord_t &coord() const {
+            return _coord;
+        }
+
+        constexpr mvec &operator++() {
+            for (T &i : _coord)
+                if (++i & 1)
+                    break;
+            return *this;
+        }
+
+        constexpr mvec operator++(int) {
+            mvec temp = *this;
+            operator++();
+            return temp;
+        }
+
+        constexpr operator const coord_t &() const {
+            return coord();
+        }
+
+        constexpr bool operator!=(const mvec &r) const {
+            return _coord != r._coord;
+        }
+
+        constexpr bool operator==(const mvec &r) const {
+            return _coord == r._index;
+        }
+    };
+
+    template <size_t N, typename T = unsigned>
+    class mcurve;
+
+    template <size_t N, typename T = unsigned>
+    requires(std::is_unsigned_v<T>) class mcode {
+        friend class mcurve<N, T>;
+
+      public:
+        using coord_t = typename mvec<N, T>::coord_t;
+        using index_t = std::conditional_t<sizeof(T) >= 4, uint64_t, uint32_t>;
 
       private:
         static constexpr size_t MaxCoordBits  = sizeof(index_t) * 8 / N;
@@ -36,6 +84,14 @@ namespace igi {
             return _index;
         }
 
+        constexpr bool operator!=(const mcode &r) const {
+            return _index != r._index;
+        }
+
+        constexpr bool operator==(const mcode &r) const {
+            return _index == r._index;
+        }
+
       private:
         template <size_t I>
         static constexpr index_t GetSpacedMask() {
@@ -54,7 +110,7 @@ namespace igi {
                 return static_cast<index_t>(~0) >> (sizeof(index_t) * 8 - MaxCoordBits);
         }
 
-        static constexpr index_t ToSpaced(const index_t &i) {
+        static constexpr index_t ToSpaced(const T &i) {
             constexpr size_t shift = 1 << (MaxShiftCount - 1);
 
             return ([&]<size_t... Is>(std::index_sequence<Is...>) {
@@ -84,4 +140,42 @@ namespace igi {
 
     template <size_t N, typename T>
     mcode(const vec<T, N> &) -> mcode<N, std::make_unsigned_t<T>>;
+
+    template <size_t N, typename T>
+    class mcurve {
+        mcode<N, T> _index;
+        mvec<N, T> _coord;
+
+      public:
+        using coord_t = typename mvec<N, T>::coord_t;
+        using index_t = typename mcode<N, T>::index_t;
+
+        constexpr mcurve() : _index(), _coord() { }
+
+        constexpr mcurve(const coord_t &coord) : _index(coord), _coord(coord) { }
+
+        constexpr mcurve &operator++() {
+            ++_index._index;
+            ++_coord;
+            return *this;
+        }
+
+        constexpr mcurve operator++(int) {
+            mcurve temp = *this;
+            operator++();
+            return temp;
+        }
+
+        constexpr operator const index_t &() const {
+            return _index;
+        }
+
+        constexpr bool operator!=(const mcurve &r) const {
+            return _index != r._index;
+        }
+
+        constexpr bool operator==(const mcurve &r) const {
+            return _index == r._index;
+        }
+    };
 }  // namespace igi
