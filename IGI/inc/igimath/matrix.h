@@ -3,6 +3,7 @@
 /// operands of templated matrix operators are desgined to be const ref,
 /// in order to simplify further specialization
 
+#include <algorithm>
 #include "igimath/mathutil.h"
 #include "igimath/single.h"
 #include "igiutilities/igiutil.h"
@@ -145,12 +146,20 @@ namespace igi {
             return matrix<T, Nrow, Ncol>([&](size_t, size_t) constexpr { return val; });
         }
 
-        constexpr decltype(auto) getAll() {
-            return (_elem);
+        constexpr decltype(auto) begin() {
+            return std::begin(_elem);
         }
 
-        constexpr decltype(auto) getAll() const {
-            return (_elem);
+        constexpr decltype(auto) begin() const {
+            return std::begin(_elem);
+        }
+
+        constexpr decltype(auto) end() {
+            return std::end(_elem);
+        }
+
+        constexpr decltype(auto) end() const {
+            return std::end(_elem);
         }
 
         constexpr ref_element_t get(size_t r, size_t c) {
@@ -483,7 +492,7 @@ namespace igi {
 
     template <typename T, size_t Nrow, size_t Ncol>
     void swap(matrix_base<T, Nrow, Ncol> &l, matrix_base<T, Nrow, Ncol> &r) {
-        std::swap(l.getAll(), r.getAll());
+        std::swap_ranges(l.begin(), l.end(), r.begin());
     }
 
     template <typename T, size_t Nrow, size_t Ncol>

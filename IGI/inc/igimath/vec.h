@@ -13,6 +13,8 @@ namespace igi {
 
         using matrix_base<T, N, 1>::matrix_base;
 
+        using matrix_base<T, N, 1>::begin;
+        using matrix_base<T, N, 1>::end;
         using matrix_base<T, N, 1>::row;
         using matrix_base<T, N, 1>::col;
 
@@ -30,8 +32,14 @@ namespace igi {
 
         constexpr matrix(const matrix<T, N - 1, 1> &v, const T &c)
             : matrix_base<T, N, 1>([&](size_t i, size_t j) constexpr { return i < N - 1 ? v[i] : c; }) { }
+
         explicit constexpr matrix(const matrix<T, N + 1, 1> &v)
             : matrix_base<T, N, 1>([&](size_t i, size_t j) constexpr { return v[i]; }) { }
+
+        constexpr T l1norm() const {
+            return std::accumulate(begin(), end(), static_cast<T>(0),
+                                   [](const T &l, const T &r) { return l + Abs(r); });
+        }
 
         constexpr T magnitudeSqr() const {
             return Dot(*this, *this);
@@ -89,6 +97,8 @@ namespace igi {
     template <size_t N>
     using veci = vec<int, N>;
     template <size_t N>
+    using vecu = vec<unsigned, N>;
+    template <size_t N>
     using vecf = vec<single, N>;
     template <size_t N>
     using vecef = vec<esingle, N>;
@@ -104,6 +114,10 @@ namespace igi {
     using vec3i = veci<3>;
     using vec4i = veci<4>;
 
+    using vec2u = vecu<2>;
+    using vec3u = vecu<3>;
+    using vec4u = vecu<4>;
+
     using vec2f = vecf<2>;
     using vec3f = vecf<3>;
     using vec4f = vecf<4>;
@@ -113,8 +127,13 @@ namespace igi {
     using vec4ef = vecef<4>;
 
     template <typename T, size_t N>
-    constexpr T Dot(const matrix_base<T, N, 1> &l, const matrix_base<T, N, 1> &r) {
+    constexpr T Dot(const vec<T, N> &l, const vec<T, N> &r) {
         return l.transMul(r);
+    }
+
+    template <typename T, size_t N>
+    constexpr vec<T, N> Scale(const vec<T, N> &l, const vec<T, N> &r) {
+        return vec<T, N>([&](size_t i, size_t) { return l[i] * r[i]; });
     }
 
     template <typename T>
