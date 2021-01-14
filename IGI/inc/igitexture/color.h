@@ -104,6 +104,11 @@ namespace igi {
             return color3(r / s, g / s, b / s);
         }
 
+        constexpr color3 &operator+=(const color3 &s) {
+            r += s.r, g += s.g, b += s.b;
+            return *this;
+        }
+
         col_c_t &operator[](size_t index) {
             assert(index < 3);
             switch (index) {

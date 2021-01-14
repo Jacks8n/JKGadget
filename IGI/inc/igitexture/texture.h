@@ -21,56 +21,69 @@ namespace igi {
 
       public:
         pngparvus::pixel_rgb operator*() const {
-            T col = (_buf[_index] * 255_col).clamp(0_col, 255_col);
+            const T col = (_buf[_index] * 255_col).clamp(0_col, 255_col);
             return pngparvus::pixel_rgb(static_cast<uint8_t>(col.r),
                                         static_cast<uint8_t>(col.g), static_cast<uint8_t>(col.b));
         }
 
         texture_color255_iterator &operator++() {
-            _index++;
+            ++_index;
             return *this;
         }
 
         bool operator!=(const texture_color255_iterator &o) const {
-            return _buf != o._buf;
+            return _buf != o._buf || _index != o._index;
         }
     };
 
-    // TODO: support for optimal layout beyond the linear one
     template <typename T>
     class texture : public pngparvus::IPNG<texture_color255_iterator<T>> {
       public:
+        using coord_t = unsigned;
+        using index_t = size_t;
+
         class iterator : std::iterator_traits<T *> {
             friend class texture;
 
-            std::shared_ptr<T[]> _buf;
+            std::weak_ptr<T[]> _buf;
 
             size_t _index;
+
+            igiward(_size, size_t);
 
             iterator(const std::shared_ptr<T[]> &buf, size_t index)
                 : _buf(buf), _index(index) { }
 
           public:
             T &operator*() {
-                return _buf[_index];
+                std::shared_ptr<T[]> ptr = _buf.lock();
+                igiassert(ptr);
+                return ptr[_index];
             }
 
             const T &operator*() const {
-                return _buf[_index];
-            }
-
-            bool operator!=(const iterator &it) const {
-                return it._index != _index || it._buf != _buf;
+                std::shared_ptr<T[]> ptr = _buf.lock();
+                igiassert(ptr);
+                return ptr[_index];
             }
 
             iterator &operator++() {
-                _index++;
+                ++_index;
+                igiassert(_index <= _size);
                 return *this;
+            }
+
+            bool operator!=(const iterator &it) const {
+                return it._index != _index || it._buf.lock() != _buf.lock();
             }
         };
 
-        using const_iterator = const iterator;
+      private:
+        std::shared_ptr<T[]> _buf;
 
+        coord_t _w, _h;
+
+      public:
         META_BE(texture, rflite::func_a([](const serializer_t &ser) {
                     size_t w = serialization::Deserialize<size_t>(ser["width"]);
                     size_t h = serialization::Deserialize<size_t>(ser["height"]);
@@ -81,12 +94,10 @@ namespace igi {
         texture(texture &&o)      = default;
 
         texture(size_t w, size_t h)
-            : _buf(AllocBuffer(w, h)), _w(w), _h(h) { }
+            : _buf(context::AllocateSharedArray<T>(w * h)), _w(w), _h(h) { }
 
         texture &operator=(const texture &) = delete;
         texture &operator=(texture &&) = delete;
-
-        ~texture() = default;
 
         size_t getWidth() const override {
             return _w;
@@ -96,49 +107,52 @@ namespace igi {
             return _h;
         }
 
-        texture_color255_iterator<T> getPixels() const override {
-            return texture_color255_iterator<T>(_buf);
+        size_t getPixelCount() const {
+            return _w * _h;
         }
 
-        iterator at(size_t u, size_t v) {
+        iterator begin() {
+            iterator it(_buf, 0);
+            igiward_set(it, _size, getPixelCount());
+
+            return it;
+        }
+
+        iterator end() {
+            const size_t pixel = getPixelCount();
+
+            iterator it(_buf, pixel);
+            igiward_set(it, _size, pixel);
+
+            return it;
+        }
+
+        T &at(const coord_t &u, const coord_t &v) {
             assertInRange(u, v);
-            return iterator(_buf, uvToIndex(u, v));
+            return _buf[uvToIndex(u, v)];
         }
 
-        const_iterator at(size_t u, size_t v) const {
+        const T &at(const coord_t &u, const coord_t &v) const {
             assertInRange(u, v);
-            return const_iterator(_buf, uvToIndex(u, v));
-        }
-
-        T &get(size_t u, size_t v) {
-            return *at(u, v);
-        }
-
-        const T &get(size_t u, size_t v) const {
-            return *at(u, v);
+            return _buf[uvToIndex(u, v)];
         }
 
         void clear(const T &col) {
-            for (size_t j = 0; j < _h; j++)
-                for (size_t i = 0; i < _w; i++)
-                    get(i, j) = col;
+            std::fill(begin(), end(), col);
         }
 
       private:
-        std::shared_ptr<T[]> _buf;
-        size_t _w, _h;
-
-        static std::shared_ptr<T[]> AllocBuffer(size_t w, size_t h) {
-            return std::allocate_shared<T[]>(context::GetTypedAllocator<T>(), w * h);
+        void assertInRange(const coord_t &u, const coord_t &v) const {
+            igiassert(0 <= u && u < _w);
+            igiassert(0 <= v && v < _h);
         }
 
-        void assertInRange(size_t u, size_t v) const {
-            assert(u < _w);
-            assert(v < _h);
+        index_t uvToIndex(const coord_t &u, const coord_t &v) const {
+            return _w * v + u;
         }
 
-        size_t uvToIndex(size_t u, size_t v) const {
-            return v * _w + u;
+        texture_color255_iterator<T> getPixels() const override {
+            return texture_color255_iterator<T>(_buf);
         }
     };
 
