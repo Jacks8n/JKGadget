@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <memory_resource>
+#include "igicontext.h"
 #include "igimath/mathutil.h"
 #include "igiutilities/igiassert.h"
 
@@ -99,6 +100,17 @@ namespace igi {
         circular_list(size_t size, const allocator_type &alloc)
             : _alloc(alloc), _buflo(_alloc.allocate(size + 1)),
               _bufhi(_buflo + size + 1), _begin(_buflo), _end(_bufhi) { }
+
+        circular_list(size_t size)
+            : circular_list(size, context::GetTypedAllocator<T>()) { }
+
+        circular_list(size_t size, const T &value, const allocator_type &alloc)
+            : circular_list(size, alloc) {
+            std::fill(_begin, _end, value);
+        }
+
+        circular_list(size_t size, const T &value)
+            : circular_list(size, value, context::GetTypedAllocator<T>()) { }
 
         circular_list(const circular_list &o, const allocator_type &alloc)
             : _alloc(alloc), _buflo(alloc.allocate(o.getBufSize())),

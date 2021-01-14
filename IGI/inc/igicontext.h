@@ -80,7 +80,7 @@ namespace igi {
             return buf;
         }
 
-        template <typename T, allocate_usage Usage = allocate_usage::persistent>
+        template <allocate_usage Usage = allocate_usage::persistent, typename T>
         static void Destroy(T *p, size_t n = 1) {
             using allocator_t = allocator_generic_t<T>;
 
@@ -88,18 +88,28 @@ namespace igi {
                 std::allocator_traits<allocator_t>::destroy(GetTypedAllocator<T, Usage>(), p++);
         }
 
-        template <typename T, allocate_usage Usage = allocate_usage::persistent>
+        template <allocate_usage Usage = allocate_usage::persistent, typename T>
         static decltype(auto) Deallocate(T *p, size_t n = 1) {
             using allocator_t = allocator_generic_t<T>;
 
             return std::allocator_traits<allocator_t>::deallocate(GetTypedAllocator<T, Usage>(), p, n);
         }
 
-        template <typename T, allocate_usage Usage = allocate_usage::persistent>
+        template <allocate_usage Usage = allocate_usage::persistent, typename T>
         static decltype(auto) Delete(T *p, size_t n = 1) {
             while (n--)
                 Destroy(p + n);
             return Deallocate(p);
+        }
+
+        template <typename T, allocate_usage Usage = allocate_usage::persistent>
+        static std::shared_ptr<T> AllocateShared() {
+            return std::shared_ptr<T>(Allocate<T, Usage>(), [](T *ptr) { Deallocate<Usage>(ptr); });
+        }
+
+        template <typename T, allocate_usage Usage = allocate_usage::persistent>
+        static std::shared_ptr<T[]> AllocateSharedArray(size_t n) {
+            return std::shared_ptr<T[]>(Allocate<T, Usage>(n), [](T *ptr) { Deallocate<Usage>(ptr); });
         }
     };
 }  // namespace igi
